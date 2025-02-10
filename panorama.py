@@ -409,7 +409,7 @@ Parameters
 """ 
 def plot_newick(newick_tree,file_name,color_filename=None):
     ete3_tree = Tree(newick_tree, format=1)
-    if color_filename != None :
+    if color_filename != None and os.path.exists(color_filename):
         cat_df = pd.read_csv(color_filename, sep=',')
         colors = {}
         category = {}
