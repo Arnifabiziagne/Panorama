@@ -58,6 +58,8 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
         node_index = {}
         pav_dic = {}
         arbre_noeuds_dic = {}
+        liste_noeuds_raxml = []
+        index_noeuds_raxml_dic = {}
         longueurs_noeuds = []
         #Premier parcours du GFA pour trouver les noeuds
         #Ce parcours sert à compter les noeuds pour ensuite créer les structures à la taille adaptée
@@ -67,7 +69,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
             ligne_dec = ligne.split()
             if ligne_dec[0] == 'S' and ligne_dec[1] not in node_lentgh_dic:
                 node_lentgh_dic[ligne_dec[1]] = len(ligne_dec[2])
-                longueurs_noeuds.append(len(ligne_dec[2]))
+                longueurs_noeuds.append([ligne_dec[1], len(ligne_dec[2])])
                 node_index[ligne_dec[1]] = nb_noeuds
                 nb_noeuds += 1
 
@@ -80,56 +82,38 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
             ligne = file.readline()
         
         print("Number of paths : " + str(nb_chemins))
+        
         #On trie la liste des longueurs de noeud
         #la liste triée va servir à récupérer la taille à partir de laquelle
         #on va sélectionner les noeuds pour obtenir un nombre proche de l'objectif du 
         #nombre de noeuds
-        longueurs_noeuds.sort()
+        
+        longueurs_noeuds.sort(key=lambda x: x[1])
         
         
         if nb_noeuds_arbre_objectif > nb_noeuds :
             nb_noeuds_arbre_objectif = nb_noeuds
         
-        if (nb_noeuds_arbre_objectif < len(longueurs_noeuds)):
-            taille_selection_noeud = longueurs_noeuds[-nb_noeuds_arbre_objectif]
-        else :
-            taille_selection_noeud = 0
+        if type_selection=="random" :
+            liste_noeuds_raxml = rand.sample(list(node_lentgh_dic.keys()), nb_noeuds_arbre_objectif) 
+        else:
+            liste_noeuds_raxml = [longueurs_noeuds[i][0] for i in range(len(longueurs_noeuds)-1, len(longueurs_noeuds)-1-nb_noeuds_arbre_objectif,-1)]
         
-        #taille_selection_noeud contient la taille minimale que le noeud doit avoir pour être retenu
-        
-        #second parcours du fichier pour sélectionner les noeuds pour construction d'un arbre de coalescence
-        #les noeuds sont sélectionnés de façon aléatoire et le nombre attendu est en paramètre
-        file.seek(0,0)
-        ligne = file.readline()
-        nb_noeuds_arbre = 0
-
-        while ligne :
-            ligne_dec = ligne.split()
-            if ligne_dec[0] == 'S' and ligne_dec[1] not in arbre_noeuds_dic:
-                #Choix des noeuds retenus pour le calcul de distance
-                #si aléatoire => on tire au hasard pour savoir si le noeud est retenu ou non
-                #le taux est fixé par rapport au nombre de noeuds obejctif
-                if (type_selection == 'random') :
-                    if rand.random() <= nb_noeuds_arbre_objectif / nb_noeuds :
-                        arbre_noeuds_dic[ligne_dec[1]] = nb_noeuds_arbre
-                        nb_noeuds_arbre += 1
-                    
-                else :
-                    #Le mode n'est pas aléatoire, on va sélectionner les plus gros noeuds
-                    #avec l'idée d'en retenir approximativement le nombre de noeuds objectif
-                    if len(ligne_dec[2]) >= taille_selection_noeud :
-                        arbre_noeuds_dic[ligne_dec[1]] = nb_noeuds_arbre
-                        nb_noeuds_arbre += 1
-            ligne = file.readline()
+        nb_noeuds_arbre = len(liste_noeuds_raxml)
+        i = 0
+        for noeud in liste_noeuds_raxml:
+            index_noeuds_raxml_dic[noeud] = i
+            i += 1
+            
         
         print("Number of selected nodes to compute tree : " + str(nb_noeuds_arbre))
         
-        #3ème parcours du GFA pour lire les chemins et construire la structure renvoyée
+        #Second parcours du GFA pour lire les chemins et construire la structure renvoyée
         file.seek(0,0)
         ligne = file.readline()
         num_chemin = 0
-        nb_noeuds_chemin = 0
         nb_noeuds_chemin_max = 0
+
         #Définition des séparateurs possible selon le type de chemin (P ou W) et si on garde le strand ou non
         #sep[0] dans un chemin de type Path
         #sep[1] dans un chemin de type Walk
@@ -163,10 +147,11 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         if strand :
                             genome_dic[genome] = np.zeros(2*nb_noeuds)
                             genome_redondant_dic[genome]=np.zeros(2*nb_noeuds)
+                            pav_dic[genome] = np.zeros(2*nb_noeuds_arbre, dtype=int)
                         else :
                             genome_dic[genome] = np.zeros(nb_noeuds)
                             genome_redondant_dic[genome]=np.zeros(nb_noeuds)
-                        pav_dic[genome] = np.zeros(nb_noeuds_arbre, dtype=int)
+                            pav_dic[genome] = np.zeros(nb_noeuds_arbre, dtype=int)
                     
 
                     liste_noeuds_ = re.split(sep[walk],ligne_dec[ind])
@@ -199,8 +184,14 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                             else :
                                 genome_redondant_dic[genome][node_index[noeud]] += 1
                                 genome_dic[genome][node_index[noeud]] = node_lentgh_dic[noeud]
-                            if noeud in arbre_noeuds_dic :
-                                pav_dic[genome][arbre_noeuds_dic[noeud]] = int(1)
+                            if noeud in index_noeuds_raxml_dic :
+                                if strand :
+                                    if s in ["<", "-"]:
+                                        pav_dic[genome][index_noeuds_raxml_dic[noeud]] = int(1)
+                                    else:
+                                        pav_dic[genome][index_noeuds_raxml_dic[noeud]+nb_noeuds_arbre] = int(1)
+                                else:
+                                    pav_dic[genome][index_noeuds_raxml_dic[noeud]] = int(1)
                     
                     if nb_noeuds_chemin_max < len(liste_noeuds) :
                          nb_noeuds_chemin_max = len(liste_noeuds)
