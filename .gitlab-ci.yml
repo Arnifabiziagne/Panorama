@@ -19,7 +19,6 @@ docker_panorama:
   script:
     - docker build 
         --tag $CI_REGISTRY_IMAGE:panorama 
-        --build-arg BUILDKIT_INLINE_CACHE=1
-        - < Dockerfile
+        --build-arg BUILDKIT_INLINE_CACHE=1 .
   after_script:
     - docker push $CI_REGISTRY_IMAGE:panorama
