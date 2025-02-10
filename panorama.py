@@ -14,7 +14,7 @@ from Bio.Phylo.TreeConstruction import DistanceTreeConstructor
 from Bio import Phylo
 import matplotlib
 import random as rand
-from ete3 import Tree, TreeStyle,NodeStyle, faces, TextFace,AttrFace
+from ete3 import Tree, TextFace
 import os
 from tqdm import tqdm
 import subprocess
@@ -300,7 +300,7 @@ Parameters
 Returns
 """
 def analyser_pangenome(file_name, project_name, nb_noeuds_cible = 10000, pondere = True, methode="random", redondance = True, strand = True, color_file_name=None):
-    
+
     print("Launch with args : \nfile_name : " + str(file_name)
           + "\nproject_name : " + str(project_name)
           + "\nnodes number : " + str(nb_noeuds_cible)
