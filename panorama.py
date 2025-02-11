@@ -293,8 +293,8 @@ Returns
 def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible = 10000, methode="random", redondance = True, strand = True, color_file_name=None):
 
     print("Launch with args : \nfile_name : " + str(file_name)
-          + "\project_directory : " + str(project_directory)
-          + "\project_name : " + str(project_name)
+          + "\nproject_directory : " + str(project_directory)
+          + "\nproject_name : " + str(project_name)
           + "\nnodes number : " + str(nb_noeuds_cible)
           + "\nmethod : " + str(methode)
           +"\nredundancy : " + str(redondance)
@@ -303,7 +303,7 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
     
     rep = project_directory+"/"+project_name
     if not os.path.exists(rep):
-        os.mkdir(project_directory+"/"+project_name)
+        os.makedirs(rep)
         
     raxml_dir = rep+"/raxml" 
     if not os.path.exists(raxml_dir):
