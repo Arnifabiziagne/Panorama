@@ -33,7 +33,7 @@ Parameters
     @nb_noeuds_arbre_objectif : permet d'indiquer le nombre de noeuds souhaité 
        cette donnée est fixée à 10000 par défaut et le nomnbre réel de noeuds renvoyé sera 
        un peu différent
-    @type_selection="aleatoire" ou "taille" : mode de sélection des noeuds pour le calcul basé sur la morphologie (présence ou absence des noeuds)
+    @type_selection="random" ou autre : mode de sélection des noeuds pour la matrice PAV, soit on sélectionne de façon aléatoire, soit par la taille (on sélectionne les plus gros noeuds)
     @strand : True
 Returns
    genome_dic : dictionnary
@@ -57,7 +57,6 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
         node_lentgh_dic = {}
         node_index = {}
         pav_dic = {}
-        arbre_noeuds_dic = {}
         liste_noeuds_raxml = []
         index_noeuds_raxml_dic = {}
         longueurs_noeuds = []
@@ -104,7 +103,9 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
         for noeud in liste_noeuds_raxml:
             index_noeuds_raxml_dic[noeud] = i
             i += 1
-            
+         
+        liste_noeuds_raxml = []
+        longueurs_noeuds = []
         
         print("Number of selected nodes to compute tree : " + str(nb_noeuds_arbre))
         
@@ -207,7 +208,7 @@ Cette fonction calcule la distance de jaccard à partir de la structure renvoyé
 Parameters
     @genome_dic : la structure renvoyée par le chargement du GFA (dictionnaire contenanty les génomes et les noeuds présents dans le génome et leur taille)
     @genome_redondant_dic : la structure renvoyée par le chargement du GFA (dictionnaire contenanty les génomes et les noeuds présents dans le génome et leur nombre d'apparition)
-    @project_name : répertoire ou seront stockés les fichiers de sortie
+    @project_directory : répertoire ou seront stockés les fichiers de sortie
     @redondance : si True alors on calcule la distance de Jaccard sur l'ensemble des noeuds, y compris redondants, sinon uniquement sur la présence / absence de noeud
     @color_filename : ce fichier permet de coloriser les feuilles de l'arbre généré
         le fichier doit être au format csv séparé par "," et doit contenir une ligne d'entêtes
@@ -219,7 +220,7 @@ Returns
     - dfP : matrice de distance pondérée
     - dfNP : matrice de distance non pondérée
 """
-def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_name, redondance=True, color_file_name=None):
+def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directory, redondance=True, color_file_name=None):
     print("Computing the distances")
     genome_list = list(genome_dic.keys())
     dfP = pd.DataFrame(np.ones(shape=(len(genome_list),len(genome_list))), columns=genome_list, index=genome_list)
@@ -264,10 +265,10 @@ def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_name, r
                 dfNP.loc[genome,genome2] = dfNP[genome][genome2]
 
         i += 1
-    dfP.to_csv(project_name+"/"+"weighted_distance_matrix.csv")
-    calcul_arbre_nj(project_name+"/"+"weighted_distance_matrix.csv", project_name, project_name+"/"+"weighted_nj_tree.png", color_file_name)
-    dfNP.to_csv(project_name+"/"+"non_weighted_distance_matrix.csv")
-    calcul_arbre_nj(project_name+"/"+"non_weighted_distance_matrix.csv", project_name, project_name+"/"+"non_weighted_nj_tree.png", color_file_name)
+    dfP.to_csv(project_directory+"/"+"weighted_distance_matrix.csv")
+    calcul_arbre_nj(project_directory+"/"+"weighted_distance_matrix.csv", project_directory+"/"+"weighted_nj_tree", color_file_name)
+    dfNP.to_csv(project_directory+"/"+"non_weighted_distance_matrix.csv")
+    calcul_arbre_nj(project_directory+"/"+"non_weighted_distance_matrix.csv", project_directory+"/"+"non_weighted_nj_tree", color_file_name)
     print("Distances computed")
     return dfP, dfNP
 
@@ -276,9 +277,8 @@ Fonction principale permettant de charger un graphe GFA et de calculer la distan
 On construit également une matrice au format PHYLIP contenant pour chaque genome la présence (1) ou absence (0) pour chaque bnoeud retenu
 Parameters
     @filename : nom du fichier GFA contenant le pangénome
-    @project_name : va créer un répertoire avec ce nom pour stocker les résultats
+    @project_directory : va créer un répertoire avec ce nom pour stocker les résultats
     @nb_noeuds_cible : nombre approximatifs de noeuds souhaités dans la matrice d'absence / presence
-    @pondere : si True alors calcule la distance de Jaccard pondérée par la taille du noeud, sinon calcule la distance de Jaccard non pondérée
     @methode : "aleatoire" ou "taille", permet de sélectionner les noeuds pour l'analyse (sélection soit aléatoire, soit on sélectionne les plus gros noeuds)
     @redondance : si True alors on va utiliser les noeuds présents en plusieurs exemplaires sur un échantillon, sinon on utilisera juste l'absence ou la présence du noeud
     @strand : si True alors on utilise l'indication du strand, sinon on regarde juste si le noeud est présent sans regarder le sens
@@ -290,34 +290,35 @@ Parameters
             - color : code couleur associé à l'échantillon
 Returns
 """
-def analyser_pangenome(file_name, project_name, nb_noeuds_cible = 10000, pondere = True, methode="random", redondance = True, strand = True, color_file_name=None):
+def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible = 10000, methode="random", redondance = True, strand = True, color_file_name=None):
 
     print("Launch with args : \nfile_name : " + str(file_name)
-          + "\nproject_name : " + str(project_name)
+          + "\project_directory : " + str(project_directory)
+          + "\project_name : " + str(project_name)
           + "\nnodes number : " + str(nb_noeuds_cible)
-          + "\nweighted : " + str(pondere)
           + "\nmethod : " + str(methode)
           +"\nredundancy : " + str(redondance)
           +"\nstrand : " + str(strand)
           +"\ncolor filename : " + str(color_file_name))
-    if not os.path.exists(project_name):
-        os.mkdir(project_name)
+    
+    rep = project_directory+"/"+project_name
+    if not os.path.exists(rep):
+        os.mkdir(project_directory+"/"+project_name)
         
-    raxml_dir = project_name+"/raxml" 
+    raxml_dir = rep+"/raxml" 
     if not os.path.exists(raxml_dir):
         os.mkdir(raxml_dir)
     
-    matrice_distance_csv_filename = project_name+"/distance_matrix"
-    matrice_pav = project_name+"/pav_matrix.phy"
+    matrice_pav = rep+"/pav_matrix.phy"
     
     genome_dic, genome_redondant_dic, pav_dic = charger_fichier_gfa(file_name, nb_noeuds_cible, methode, strand)
     
     pav_to_phylip(pav_dic, matrice_pav)
     #Calcul des distances de Jaccard entre les paires
-    dfP, dfNP = calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_name, redondance, color_file_name)
+    dfP, dfNP = calculate_distance_jaccard(genome_dic, genome_redondant_dic, rep, redondance, color_file_name)
     #conversion de la matrice de distance csv vers le format phylip
-    distance_matrix_to_phylip(dfP,project_name+"/weighted_distance_matrix.phy")
-    distance_matrix_to_phylip(dfNP,project_name+"/non_weighted_distance_matrix.phy")
+    distance_matrix_to_phylip(dfP,rep+"/weighted_distance_matrix.phy")
+    distance_matrix_to_phylip(dfNP,rep+"/non_weighted_distance_matrix.phy")
     # Commande RAxML
     raxml_command = [
         "raxmlHPC",  # Le nom de l'exécutable RAxML
@@ -329,9 +330,9 @@ def analyser_pangenome(file_name, project_name, nb_noeuds_cible = 10000, pondere
     ]
 
     # Lancer la commande
-    subprocess.run(raxml_command, cwd="./"+raxml_dir)
+    subprocess.run(raxml_command, cwd=raxml_dir)
     newick_file_name = raxml_dir + "/RAxML_bestTree."+project_name
-    plot_newick(newick_file_name, project_name+"/tree_raxml.png", color_file_name)
+    plot_newick(newick_file_name, rep+"/tree_raxml.png", color_file_name)
 
 
 
@@ -419,11 +420,13 @@ def plot_newick(newick_tree,file_name,color_filename=None):
 Fonction permettant de calculer un arbre phylogénétique à partir de la matrice de distance de Jaccard
 Paramètres : 
     @matrice_distance_filename : nom du fichier contenant la matrice de distance
+    @file_name : nom du fichier de sortie
+    @color_filename : fichier permettant de coloriser l'arbre'
 Retour :
     - Arbre au format newick
 """   
 
-def calcul_arbre_nj(matrice_distance_filename, project_name, file_name,color_filename=None):
+def calcul_arbre_nj(matrice_distance_filename, file_name,color_filename=None):
     df = pd.read_csv(matrice_distance_filename, index_col=0)
     #conversion dataframe en matrice de distance inférieure
     df_val = df.values

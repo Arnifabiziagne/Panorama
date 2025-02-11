@@ -21,9 +21,9 @@ Projet panorama
 
 # Options
     -f / --graphfilename : Specify the gfa file location.
-    -p / --project_name : Specify the project name : a directory with this name will be created and the out files will be generated in this directory.
-    -n / --nodes_number : Number of nodes to select. These nodes will be used to compute the PAV matrix (presence or absence of the selected nodes). This PAV matrix will be used by raxml. Default = 10000.
-    -w / --weigthed : True => Jaccard distance will be computed with the weight (= size of the nodes), False => Jaccard distance will not be weighted. Default = True.
+    -d / --output_directory : Specify the project directory where the output file will be generated. This directory must be unique for each pangenome otherwise the output files will be overwritten.
+    -p / --project_name : Name of the project, a directory of this name will be created into output_directory. Mandatory.
+	-n / --nodes_number : Number of nodes to select. These nodes will be used to compute the PAV matrix (presence or absence of the selected nodes). This PAV matrix will be used by raxml. Default = 10000.
     -m / --method	: "random" => the nodes will be chosen randomly, other value => the nodes will be chosen by length (the bigger nodes will be chosen). Default = "random".
     -r / --redundancy : True => the redundant nodes will be taken into account. False => the redundant nodes will only be taken into account once. Default = True.
     -s / --strand : True => the strand will be taken into account. False => the strand is ignored. Default = True.
