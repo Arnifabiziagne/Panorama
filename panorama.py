@@ -64,7 +64,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
     #sep[1] dans un chemin de type Walk
     sep = ["[,;.*]","(<|>)"]
     dic_count_direct_reverse_strand = {}
-    
+    dic_reversed = {}
     with file:
         ligne = file.readline()
         print("File opening " + str(file_name))
@@ -102,7 +102,10 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                     chromosome = ""
                     if ligne_dec[0]=='P' :
                         ind = 2
-                        chromosome = str(ligne_dec[1].split("#")[1])
+                        if (len(ligne_dec[1].split("#")) > 1) :
+                            chromosome = str(ligne_dec[1].split("#")[1])
+                        else :
+                            chromosome = str(ligne_dec[1].split(".")[1])
                         
                         reverse = ligne_dec[2].count("-") > ligne_dec[2].count("+")
                     else:
@@ -258,6 +261,10 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         #print("genome : " + genome + " liste strand directe : " + str(liste_strand))
                         liste_strand.reverse()
                         liste_noeuds.reverse()
+                        if genome in dic_reversed and chromosome not in dic_reversed[genome]:
+                            dic_reversed[genome].append(chromosome)
+                        else :
+                            dic_reversed[genome] = [chromosome]
                         #print("genome : " + genome + " liste strand reverse : " + str(liste_strand))
                         
                         
@@ -305,9 +312,10 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
     file.close() 
     print("Number of nodes : " + str(nb_noeuds) + "\nLinks : " + str(nb_liens) + "\nPaths : " + str(nb_chemins) + "\nMaximum number of nodes in a path : " + str(nb_noeuds_chemin_max))
     tps3 = time.time()
-    print("Time parsing paths : " + str(tps3 - tps2))
+    print("Time parsing paths : " + str(tps3 - tps2) + "Total time : " + str(tps3 - tps1))
     print("Strand's statistics : reverse : " + str(nb_moins) + " direct : " + str(nb_plus))
-
+    if strand_inversion :
+        print("Liste des chromosomes inversés : " + str(dic_reversed))
     return genome_dic, genome_redondant_dic, pav_dic, stats
 
 """
@@ -415,6 +423,13 @@ Parameters
             - category : nom de catégorie qui sera rajouté au label des feuilles
             - color : code couleur associé à l'échantillon
 Returns
+Methode de calcul des distances :
+    - En mode pondéré : la distance de jaccard va prendre en compte la taille du noeud => les plus gros noeuds auront plus de poids
+    - En mode non pondéré : il s'agit d'une distance de Jaccard d'absence / présence du noeud
+    - Prise en compte de la redondance : dans ce cas on va compter le nombre de fois que le séquence apparait dans les génomes,
+            dans ce cas, si un génome passe 2 fois par un noeud et un autre une seule fois, alors la distance entre les deux ne sera pas nulle
+    - Prise en compte du strand : on va calculer la distance de Jaccard en fonction du sens de parcours du noeud
+            dans ce cas, si un genome passe par s1+ et un autre par s1- la distance ne sera pas nulle
 """
 def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible = 10000, methode="random", redondance = True, strand = True, color_file_name=None, strand_inversion=True):
 
