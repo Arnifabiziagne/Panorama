@@ -20,6 +20,8 @@ from tqdm import tqdm
 import subprocess
 import re
 import time
+import sys
+from Bio.Seq import Seq
 
 
 """
@@ -96,7 +98,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                 nb_chemins += 1
                 if strand_inversion :
                     #Pour le premier parcours du fichier on va préparer un dictionnaire
-                    #pour chaque génome et chaque chromosome on va compte le nombre de 
+                    #pour chaque génome et chaque chromosome on va compter le nombre de 
                     #strand direct et reverse de façon à inverser si le nombre de reverse
                     #est supérieur au nombre de direct
                     chromosome = ""
@@ -107,11 +109,9 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         else :
                             chromosome = str(ligne_dec[1].split(".")[1])
                         
-                        reverse = ligne_dec[2].count("-") > ligne_dec[2].count("+")
                     else:
                         ind = 6
                         chromosome = str(ligne_dec[3])
-                        reverse = ligne_dec[6].count("<") > ligne_dec[6].count(">")
                     
                     
                     #Les noms des génomes sont composés de façon différentes
@@ -143,8 +143,20 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                 
             ligne = file.readline()
         
+        
+        dic_to_check = {}
+        if strand_inversion :
+            #Recherche des genomes / chromosomes inversés
+            for g in dic_count_direct_reverse_strand :
+                for c in dic_count_direct_reverse_strand[g]:
+                    if dic_count_direct_reverse_strand[g][c]["-"] > dic_count_direct_reverse_strand[g][c]["+"]:
+                        if g in dic_to_check :
+                            dic_to_check[g].append(c)
+                        else :
+                            dic_to_check[g] = [c]
+        
+            print("Liste des genomes / chromosomes à inverser : " + str(dic_to_check))
         print("Number of paths : " + str(nb_chemins))
-
         #On trie la liste des longueurs de noeud
         #la liste triée va servir à récupérer la taille à partir de laquelle
         #on va sélectionner les noeuds pour obtenir un nombre proche de l'objectif du 
@@ -187,6 +199,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                 if ligne_dec[0]=='P' or ligne_dec[0]=='W':
                     bar.update(1)
                     num_chemin += 1
+
                     walk = 0
                     
                     #Les noms des génomes sont composés de façon différentes
@@ -210,8 +223,8 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         walk = 1
                         chromosome = str(ligne_dec[3])
                     
-                    if strand_inversion :
-                        reverse = dic_count_direct_reverse_strand[genome][chromosome]["-"] > dic_count_direct_reverse_strand[genome][chromosome]["+"]
+                    if genome in dic_to_check and chromosome in dic_to_check[genome]:
+                        reverse = True
                     
                     if genome not in genome_dic :
                         if strand :
@@ -258,16 +271,10 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                             else :
                                 i += 1
                     if reverse :
-                        #print("genome : " + genome + " liste strand directe : " + str(liste_strand))
                         liste_strand.reverse()
                         liste_noeuds.reverse()
-                        if genome in dic_reversed and chromosome not in dic_reversed[genome]:
-                            dic_reversed[genome].append(chromosome)
-                        else :
-                            dic_reversed[genome] = [chromosome]
-                        #print("genome : " + genome + " liste strand reverse : " + str(liste_strand))
-                        
-                        
+  
+
                     for n in range(0,len(liste_noeuds)) :
                         noeud = liste_noeuds[n]
                         s = liste_strand[n]
@@ -314,8 +321,6 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
     tps3 = time.time()
     print("Time parsing paths : " + str(tps3 - tps2) + "Total time : " + str(tps3 - tps1))
     print("Strand's statistics : reverse : " + str(nb_moins) + " direct : " + str(nb_plus))
-    if strand_inversion :
-        print("Liste des chromosomes inversés : " + str(dic_reversed))
     return genome_dic, genome_redondant_dic, pav_dic, stats
 
 """
@@ -625,5 +630,349 @@ def plot_dendogramme(csv_df_filename, color_filename=None):
 
 
 
-    
+'''
+Cette fonction va inverser les chromosomes d'un GFA pour lesquels le nombre de noeuds reverse est supérieur au nombre de noeuds directs
+'''
+
+def inverser_reverse_chromosome(file_name, output_file_name):
+    file = open(file_name, "r")
+    output_file = open(output_file_name, "w")
+    nb_chemins = 0
+    stats = {}
+
+
+    # Définition des séparateurs possible selon le type de chemin (P ou W) et si on garde le strand ou non
+    # sep[0] dans un chemin de type Path
+    # sep[1] dans un chemin de type Walk
+    sep = ["[,;.*]", "(<|>)"]
+    dic_count_direct_reverse_strand = {}
+    compteur_noeuds_chromosome = {}
+    noeuds_a_inverser = set()
+    temps_depart = time.time()
+    with file, output_file:
+        total_path = sum(1 for line in file if line.startswith(('P', 'W')))
+        print("Debut du parsing, nombre de chemins : " + str(total_path))
+        file.seek(0, 0)
+        ligne = file.readline()
+        print("File opening " + str(file_name))
+
+        # Premier parcours du GFA pour trouver les noeuds
+        # Ce parcours sert à compter les noeuds pour ensuite créer les structures à la taille adaptée
+        # Il sert également à stocker la taille des noeuds dans le cas où l'on séelctionne les noeuds
+        # sur leur taille
+        tps1 = time.time()
+
+
+        with tqdm(total=total_path) as bar:
+            while ligne:
+                ligne_dec = ligne.split()
+                if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
+                    nb_chemins += 1
+                    bar.update(1)
+                    # Pour le premier parcours du fichier on va préparer un dictionnaire
+                    # pour chaque génome et chaque chromosome on va compte le nombre de
+                    # strand direct et reverse de façon à inverser si le nombre de reverse
+                    # est supérieur au nombre de direct
+                    chromosome = ""
+                    if ligne_dec[0] == 'P':
+                        ind = 2
+                        walk = 0
+                        if (len(ligne_dec[1].split("#")) > 1):
+                            chromosome = str(ligne_dec[1].split("#")[1])
+                        else:
+                            chromosome = str(ligne_dec[1].split(".")[1])
+
+                    else:
+                        ind = 6
+                        walk = 1
+                        chromosome = str(ligne_dec[3])
+
+                    # Les noms des génomes sont composés de façon différentes
+                    # Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
+                    # Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
+                    if (len(ligne_dec[1].split("#")) > 1):
+                        genome = ligne_dec[1].split("#")[0]
+                    else:
+                        genome = ligne_dec[1].split(".")[0]
+
+
+
+                    # préparation de la structure dic_count_direct_reverse_strand
+                    # on va compter le nombre de strand direct et reverse
+                    # si le reverse est supérieur au direct on inversera le chromosome
+                    # c'est du au fait que le séquençage des chromosomes n'est pas forcément dans le bon sens
+                    if genome not in dic_count_direct_reverse_strand:
+                        dic_count_direct_reverse_strand[genome] = {}
+
+                    if chromosome not in dic_count_direct_reverse_strand[genome]:
+                        dic_count_direct_reverse_strand[genome][chromosome] = {"+": 0, "-": 0}
+
+                    if ligne_dec[0] == 'P':
+                        dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count("+")
+                        dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("-")
+                    else:
+                        dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count(">")
+                        dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("<")
+
+
+
+
+                ligne = file.readline()
+        dic_to_check = {}
+        #Recherche des genomes / chromosomes inversés
+        for g in dic_count_direct_reverse_strand :
+            for c in dic_count_direct_reverse_strand[g]:
+                if dic_count_direct_reverse_strand[g][c]["-"] > dic_count_direct_reverse_strand[g][c]["+"]:
+                    if g in dic_to_check :
+                        dic_to_check[g].append(c)
+                    else :
+                        dic_to_check[g] = [c]
+        print("Liste des chromosomes à inverser : " + str(dic_to_check))
+        #Second parcours pour des questions de mémoires => on va récupérer les noeuds et le strand 
+        #sur les chromosomes inversés
+        file.seek(0, 0)
+        ligne = file.readline()
+        print("Debut du 2eme parcours")
+        with tqdm(total=total_path) as bar:
+            while ligne:
+                ligne_dec = ligne.split()
+                if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
+                    nb_chemins += 1
+                    bar.update(1)
+                    # Pour le premier parcours du fichier on va préparer un dictionnaire
+                    # pour chaque génome et chaque chromosome on va compte le nombre de
+                    # strand direct et reverse de façon à inverser si le nombre de reverse
+                    # est supérieur au nombre de direct
+                    chromosome = ""
+                    if ligne_dec[0] == 'P':
+                        ind = 2
+                        walk = 0
+                        if (len(ligne_dec[1].split("#")) > 1):
+                            chromosome = str(ligne_dec[1].split("#")[1])
+                        else:
+                            chromosome = str(ligne_dec[1].split(".")[1])
+
+                    else:
+                        ind = 6
+                        walk = 1
+                        chromosome = str(ligne_dec[3])
+
+                    # Les noms des génomes sont composés de façon différentes
+                    # Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
+                    # Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
+                    if (len(ligne_dec[1].split("#")) > 1):
+                        genome = ligne_dec[1].split("#")[0]
+                    else:
+                        genome = ligne_dec[1].split(".")[0]
+                    
+                    set_noeuds = set()  
+                    
+                    if genome in dic_to_check and chromosome in dic_to_check[genome]:
+                        liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
+                        i = 0
+                        while i < len(liste_noeuds_):
+                            noeud = ""
+                            strand = ""
+                            if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
+                                noeud = liste_noeuds_[i + 1]
+                                strand = liste_noeuds_[i]
+                                i += 2
+                            else:
+                                if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
+                                    noeud = liste_noeuds_[i][:-1]
+                                    strand = liste_noeuds_[i][-1]
+                                i += 1
+                                
+                            if noeud != "" and strand != "" and noeud not in noeuds_a_inverser :
+                                noeuds_a_inverser.add(noeud)
+                ligne = file.readline()
+
+            
+        #3ème parcours pour des questions de mémoires => on va vérifier les noeuds uniques
+        file.seek(0, 0)
+        ligne = file.readline()
+        print("Debut du 3eme parcours")
+        set_noeuds_redondants = set()
+        with tqdm(total=total_path) as bar:
+            while ligne:
+                ligne_dec = ligne.split()
+                if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
+                    nb_chemins += 1
+                    bar.update(1)
+                    # Pour le premier parcours du fichier on va préparer un dictionnaire
+                    # pour chaque génome et chaque chromosome on va compte le nombre de
+                    # strand direct et reverse de façon à inverser si le nombre de reverse
+                    # est supérieur au nombre de direct
+                    chromosome = ""
+                    if ligne_dec[0] == 'P':
+                        ind = 2
+                        walk = 0
+                        if (len(ligne_dec[1].split("#")) > 1):
+                            chromosome = str(ligne_dec[1].split("#")[1])
+                        else:
+                            chromosome = str(ligne_dec[1].split(".")[1])
+
+                    else:
+                        ind = 6
+                        walk = 1
+                        chromosome = str(ligne_dec[3])
+        
+                    if (len(ligne_dec[1].split("#")) > 1):
+                        genome = ligne_dec[1].split("#")[0]
+                    else:
+                        genome = ligne_dec[1].split(".")[0]
+                    if genome not in dic_to_check or (genome in dic_to_check and chromosome not in dic_to_check[genome]) :    
+                        liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
+                        i = 0
+                        while i < len(liste_noeuds_):
+                            noeud = ""
+                            strand = ""
+                            if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
+                                noeud = liste_noeuds_[i + 1]
+                                strand = liste_noeuds_[i]
+                                i += 2
+                            else:
+                                if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
+                                    noeud = liste_noeuds_[i][:-1]
+                                    strand = liste_noeuds_[i][-1]
+                                i += 1    
+                            #if noeud in noeuds_a_inverser and genome not in noeuds_a_inverser[noeud]["genomes"]:
+                            #On regarde si le noeud est partagé avec un génomé non inversé, si oui on supprimera ce noeud
+                            #de la liste des noeuds à inverser (les noeuds partagés par des chromosomes inversés sont à inverser)
+                            if noeud in noeuds_a_inverser:
+                                set_noeuds_redondants.add(noeud)
+                ligne = file.readline()
+        print("Nombre de noeuds à inverser dans le path : " + str(len(noeuds_a_inverser)))
+        noeuds_a_inverser = noeuds_a_inverser - set_noeuds_redondants
+        
+        print("Nombre de noeuds uniques à inverser dans les noeuds et liens : " + str(len(noeuds_a_inverser)))
+        
+        
+        
+        print("Number of paths : " + str(nb_chemins))
+
+        tps2 = time.time()
+        print("Time parsing nodes : " + str(tps2 - tps1))
+        
+        #Inversion du GFA
+        print("Génération du GFA")
+        total_lignes = sum(1 for line in file )
+        file.seek(0, 0)
+        ligne = file.readline()
+        nb_noeuds_inverses = 0
+        nb_noeuds_conserves = 0
+        with tqdm(total=total_lignes) as bar:
+            while ligne:
+                ligne_to_print = ligne
+                ligne_dec = ligne.split()
+                if ligne_dec[0] == 'S' :
+                    if ligne_dec[1] in noeuds_a_inverser:
+                        #inversion de la séquence du noeud
+                        ligne_to_print = ligne_dec[0] +"\t" + ligne_dec[1] + "\t" + str(Seq(ligne_dec[2]).reverse_complement())
+                        for j in range(3, len(ligne_dec)):
+                            if (j < len(ligne_dec) -1):
+                                ligne_to_print += ligne_dec[j] + "\t"
+                            else :
+                                ligne_to_print += ligne_dec[j]
+                        ligne_to_print += "\n"
+                if ligne_dec[0] == 'L' :
+                    if ligne_dec[1] in noeuds_a_inverser  or ligne_dec[3]  in noeuds_a_inverser :
+                        ligne_to_print = ligne_dec[0] + "\t" + ligne_dec[1] + "\t"
+                        if ligne_dec[1] in noeuds_a_inverser :
+                            if ligne_dec[2] == "+" :
+                                ligne_to_print += "-"
+                            else :
+                                ligne_to_print += "+"
+                        else :
+                            ligne_to_print += ligne_dec[2]
+                        ligne_to_print += "\t" + ligne_dec[3] + "\t"
+                        if ligne_dec[3]  in noeuds_a_inverser :
+                            if ligne_dec[4] == "+" :
+                                ligne_to_print += "-"
+                            else :
+                                ligne_to_print += "+"
+                        else :
+                            ligne_to_print += ligne_dec[4]
+                            
+                        for j in range(5, len(ligne_dec)):
+                            ligne_to_print += "\t" + ligne_dec[j]
+                        ligne_to_print += "\n"
+                    
+                if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
+                    chromosome = ""
+                    if ligne_dec[0] == 'P':
+                        ind = 2
+                        walk = 0
+                        if (len(ligne_dec[1].split("#")) > 1):
+                            chromosome = str(ligne_dec[1].split("#")[1])
+                        else:
+                            chromosome = str(ligne_dec[1].split(".")[1])
+
+                    else:
+                        ind = 6
+                        walk = 1
+                        chromosome = str(ligne_dec[3])
+        
+                    if (len(ligne_dec[1].split("#")) > 1):
+                        genome = ligne_dec[1].split("#")[0]
+                    else:
+                        genome = ligne_dec[1].split(".")[0]
+                    if (genome in dic_to_check and chromosome in dic_to_check[genome]):  
+                        if walk == 1 :
+                            ligne_to_print = ligne_dec[0]+"\t"+ligne_dec[1] + "\t" \
+                                   + ligne_dec[2] + "\t" +ligne_dec[3] + "\t" \
+                                   + ligne_dec[4] + "\t" +ligne_dec[5] + "\t"
+                        else :
+                            ligne_to_print = ligne_dec[0]+"\t"+ligne_dec[1] + "\t"
+                        liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
+                        liste_noeuds = []
+                        liste_strand = []
+                        i = 0
+                        while i < len(liste_noeuds_):
+                            noeud = ""
+                            strand = ""
+                            if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
+                                liste_noeuds.append(liste_noeuds_[i + 1])
+                                liste_strand.append(liste_noeuds_[i])
+                                i += 2
+                            else:
+                                if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
+                                    liste_noeuds.append(liste_noeuds_[i][:-1])
+                                    liste_strand.append(liste_noeuds_[i][-1])
+                                i += 1 
+                        
+                        for i in range(len(liste_noeuds)-1,-1,-1):
+                            if walk == 1 :
+                                if liste_noeuds[i] not in noeuds_a_inverser :
+                                    nb_noeuds_inverses += 1
+                                    if(liste_strand[i] ==  "<"):
+                                        ligne_to_print += ">"
+                                    else :
+                                        ligne_to_print += "<"
+                                else :
+                                    nb_noeuds_conserves += 1
+                                    ligne_to_print += liste_strand[i]
+                                ligne_to_print += liste_noeuds[i]
+                            else: 
+                                ligne_to_print += liste_noeuds[i]
+                                if liste_noeuds[i] not in noeuds_a_inverser :
+                                    nb_noeuds_inverses += 1
+                                    if(liste_strand[i] ==  "+"):
+                                        ligne_to_print += "-"
+                                    else :
+                                        ligne_to_print += "+"
+                                else :
+                                    nb_noeuds_conserves += 1
+                                    ligne_to_print += liste_strand[i]
+                        ligne_to_print += "\n"
+                                
+                output_file.write(ligne_to_print)
+                ligne = file.readline()
+            bar.update(1)
+        print("GFA généré, durée du traitement : " + str(time.time()-temps_depart) + " Nb de noeuds inversés : " + str(nb_noeuds_inverses) + " Nb de noeuds conservé : " + str(nb_noeuds_conserves))
+        file.close()    
+        output_file.close()
+        return noeuds_a_inverser, dic_count_direct_reverse_strand
+
+
 
