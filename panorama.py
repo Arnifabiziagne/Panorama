@@ -25,34 +25,34 @@ from Bio.Seq import Seq
 
 
 """
-Fonction permettant de charger un fichier GFA
-La fontion va extraire les noeuds et les chemins puis retourner pour chaque genome 
-La liste des noeuds traversés et leur taille
-La fonction permet également de sélectiionner des noeuds soit de façon aléatoire
-soit par rapport à un critère de taille et indique pour chaque génome s'il contient ou non
-ces noeuds
+Function to load a GFA file
+The function will extract the nodes and paths, then return for each genome:
+The list of traversed nodes and their size.
+The function also allows for selecting nodes either randomly
+or based on a size criterion and indicates for each genome whether it contains
+these nodes or not.
+
 Parameters
-    @file_name : nom du fichier gfa à charger
-    @nb_noeuds_arbre_objectif : permet d'indiquer le nombre de noeuds souhaité 
-       cette donnée est fixée à 10000 par défaut et le nomnbre réel de noeuds renvoyé sera 
-       un peu différent
-    @type_selection="random" ou autre : mode de sélection des noeuds pour la matrice PAV, soit on sélectionne de façon aléatoire, soit par la taille (on sélectionne les plus gros noeuds)
-    @strand : True
-    @strand_inversion : True : si True alors on va regarder les chromosomes pour lesquels il y a 
-        plus de reverse strand que de direct et les inverser, cela pour compenser le sens de séquençage
+    @file_name: name of the GFA file to load
+    @nb_noeuds_arbre_objectif: specifies the desired number of nodes
+        This value is set to 10,000 by default, and the actual number of returned nodes will
+        be slightly different
+    @type_selection="random" or other: node selection mode for the PAV matrix, either selected randomly or by size (selecting the largest nodes)
+    @strand: True to use strand, False otherwise
+
 Returns
-   genome_dic : dictionnary
-       Dictionnaire avec pour clés la liste des génomes et pour valeur un tableau de la taille du nombre de noeud et pour chaque noeud la taille du noeud
-   genome_redondant_dic : dictionnary
-       Dictionnaire avec pour clés la liste des génomes et pour valeur un dictionnaire dont les clés = noms des noeuds et valeur = tableau de taille = nb de noeud et pour chaque noeud le nombre d'occurence du noeud
-       Si le strand est utilisé alors le tableau a une taile 2 x nb_noeuds (un pour les noeuds - et un pour les noeuds +)
-    pav_dic : dictionnary 
-       Dictionnaire avec pour clés la liste des génomes et pour chaque génome un tableau contenant la présence (1) ou absence (0) des noeuds retenus
-    stats : dictionnary
-        Dictionnaire contenant la liste des génomes et pour chaque génome un dictionnaire des chromosomes avec le nombre de direct strand et le nombre de revers strand
-        Cet objet peut ensuite être exporté avec la fonction export_stats
+    genome_dic: dictionary
+        Dictionary with genome names as keys and arrays as values. Each array has a size equal to the number of nodes and contains the size of each node.
+    genome_redondant_dic: dictionary
+        Dictionary with genome names as keys and dictionaries as values. Each sub-dictionary has node names as keys and arrays as values, where each array represents the number of occurrences of each node.
+        If strand is used, then the array has a size of 2 x number_of_nodes (one for - nodes and one for + nodes).
+    pav_dic: dictionary
+        Dictionary with genome names as keys and, for each genome, an array indicating presence (1) or absence (0) of selected nodes.
+    stats: dictionary
+        Dictionary containing genome names as keys and, for each genome, a dictionary of chromosomes with the number of forward and reverse strands.
+        This object can then be exported using the export_stats function.
 """
-def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selection="random", strand=True, strand_inversion=True):
+def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selection="random", strand=True):
     file = open(file_name, "r")
     nb_noeuds = 0
     nb_liens = 0
@@ -96,66 +96,66 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
             
             if ligne_dec[0]=='P' or ligne_dec[0]=='W':
                 nb_chemins += 1
-                if strand_inversion :
-                    #Pour le premier parcours du fichier on va préparer un dictionnaire
-                    #pour chaque génome et chaque chromosome on va compter le nombre de 
-                    #strand direct et reverse de façon à inverser si le nombre de reverse
-                    #est supérieur au nombre de direct
-                    chromosome = ""
-                    if ligne_dec[0]=='P' :
-                        ind = 2
-                        if (len(ligne_dec[1].split("#")) > 1) :
-                            chromosome = str(ligne_dec[1].split("#")[1])
-                        else :
-                            chromosome = str(ligne_dec[1].split(".")[1])
-                        
-                    else:
-                        ind = 6
-                        chromosome = str(ligne_dec[3])
+
+                #Pour le premier parcours du fichier on va préparer un dictionnaire
+                #pour chaque génome et chaque chromosome on va compter le nombre de 
+                #strand direct et reverse de façon à inverser si le nombre de reverse
+                #est supérieur au nombre de direct => détection des chromosomes potentiellement inversés
+                chromosome = ""
+                if ligne_dec[0]=='P' :
+                    ind = 2
+                    if (len(ligne_dec[1].split("#")) > 1) :
+                        chromosome = str(ligne_dec[1].split("#")[1])
+                    else :
+                        chromosome = str(ligne_dec[1].split(".")[1])
                     
-                    
-                    #Les noms des génomes sont composés de façon différentes
-                    #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
-                    #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
-                    if (len (ligne_dec[1].split("#")) > 1):
-                        genome = ligne_dec[1].split("#")[0]
-                    else:
-                        genome = ligne_dec[1].split(".")[0]
-                    
-                    
-                    #préparation de la structure dic_count_direct_reverse_strand
-                    #on va compter le nombre de strand direct et reverse
-                    #si le reverse est supérieur au direct on inversera le chromosome
-                    #c'est du au fait que le séquençage des chromosomes n'est pas forcément dans le bon sens
-                    if genome not in dic_count_direct_reverse_strand :
-                        dic_count_direct_reverse_strand[genome] = {}
-                    
-                    if chromosome not in dic_count_direct_reverse_strand[genome] :
-                        dic_count_direct_reverse_strand[genome][chromosome] = {"+":0, "-":0}
-                    
-                    if ligne_dec[0]=='P' :
-                        dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count("+")
-                        dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("-")
-                    else:
-                        dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count(">")
-                        dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("<")
-                        
+                else:
+                    ind = 6
+                    chromosome = str(ligne_dec[3])
                 
+                
+                #Les noms des génomes sont composés de façon différentes
+                #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
+                #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
+                if (len (ligne_dec[1].split("#")) > 1):
+                    genome = ligne_dec[1].split("#")[0]
+                else:
+                    genome = ligne_dec[1].split(".")[0]
+                
+                
+                #préparation de la structure dic_count_direct_reverse_strand
+                #on va compter le nombre de strand direct et reverse
+                #si le reverse est supérieur au direct on inversera le chromosome
+                #c'est du au fait que le séquençage des chromosomes n'est pas forcément dans le bon sens
+                if genome not in dic_count_direct_reverse_strand :
+                    dic_count_direct_reverse_strand[genome] = {}
+                
+                if chromosome not in dic_count_direct_reverse_strand[genome] :
+                    dic_count_direct_reverse_strand[genome][chromosome] = {"+":0, "-":0}
+                
+                if ligne_dec[0]=='P' :
+                    dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count("+")
+                    dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("-")
+                else:
+                    dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count(">")
+                    dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("<")
+                    
+            
             ligne = file.readline()
         
         
         dic_to_check = {}
-        if strand_inversion :
-            #Recherche des genomes / chromosomes inversés
-            for g in dic_count_direct_reverse_strand :
-                for c in dic_count_direct_reverse_strand[g]:
-                    if dic_count_direct_reverse_strand[g][c]["-"] > dic_count_direct_reverse_strand[g][c]["+"]:
-                        if g in dic_to_check :
-                            dic_to_check[g].append(c)
-                        else :
-                            dic_to_check[g] = [c]
+
+        #Recherche des genomes / chromosomes inversés
+        for g in dic_count_direct_reverse_strand :
+            for c in dic_count_direct_reverse_strand[g]:
+                if dic_count_direct_reverse_strand[g][c]["-"] > dic_count_direct_reverse_strand[g][c]["+"]:
+                    if g in dic_to_check :
+                        dic_to_check[g].append(c)
+                    else :
+                        dic_to_check[g] = [c]
         
-            print("Liste des genomes / chromosomes à inverser : " + str(dic_to_check))
+        print("Inversed Genomes / chromosomes detected : " + str(dic_to_check))
         print("Number of paths : " + str(nb_chemins))
         #On trie la liste des longueurs de noeud
         #la liste triée va servir à récupérer la taille à partir de laquelle
@@ -194,7 +194,6 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
             
         with tqdm(total=nb_chemins) as bar:
             while ligne :
-                reverse = False
                 ligne_dec = ligne.split()
                 if ligne_dec[0]=='P' or ligne_dec[0]=='W':
                     bar.update(1)
@@ -223,8 +222,6 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         walk = 1
                         chromosome = str(ligne_dec[3])
                     
-                    if genome in dic_to_check and chromosome in dic_to_check[genome]:
-                        reverse = True
                     
                     if genome not in genome_dic :
                         if strand :
@@ -248,31 +245,16 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                     i = 0
                     while i < len(liste_noeuds_) :
                         if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
-                            if reverse : 
-                                if liste_noeuds_[i] == ">":
-                                    liste_strand.append("<")
-                                else:
-                                    liste_strand.append(">")
-                            else :
-                                liste_strand.append(liste_noeuds_[i])
+                            liste_strand.append(liste_noeuds_[i])
                             liste_noeuds.append(liste_noeuds_[i+1])
                             i += 2
                         else :
                             if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
-                                if reverse : 
-                                    if liste_noeuds_[i][-1] == "+":
-                                        liste_strand.append("-")
-                                    else:
-                                        liste_strand.append("+")
-                                else:
-                                    liste_strand.append(liste_noeuds_[i][-1])
+                                liste_strand.append(liste_noeuds_[i][-1])
                                 liste_noeuds.append(liste_noeuds_[i][:-1])
                                 i += 1  
                             else :
                                 i += 1
-                    if reverse :
-                        liste_strand.reverse()
-                        liste_noeuds.reverse()
   
 
                     for n in range(0,len(liste_noeuds)) :
@@ -324,10 +306,10 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
     return genome_dic, genome_redondant_dic, pav_dic, stats
 
 """
-Cette fonction sauvegarde les statistiques dans un fichier csv
+Function to save stats in csv file
 Parameters
-    @file_name : nom du fichier csv pour l'export des statistiques
-    @stats : dictionnaire issu de la fonction charger_fichier_gfa
+    @file_name : name of output file
+    @stats : dictionnary from fonction charger_fichier_gfa
 Returns 
 """
 def export_stats(file_name, stats):
@@ -343,21 +325,26 @@ def export_stats(file_name, stats):
 
 
 """
-Cette fonction calcule la distance de jaccard à partir de la structure renvoyée par le GFA
+This function computes the Jaccard distance from the structure returned by the GFA
+
 Parameters
-    @genome_dic : la structure renvoyée par le chargement du GFA (dictionnaire contenanty les génomes et les noeuds présents dans le génome et leur taille)
-    @genome_redondant_dic : la structure renvoyée par le chargement du GFA (dictionnaire contenanty les génomes et les noeuds présents dans le génome et leur nombre d'apparition)
-    @project_directory : répertoire ou seront stockés les fichiers de sortie
-    @redondance : si True alors on calcule la distance de Jaccard sur l'ensemble des noeuds, y compris redondants, sinon uniquement sur la présence / absence de noeud
-    @color_filename : ce fichier permet de coloriser les feuilles de l'arbre généré
-        le fichier doit être au format csv séparé par "," et doit contenir une ligne d'entêtes
-        ces entêtes doivent au moins contenir :
-            - sample : nom des échantillons qui doivent correspondre aux noms des génômes du pangénome
-            - category : nom de catégorie qui sera rajouté au label des feuilles
-            - color : code couleur associé à l'échantillon
-Returns 
-    - dfP : matrice de distance pondérée
-    - dfNP : matrice de distance non pondérée
+    @genome_dic: the structure returned by the GFA loading function 
+        (dictionary containing genomes, the nodes present in each genome, and their size)
+    @genome_redondant_dic: the structure returned by the GFA loading function 
+        (dictionary containing genomes, the nodes present in each genome, and their number of occurrences)
+    @project_directory: directory where output files will be stored
+    @redondance: if True, Jaccard distance is calculated on all nodes including redundant ones; 
+        otherwise, only on presence/absence of nodes
+    @color_filename: this file allows coloring of the leaves of the generated tree
+        The file must be in CSV format, separated by "," and must contain a header row
+        Headers must include at least:
+            - sample: sample name, which must match genome names in the pangenome
+            - category: category name to be added to the leaf labels
+            - color: color code associated with the sample
+
+Returns
+    - dfP: weighted distance matrix
+    - dfNP: unweighted distance matrix
 """
 def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directory, redondance=True, color_file_name=None):
     print("Computing the distances")
@@ -412,31 +399,37 @@ def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directo
     return dfP, dfNP
 
 """
-Fonction principale permettant de charger un graphe GFA et de calculer la distance de Jaccard dessus
-On construit également une matrice au format PHYLIP contenant pour chaque genome la présence (1) ou absence (0) pour chaque bnoeud retenu
+Main function to load a GFA graph and compute Jaccard distances
+This function also builds a PHYLIP-format matrix containing, for each genome, the presence (1) or absence (0) 
+of each selected node.
+
 Parameters
-    @filename : nom du fichier GFA contenant le pangénome
-    @project_directory : va créer un répertoire avec ce nom pour stocker les résultats
-    @nb_noeuds_cible : nombre approximatifs de noeuds souhaités dans la matrice d'absence / presence
-    @methode : "aleatoire" ou "taille", permet de sélectionner les noeuds pour l'analyse (sélection soit aléatoire, soit on sélectionne les plus gros noeuds)
-    @redondance : si True alors on va utiliser les noeuds présents en plusieurs exemplaires sur un échantillon, sinon on utilisera juste l'absence ou la présence du noeud
-    @strand : si True alors on utilise l'indication du strand, sinon on regarde juste si le noeud est présent sans regarder le sens
-    @color_filename : ce fichier permet de coloriser les feuilles de l'arbre généré
-        le fichier doit être au format csv séparé par "," et doit contenir une ligne d'entêtes
-        ces entêtes doivent au moins contenir :
-            - sample : nom des échantillons qui doivent correspondre aux noms des génômes du pangénome
-            - category : nom de catégorie qui sera rajouté au label des feuilles
-            - color : code couleur associé à l'échantillon
+    @filename: name of the GFA file containing the pangenome
+    @project_directory: will create a directory with this name to store the results
+    @nb_noeuds_cible: approximate number of nodes desired in the presence/absence matrix
+    @methode: "random" or "size", selects the nodes for analysis (either randomly or by choosing the largest nodes)
+    @redondance: if True, nodes present multiple times in a sample are considered; otherwise, 
+        only the presence or absence of the node is used
+    @strand: if True, strand information is taken into account; otherwise,
+        only node presence is considered, regardless of direction
+    @color_filename: this file allows coloring of the generated tree leaves
+        The file must be in CSV format, separated by ",", and must contain a header row
+        Headers must include at least:
+            - sample: sample names that must match genome names in the pangenome
+            - category: category name that will be added to leaf labels
+            - color: color code associated with each sample
+
 Returns
-Methode de calcul des distances :
-    - En mode pondéré : la distance de jaccard va prendre en compte la taille du noeud => les plus gros noeuds auront plus de poids
-    - En mode non pondéré : il s'agit d'une distance de Jaccard d'absence / présence du noeud
-    - Prise en compte de la redondance : dans ce cas on va compter le nombre de fois que le séquence apparait dans les génomes,
-            dans ce cas, si un génome passe 2 fois par un noeud et un autre une seule fois, alors la distance entre les deux ne sera pas nulle
-    - Prise en compte du strand : on va calculer la distance de Jaccard en fonction du sens de parcours du noeud
-            dans ce cas, si un genome passe par s1+ et un autre par s1- la distance ne sera pas nulle
+Distance computation methods:
+    - Weighted mode: the Jaccard distance takes node size into account — larger nodes have more weight
+    - Unweighted mode: standard Jaccard distance based on node presence/absence
+    - Redundancy handling: if enabled, the number of occurrences of a node per genome is used.
+        For example, if one genome passes through a node twice and another only once, their distance will not be zero
+    - Strand handling: Jaccard distance is computed based on the direction in which nodes are traversed
+        In this case, if one genome passes through s1+ and another through s1-, the distance will not be zero
+ 
 """
-def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible = 10000, methode="random", redondance = True, strand = True, color_file_name=None, strand_inversion=True):
+def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible = 10000, methode="random", redondance = True, strand = True, color_file_name=None):
 
     print("Launch with args : \nfile_name : " + str(file_name)
           + "\nproject_directory : " + str(project_directory)
@@ -445,8 +438,7 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
           + "\nmethod : " + str(methode)
           +"\nredundancy : " + str(redondance)
           +"\nstrand : " + str(strand)
-          +"\ncolor filename : " + str(color_file_name)
-          +"\nstrand inversion : " + str(strand_inversion))
+          +"\ncolor filename : " + str(color_file_name))
     
     rep = project_directory+"/"+project_name
     if not os.path.exists(rep):
@@ -458,7 +450,7 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
     
     matrice_pav = rep+"/pav_matrix.phy"
     
-    genome_dic, genome_redondant_dic, pav_dic, stats = charger_fichier_gfa(file_name, nb_noeuds_cible, methode, strand, strand_inversion)
+    genome_dic, genome_redondant_dic, pav_dic, stats = charger_fichier_gfa(file_name, nb_noeuds_cible, methode, strand)
 
     export_stats(rep+"/stats.csv",stats)
 
@@ -487,11 +479,11 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
 
 
 """
-Fonction de conversion de la matrice PAV sous forme dictionnary vers format phylip
+Fonction to convert PAV matrix to phylip format
 
 Parameters
-    @pav_matrix_dic : matrice PAV au format dictionnary
-    @matrice_distance_phylip_filename : nom du fichier qui contiendra la matrice PAV (format PHYLIP)
+    @pav_matrix_dic : PAV matrix (dictionnary)
+    @matrice_distance_phylip_filename : output filename (PHYLIP)
 returns
 """
 
@@ -513,11 +505,11 @@ def pav_to_phylip(pav_matrix_dic, matrice_distance_phylip_filename):
     file.close()
 
 """
-Fonction de conversion de la matrice de distance dataframe vers format phylip
+Fonction to convert distance matrix dataframe to phylip format
 
 Parameters
-    @pav_matrix_dic : matrice PAV au format dictionnary
-    @phylip_distance_matrix_file_name : nom du fichier qui contiendra la matrice des distances de Jaccard (format PHYLIP)
+    @pav_matrix_dic : PAV matrix (dictionnary)
+    @phylip_distance_matrix_file_name : output filename (PHYLIP)
 returns
 """
     
@@ -537,16 +529,17 @@ def distance_matrix_to_phylip(df, phylip_distance_matrix_file_name):
 
 
 """
-Fonction permettant de tracer un dendograme
-Parameters 
-    @newick_tree : arbre à tracer au format newick
-    @file_name : nom du fichier de sortie
-    @color_filename : ce fichier permet de coloriser les feuilles de l'arbre généré
-        le fichier doit être au format csv séparé par "," et doit contenir une ligne d'entêtes
-        ces entêtes doivent au moins contenir :
-            - sample : nom des échantillons qui doivent correspondre aux noms des génômes du pangénome
-            - category : nom de catégorie qui sera rajouté au label des feuilles
-            - color : code couleur associé à l'échantillon'
+Function to plot a dendrogram
+
+Parameters
+    @newick_tree: tree to be plotted in Newick format
+    @file_name: name of the output file
+    @color_filename: this file allows coloring of the leaves in the generated tree
+        The file must be in CSV format, separated by "," and must contain a header row
+        Headers must include at least:
+            - sample: sample names that must match the genome names in the pangenome
+            - category: category name to be added to the leaf labels
+            - color: color code associated with each sample
 """ 
 def plot_newick(newick_tree,file_name,color_filename=None):
     ete3_tree = Tree(newick_tree, format=1)
@@ -566,13 +559,15 @@ def plot_newick(newick_tree,file_name,color_filename=None):
     ete3_tree.render(file_name)
 
 """
-Fonction permettant de calculer un arbre phylogénétique à partir de la matrice de distance de Jaccard
-Paramètres : 
-    @matrice_distance_filename : nom du fichier contenant la matrice de distance
-    @file_name : nom du fichier de sortie
-    @color_filename : fichier permettant de coloriser l'arbre'
-Retour :
-    - Arbre au format newick
+Function to compute a phylogenetic tree from a Jaccard distance matrix
+
+Parameters:
+    @matrice_distance_filename: name of the file containing the distance matrix
+    @file_name: name of the output file
+    @color_filename: file used to colorize the tree
+
+Returns:
+    - Tree in Newick format
 """   
 
 def calcul_arbre_nj(matrice_distance_filename, file_name,color_filename=None):
@@ -596,7 +591,7 @@ def calcul_arbre_nj(matrice_distance_filename, file_name,color_filename=None):
 
 
 
-#Ancienne fonction permettant de construire un dendogramme depuis une matrice de distance
+#Old fonction to plot dendogram depuis une matrice de distance
 def plot_dendogramme(csv_df_filename, color_filename=None):
     df = pd.read_csv(csv_df_filename, index_col=0)
     #c_dist = pdist(df) # computing the distance
@@ -631,7 +626,8 @@ def plot_dendogramme(csv_df_filename, color_filename=None):
 
 
 '''
-Cette fonction va inverser les chromosomes d'un GFA pour lesquels le nombre de noeuds reverse est supérieur au nombre de noeuds directs
+Fonction to reverse inversed chromosomes (chromosomes with more reversed strands than direct strands)
+The Nodes that are shared with other chromosomes (not detected as reversed) are not reversed
 '''
 
 def inverser_reverse_chromosome(file_name, output_file_name):
@@ -647,7 +643,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
     sep = ["[,;.*]", "(<|>)"]
     dic_count_direct_reverse_strand = {}
     compteur_noeuds_chromosome = {}
-    noeuds_a_inverser = set()
+    noeuds_a_conserver = set()
     temps_depart = time.time()
     with file, output_file:
         total_path = sum(1 for line in file if line.startswith(('P', 'W')))
@@ -783,8 +779,8 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                     strand = liste_noeuds_[i][-1]
                                 i += 1
                                 
-                            if noeud != "" and strand != "" and noeud not in noeuds_a_inverser :
-                                noeuds_a_inverser.add(noeud)
+                            if noeud != "" and strand != "" and noeud not in noeuds_a_conserver :
+                                noeuds_a_conserver.add(noeud)
                 ligne = file.readline()
 
             
@@ -836,16 +832,16 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                     noeud = liste_noeuds_[i][:-1]
                                     strand = liste_noeuds_[i][-1]
                                 i += 1    
-                            #if noeud in noeuds_a_inverser and genome not in noeuds_a_inverser[noeud]["genomes"]:
+                            #if noeud in noeuds_a_conserver and genome not in noeuds_a_conserver[noeud]["genomes"]:
                             #On regarde si le noeud est partagé avec un génomé non inversé, si oui on supprimera ce noeud
                             #de la liste des noeuds à inverser (les noeuds partagés par des chromosomes inversés sont à inverser)
-                            if noeud in noeuds_a_inverser:
+                            if noeud in noeuds_a_conserver:
                                 set_noeuds_redondants.add(noeud)
                 ligne = file.readline()
-        print("Nombre de noeuds à inverser dans le path : " + str(len(noeuds_a_inverser)))
-        noeuds_a_inverser = noeuds_a_inverser - set_noeuds_redondants
+        print("Nombre de noeuds à inverser dans le path : " + str(len(noeuds_a_conserver)))
+        noeuds_a_conserver = noeuds_a_conserver - set_noeuds_redondants
         
-        print("Nombre de noeuds uniques à inverser dans les noeuds et liens : " + str(len(noeuds_a_inverser)))
+        print("Nombre de noeuds uniques à inverser dans les noeuds et liens : " + str(len(noeuds_a_conserver)))
         
         
         
@@ -866,7 +862,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                 ligne_to_print = ligne
                 ligne_dec = ligne.split()
                 if ligne_dec[0] == 'S' :
-                    if ligne_dec[1] in noeuds_a_inverser:
+                    if ligne_dec[1] in noeuds_a_conserver:
                         #inversion de la séquence du noeud
                         ligne_to_print = ligne_dec[0] +"\t" + ligne_dec[1] + "\t" + str(Seq(ligne_dec[2]).reverse_complement())
                         for j in range(3, len(ligne_dec)):
@@ -876,9 +872,9 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                 ligne_to_print += ligne_dec[j]
                         ligne_to_print += "\n"
                 if ligne_dec[0] == 'L' :
-                    if ligne_dec[1] in noeuds_a_inverser  or ligne_dec[3]  in noeuds_a_inverser :
+                    if ligne_dec[1] in noeuds_a_conserver  or ligne_dec[3]  in noeuds_a_conserver :
                         ligne_to_print = ligne_dec[0] + "\t" + ligne_dec[1] + "\t"
-                        if ligne_dec[1] in noeuds_a_inverser :
+                        if ligne_dec[1] in noeuds_a_conserver :
                             if ligne_dec[2] == "+" :
                                 ligne_to_print += "-"
                             else :
@@ -886,7 +882,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         else :
                             ligne_to_print += ligne_dec[2]
                         ligne_to_print += "\t" + ligne_dec[3] + "\t"
-                        if ligne_dec[3]  in noeuds_a_inverser :
+                        if ligne_dec[3]  in noeuds_a_conserver :
                             if ligne_dec[4] == "+" :
                                 ligne_to_print += "-"
                             else :
@@ -943,7 +939,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         
                         for i in range(len(liste_noeuds)-1,-1,-1):
                             if walk == 1 :
-                                if liste_noeuds[i] not in noeuds_a_inverser :
+                                if liste_noeuds[i] not in noeuds_a_conserver :
                                     nb_noeuds_inverses += 1
                                     if(liste_strand[i] ==  "<"):
                                         ligne_to_print += ">"
@@ -955,7 +951,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                 ligne_to_print += liste_noeuds[i]
                             else: 
                                 ligne_to_print += liste_noeuds[i]
-                                if liste_noeuds[i] not in noeuds_a_inverser :
+                                if liste_noeuds[i] not in noeuds_a_conserver :
                                     nb_noeuds_inverses += 1
                                     if(liste_strand[i] ==  "+"):
                                         ligne_to_print += "-"
@@ -972,7 +968,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
         print("GFA généré, durée du traitement : " + str(time.time()-temps_depart) + " Nb de noeuds inversés : " + str(nb_noeuds_inverses) + " Nb de noeuds conservé : " + str(nb_noeuds_conserves))
         file.close()    
         output_file.close()
-        return noeuds_a_inverser, dic_count_direct_reverse_strand
+        return noeuds_a_conserver, dic_count_direct_reverse_strand
 
 
 
