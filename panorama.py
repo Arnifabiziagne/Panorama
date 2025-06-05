@@ -107,20 +107,26 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                     if (len(ligne_dec[1].split("#")) > 1) :
                         chromosome = str(ligne_dec[1].split("#")[1])
                     else :
-                        chromosome = str(ligne_dec[1].split(".")[1])
+                        if (len(ligne_dec[1].split(".")) > 1) :
+                            chromosome = str(ligne_dec[1].split(".")[1])
+                        else : 
+                            chromosome = "0"
+                    
+                    #Les noms des génomes sont composés de façon différentes
+                    #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
+                    #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
+                    if (len (ligne_dec[1].split("#")) > 1):
+                        genome = ligne_dec[1].split("#")[0]
+                    else:
+                        genome = ligne_dec[1].split(".")[0]
                     
                 else:
                     ind = 6
                     chromosome = str(ligne_dec[3])
+                    genome = ligne_dec[1]+"_"+ligne_dec[2]
                 
                 
-                #Les noms des génomes sont composés de façon différentes
-                #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
-                #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
-                if (len (ligne_dec[1].split("#")) > 1):
-                    genome = ligne_dec[1].split("#")[0]
-                else:
-                    genome = ligne_dec[1].split(".")[0]
+
                 
                 
                 #préparation de la structure dic_count_direct_reverse_strand
@@ -201,13 +207,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
 
                     walk = 0
                     
-                    #Les noms des génomes sont composés de façon différentes
-                    #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
-                    #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
-                    if (len (ligne_dec[1].split("#")) > 1):
-                        genome = ligne_dec[1].split("#")[0]
-                    else:
-                        genome = ligne_dec[1].split(".")[0]
+
 
                     chromosome = ""
                     #Le fichier GFA a plusieurs structure pour les chemins
@@ -216,11 +216,27 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                     if ligne_dec[0]=='P' :
                         ind = 2
                         walk = 0
-                        chromosome = str(ligne_dec[1].split("#")[1]) 
+
+                        #Les noms des génomes sont composés de façon différentes
+                        #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
+                        #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
+                        if (len (ligne_dec[1].split("#")) > 1):
+                            genome = ligne_dec[1].split("#")[0]
+                        else:
+                            genome = ligne_dec[1].split(".")[0]
+
+                        if (len(ligne_dec[1].split("#")) > 1) :
+                            chromosome = str(ligne_dec[1].split("#")[1])
+                        else :
+                            if (len(ligne_dec[1].split(".")) > 1) :
+                                chromosome = str(ligne_dec[1].split(".")[1])
+                            else : 
+                                chromosome = "0"
                     else:
                         ind = 6
                         walk = 1
                         chromosome = str(ligne_dec[3])
+                        genome = ligne_dec[1]+"_"+ligne_dec[2]
                     
                     
                     if genome not in genome_dic :
