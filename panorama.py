@@ -103,32 +103,12 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                 #est supérieur au nombre de direct => détection des chromosomes potentiellement inversés
                 chromosome = ""
                 if ligne_dec[0]=='P' :
-                    ind = 2
-                    if (len(ligne_dec[1].split("#")) > 1) :
-                        chromosome = str(ligne_dec[1].split("#")[1])
-                    else :
-                        if (len(ligne_dec[1].split(".")) > 1) :
-                            chromosome = str(ligne_dec[1].split(".")[1])
-                        else : 
-                            chromosome = "0"
-                    
-                    #Les noms des génomes sont composés de façon différentes
-                    #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
-                    #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
-                    if (len (ligne_dec[1].split("#")) > 1):
-                        genome = ligne_dec[1].split("#")[0]
-                    else:
-                        genome = ligne_dec[1].split(".")[0]
-                    
+                    ind = 2            
                 else:
                     ind = 6
-                    chromosome = str(ligne_dec[3])
-                    genome = ligne_dec[1]+"_"+ligne_dec[2]
-                
+                chromosome, genome = get_chromosome_genome(ligne)
                 
 
-                
-                
                 #préparation de la structure dic_count_direct_reverse_strand
                 #on va compter le nombre de strand direct et reverse
                 #si le reverse est supérieur au direct on inversera le chromosome
@@ -217,28 +197,13 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         ind = 2
                         walk = 0
 
-                        #Les noms des génomes sont composés de façon différentes
-                        #Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
-                        #Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
-                        if (len (ligne_dec[1].split("#")) > 1):
-                            genome = ligne_dec[1].split("#")[0]
-                        else:
-                            genome = ligne_dec[1].split(".")[0]
-
-                        if (len(ligne_dec[1].split("#")) > 1) :
-                            chromosome = str(ligne_dec[1].split("#")[1])
-                        else :
-                            if (len(ligne_dec[1].split(".")) > 1) :
-                                chromosome = str(ligne_dec[1].split(".")[1])
-                            else : 
-                                chromosome = "0"
                     else:
                         ind = 6
                         walk = 1
-                        chromosome = str(ligne_dec[3])
-                        genome = ligne_dec[1]+"_"+ligne_dec[2]
+
                     
-                    
+                    chromosome, genome = get_chromosome_genome(ligne)
+
                     if genome not in genome_dic :
                         if strand :
                             genome_dic[genome] = np.zeros(2*nb_noeuds)
@@ -338,7 +303,25 @@ def export_stats(file_name, stats):
                     file.write(g+","+str(chr)+","+str(stats[g][chr]["+"])+","+str(stats[g][chr]["-"])+"\n")
     file.close()
 
+def get_chromosome_genome(WP_line):
+    ligne_dec = WP_line.split()
+    if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
+        chromosome = "0"
+        if ligne_dec[0] == 'P':
+            if (len (ligne_dec[1].split("#")) > 1):
+                genome = ligne_dec[1].split("#")[0]
+            else:
+                genome = ligne_dec[1].split(".")[0]
 
+            if (len(ligne_dec[1].split("#")) > 1) :
+                chromosome = str(ligne_dec[1].split("#")[1])
+            else :
+                if (len(ligne_dec[1].split(".")) > 1) :
+                    chromosome = str(ligne_dec[1].split(".")[1])
+        else:
+            chromosome = str(ligne_dec[3])
+            genome = ligne_dec[1]+"_"+ligne_dec[2]
+    return chromosome,genome
 
 """
 This function computes the Jaccard distance from the structure returned by the GFA
@@ -689,24 +672,12 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
-                        if (len(ligne_dec[1].split("#")) > 1):
-                            chromosome = str(ligne_dec[1].split("#")[1])
-                        else:
-                            chromosome = str(ligne_dec[1].split(".")[1])
 
                     else:
                         ind = 6
                         walk = 1
-                        chromosome = str(ligne_dec[3])
 
-                    # Les noms des génomes sont composés de façon différentes
-                    # Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
-                    # Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
-                    if (len(ligne_dec[1].split("#")) > 1):
-                        genome = ligne_dec[1].split("#")[0]
-                    else:
-                        genome = ligne_dec[1].split(".")[0]
-
+                    chromosome, genome = get_chromosome_genome(ligne)
 
 
                     # préparation de la structure dic_count_direct_reverse_strand
@@ -759,23 +730,14 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
-                        if (len(ligne_dec[1].split("#")) > 1):
-                            chromosome = str(ligne_dec[1].split("#")[1])
-                        else:
-                            chromosome = str(ligne_dec[1].split(".")[1])
+
 
                     else:
                         ind = 6
                         walk = 1
-                        chromosome = str(ligne_dec[3])
 
-                    # Les noms des génomes sont composés de façon différentes
-                    # Ils peuvent contenir un ensemble de contigs et on va devoir les regrouper
-                    # Le regroupement se fait à la racine du nom (on coupe sur le séparateur # ou .)
-                    if (len(ligne_dec[1].split("#")) > 1):
-                        genome = ligne_dec[1].split("#")[0]
-                    else:
-                        genome = ligne_dec[1].split(".")[0]
+                    chromosome, genome = get_chromosome_genome(ligne)
+
                     
                     set_noeuds = set()  
                     
@@ -819,20 +781,13 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
-                        if (len(ligne_dec[1].split("#")) > 1):
-                            chromosome = str(ligne_dec[1].split("#")[1])
-                        else:
-                            chromosome = str(ligne_dec[1].split(".")[1])
 
                     else:
                         ind = 6
                         walk = 1
-                        chromosome = str(ligne_dec[3])
-        
-                    if (len(ligne_dec[1].split("#")) > 1):
-                        genome = ligne_dec[1].split("#")[0]
-                    else:
-                        genome = ligne_dec[1].split(".")[0]
+
+                    chromosome, genome = get_chromosome_genome(ligne)
+
                     if genome not in dic_to_check or (genome in dic_to_check and chromosome not in dic_to_check[genome]) :    
                         liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
                         i = 0
@@ -915,20 +870,15 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
-                        if (len(ligne_dec[1].split("#")) > 1):
-                            chromosome = str(ligne_dec[1].split("#")[1])
-                        else:
-                            chromosome = str(ligne_dec[1].split(".")[1])
+
 
                     else:
                         ind = 6
                         walk = 1
-                        chromosome = str(ligne_dec[3])
+
+                    chromosome, genome = get_chromosome_genome(ligne)
         
-                    if (len(ligne_dec[1].split("#")) > 1):
-                        genome = ligne_dec[1].split("#")[0]
-                    else:
-                        genome = ligne_dec[1].split(".")[0]
+
                     if (genome in dic_to_check and chromosome in dic_to_check[genome]):  
                         if walk == 1 :
                             ligne_to_print = ligne_dec[0]+"\t"+ligne_dec[1] + "\t" \
