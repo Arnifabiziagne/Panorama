@@ -303,6 +303,14 @@ def export_stats(file_name, stats):
                     file.write(g+","+str(chr)+","+str(stats[g][chr]["+"])+","+str(stats[g][chr]["-"])+"\n")
     file.close()
 
+
+"""
+This function find the genome name and chromosome into the P line or W line
+For P line, it assumes that the second element (first element after "P") respect one of these patterns :
+    - genome#chromosome#xxxx
+    - genome.chromosome.xxxx
+For W line (to be preferred), chromosome = 4th element and genome = 2nd element + "_" + 3rd element
+"""
 def get_chromosome_genome(WP_line):
     ligne_dec = WP_line.split()
     if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
@@ -310,12 +318,9 @@ def get_chromosome_genome(WP_line):
         if ligne_dec[0] == 'P':
             if (len (ligne_dec[1].split("#")) > 1):
                 genome = ligne_dec[1].split("#")[0]
+                chromosome = str(ligne_dec[1].split("#")[1])
             else:
                 genome = ligne_dec[1].split(".")[0]
-
-            if (len(ligne_dec[1].split("#")) > 1) :
-                chromosome = str(ligne_dec[1].split("#")[1])
-            else :
                 if (len(ligne_dec[1].split(".")) > 1) :
                     chromosome = str(ligne_dec[1].split(".")[1])
         else:
@@ -926,6 +931,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                 else :
                                     nb_noeuds_conserves += 1
                                     ligne_to_print += liste_strand[i]
+                                ligne_to_print += ","
                         ligne_to_print += "\n"
                                 
                 output_file.write(ligne_to_print)
