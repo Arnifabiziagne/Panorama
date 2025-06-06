@@ -52,7 +52,7 @@ Returns
         Dictionary containing genome names as keys and, for each genome, a dictionary of chromosomes with the number of forward and reverse strands.
         This object can then be exported using the export_stats function.
 """
-def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selection="random", strand=True):
+def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selection="random", strand=True, chromosome_file= None):
     file = open(file_name, "r")
     nb_noeuds = 0
     nb_liens = 0
@@ -106,7 +106,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                     ind = 2            
                 else:
                     ind = 6
-                chromosome, genome = get_chromosome_genome(ligne)
+                chromosome, genome = get_chromosome_genome(ligne, chromosome_file)
                 
 
                 #préparation de la structure dic_count_direct_reverse_strand
@@ -202,7 +202,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         walk = 1
 
                     
-                    chromosome, genome = get_chromosome_genome(ligne)
+                    chromosome, genome = get_chromosome_genome(ligne, chromosome_file)
 
                     if genome not in genome_dic :
                         if strand :
@@ -224,7 +224,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                     liste_strand = []
                     liste_noeuds = []
                     i = 0
-                    while i < len(liste_noeuds_) :
+                    while i < len(liste_noeuds_) and len(liste_noeuds_[i]) > 0 :
                         if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
                             liste_strand.append(liste_noeuds_[i])
                             liste_noeuds.append(liste_noeuds_[i+1])
@@ -304,15 +304,19 @@ def export_stats(file_name, stats):
     file.close()
 
 
+
 """
-This function find the genome name and chromosome into the P line or W line
-For P line, it assumes that the second element (first element after "P") respect one of these patterns :
-    - genome#chromosome#xxxx
-    - genome.chromosome.xxxx
-For W line (to be preferred), chromosome = 4th element and genome = 2nd element + "_" + 3rd element
+Function to find the genome and chromosome of a P or W line
+The P line is supposed to match one of the following pattern :
+    - genome#chromosome#xxx
+    - genome.chromosome.xxx
+The W line (to be preferred) : genome = 2nd element of the line +"_" + 3rd element of the line, chromosome = 4th element of the line
+If the file concerned only one chromosome with multiple haplotype, chromosome_file parameter should contain the chromosome reference (string)
 """
-def get_chromosome_genome(WP_line):
+def get_chromosome_genome(WP_line, chromosome_file = None):
     ligne_dec = WP_line.split()
+    chromosome = None
+    genome = None
     if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
         chromosome = "0"
         if ligne_dec[0] == 'P':
@@ -326,6 +330,8 @@ def get_chromosome_genome(WP_line):
         else:
             chromosome = str(ligne_dec[3])
             genome = ligne_dec[1]+"_"+ligne_dec[2]
+        if chromosome_file != None and chromosome != "":
+            chromosome = chromosome_file
     return chromosome,genome
 
 """
@@ -433,7 +439,7 @@ Distance computation methods:
         In this case, if one genome passes through s1+ and another through s1-, the distance will not be zero
  
 """
-def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible = 10000, methode="random", redondance = True, strand = True, color_file_name=None):
+def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible = 10000, methode="random", redondance = True, strand = True, color_file_name=None, chromosome_file=None):
 
     print("Launch with args : \nfile_name : " + str(file_name)
           + "\nproject_directory : " + str(project_directory)
@@ -454,7 +460,7 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
     
     matrice_pav = rep+"/pav_matrix.phy"
     
-    genome_dic, genome_redondant_dic, pav_dic, stats = charger_fichier_gfa(file_name, nb_noeuds_cible, methode, strand)
+    genome_dic, genome_redondant_dic, pav_dic, stats = charger_fichier_gfa(file_name, nb_noeuds_cible, methode, strand, chromosome_file)
 
     export_stats(rep+"/stats.csv",stats)
 
@@ -931,7 +937,6 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                 else :
                                     nb_noeuds_conserves += 1
                                     ligne_to_print += liste_strand[i]
-                                ligne_to_print += ","
                         ligne_to_print += "\n"
                                 
                 output_file.write(ligne_to_print)
