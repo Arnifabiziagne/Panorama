@@ -29,3 +29,4 @@ Projet panorama
     -s / --strand : True => the strand will be taken into account. False => the strand is ignored. Default = True.
     -c / --colorfilename : file containing information to color the tree. The file must contain a column “sample” = sample name, “category” = category abbreviation which will be added to the sample name, “color” = color code in #aaaaaa format.
     -h / --help : Print this Help.
+    -k / --chromosome : specify the chromosome for GFA of only one chromosome

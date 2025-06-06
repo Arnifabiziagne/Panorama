@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print("Command : " + str(sys.argv[0:]))
     # Récupérer les arguments passés depuis la ligne de commande
     if len(sys.argv) < 2 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
-        print('Usage: python pantoolbox.py -f|--graphfilename <file_name:mandatory> -d|--output_directory <output_directory : mandatory> -p|--project_name <project_name : mandatory> -n|--nodes_number  <nodes_number : optionnal, default=1000> -m|--method <methode : optionnal, default ="random"> -r|--redundancy <boolean : optionnal, default = True> -s|--strand <boolean : optionnal, default = True> -c|--colorfilename <colorfilename : optionnal, default = ""> -h|--chromosome <chromosome : optionnal, default = "">')
+        print('Usage: python pantoolbox.py -f|--graphfilename <file_name:mandatory> -d|--output_directory <output_directory : mandatory> -p|--project_name <project_name : mandatory> -n|--nodes_number  <nodes_number : optionnal, default=1000> -m|--method <methode : optionnal, default ="random"> -r|--redundancy <boolean : optionnal, default = True> -s|--strand <boolean : optionnal, default = True> -c|--colorfilename <colorfilename : optionnal, default = ""> -k|--chromosome <chromosome : optionnal, default = "">')
         sys.exit(1)
     else :
         file_name = ""
@@ -32,7 +32,7 @@ if __name__ == "__main__":
         color_file_name = ""
         
         try:
-            opts, args = getopt.getopt(argv, "f:d:p:n:s:m:r:c:h:", ["graphfilename=", "output_directory=", "projectname=", "nodes_number=","strand=", "method=","redundancy=", "colorfilename=", "chromosome="])
+            opts, args = getopt.getopt(argv, "f:d:p:n:s:m:r:c:k:", ["graphfilename=", "output_directory=", "projectname=", "nodes_number=","strand=", "method=","redundancy=", "colorfilename=", "chromosome="])
         except getopt.GetoptError:
             print("Bad argument")
             sys.exit(2)
