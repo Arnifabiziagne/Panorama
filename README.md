@@ -1,4 +1,5 @@
-Projet panorama
+Panorama project
+this script builds a phylogenetic tree from a gfa file.
 
 # Installation 
 
@@ -18,6 +19,11 @@ Projet panorama
 
 
     python pangenome_analysis.py -f pangenome_gfa_filename -p project_name -n 100000 -w True -m "random" -r True -s True -c color_filename
+
+# Requirements
+    We recommend using GFA files with well-structured walks. When using path, the naming for P-lines must be in one of the following formats:
+        - genome#chromosome#xxx
+        - genome.chromosome.xxx
 
 # Options
     -f / --graphfilename : Specify the gfa file location.
