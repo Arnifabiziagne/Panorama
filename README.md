@@ -1,5 +1,4 @@
-Panorama project
-this script builds a phylogenetic tree from a gfa file.
+Panorama project : build a phylogenetic tree from a gfa file.
 
 # Installation 
 
