@@ -1076,6 +1076,8 @@ def reverse_gfa(file_name, output_file_name):
                             ligne_to_print += "-"
                         else:
                             ligne_to_print += "+"
+                        if i > 0:
+                            ligne_to_print += ","
                 for j in range(ind + 1, len(ligne_dec)):
                     ligne_to_print += "\t" + ligne_dec[j]
                 ligne_to_print += "\n"
