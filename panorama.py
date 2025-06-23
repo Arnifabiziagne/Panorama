@@ -19,7 +19,6 @@ from tqdm import tqdm
 import subprocess
 import re
 import time
-import sys
 from Bio.Seq import Seq
 
 """
@@ -32,11 +31,12 @@ these nodes or not.
 
 Parameters
     @file_name: name of the GFA file to load
-    @nb_noeuds_arbre_objectif: specifies the desired number of nodes
+    @raxml_sample_size : specifies the desired number of nodes
         This value is set to 10,000 by default, and the actual number of returned nodes will
         be slightly different
     @type_selection="random" or other: node selection mode for the PAV matrix, either selected randomly or by size (selecting the largest nodes)
     @strand: True to use strand, False otherwise
+    @chromosome_file : if the GFA concerns a single chromosome, specify the chromosome number (or X / Y)
 
 Returns
     genome_dic: dictionary
@@ -52,22 +52,21 @@ Returns
 """
 
 
-def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selection="random", strand=True,
+def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand=True,
                         chromosome_file=None):
     file = open(file_name, "r")
     nb_noeuds = 0
     nb_liens = 0
     nb_chemins = 0
     stats = {}
-    nb_moins = 0
-    nb_plus = 0
+    minus_nb = 0
+    plus_nb = 0
 
-    # Définition des séparateurs possible selon le type de chemin (P ou W) et si on garde le strand ou non
-    # sep[0] dans un chemin de type Path
-    # sep[1] dans un chemin de type Walk
+    # Definition of the separators according to the line's type (P ou W)
+    # sep[0] for P lines
+    # sep[1] for W lines
     sep = ["[,;.*]", "(<|>)"]
     dic_count_direct_reverse_strand = {}
-    dic_reversed = {}
     with file:
         ligne = file.readline()
         print("File opening " + str(file_name))
@@ -76,19 +75,15 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
         node_lentgh_dic = {}
         node_index = {}
         pav_dic = {}
-        liste_noeuds_raxml = []
         index_noeuds_raxml_dic = {}
-        longueurs_noeuds = []
-        # Premier parcours du GFA pour trouver les noeuds
-        # Ce parcours sert à compter les noeuds pour ensuite créer les structures à la taille adaptée
-        # Il sert également à stocker la taille des noeuds dans le cas où l'on séelctionne les noeuds
-        # sur leur taille
+        nodes_length_list = []
+        # First GFA browsing to find nodes to create the data frame and to get the nodes size
         tps1 = time.time()
         while ligne:
             ligne_dec = ligne.split()
             if ligne_dec[0] == 'S' and ligne_dec[1] not in node_lentgh_dic:
                 node_lentgh_dic[ligne_dec[1]] = len(ligne_dec[2])
-                longueurs_noeuds.append([ligne_dec[1], len(ligne_dec[2])])
+                nodes_length_list.append([ligne_dec[1], len(ligne_dec[2])])
                 node_index[ligne_dec[1]] = nb_noeuds
                 nb_noeuds += 1
 
@@ -98,21 +93,13 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
             if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
                 nb_chemins += 1
 
-                # Pour le premier parcours du fichier on va préparer un dictionnaire
-                # pour chaque génome et chaque chromosome on va compter le nombre de
-                # strand direct et reverse de façon à inverser si le nombre de reverse
-                # est supérieur au nombre de direct => détection des chromosomes potentiellement inversés
-                chromosome = ""
                 if ligne_dec[0] == 'P':
                     ind = 2
                 else:
                     ind = 6
                 chromosome, genome = get_chromosome_genome(ligne, chromosome_file)
-
-                # préparation de la structure dic_count_direct_reverse_strand
-                # on va compter le nombre de strand direct et reverse
-                # si le reverse est supérieur au direct on inversera le chromosome
-                # c'est du au fait que le séquençage des chromosomes n'est pas forcément dans le bon sens
+                # the dic_count_direct_reverse_strand dictionary is used to detect haplotypes
+                # for which there are more reverse nodes than direct and which should probably be reversed.
                 if genome not in dic_count_direct_reverse_strand:
                     dic_count_direct_reverse_strand[genome] = {}
 
@@ -130,7 +117,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
 
         dic_to_check = {}
 
-        # Recherche des genomes / chromosomes inversés
+        # Search of genomes / chromosomes potentialy inversed
         for g in dic_count_direct_reverse_strand:
             for c in dic_count_direct_reverse_strand[g]:
                 if dic_count_direct_reverse_strand[g][c]["-"] > dic_count_direct_reverse_strand[g][c]["+"]:
@@ -141,54 +128,44 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
 
         print("Inversed Genomes / chromosomes detected : " + str(dic_to_check))
         print("Number of paths : " + str(nb_chemins))
-        # On trie la liste des longueurs de noeud
-        # la liste triée va servir à récupérer la taille à partir de laquelle
-        # on va sélectionner les noeuds pour obtenir un nombre proche de l'objectif du
-        # nombre de noeuds
 
-        longueurs_noeuds.sort(key=lambda x: x[1])
+        # Sorting by node length
+        nodes_length_list.sort(key=lambda x: x[1])
 
-        if nb_noeuds_arbre_objectif > nb_noeuds:
-            nb_noeuds_arbre_objectif = nb_noeuds
+        if raxml_sample_size > nb_noeuds:
+            raxml_sample_size = nb_noeuds
 
         if type_selection == "random":
-            liste_noeuds_raxml = rand.sample(list(node_lentgh_dic.keys()), nb_noeuds_arbre_objectif)
+            raxml_nodes_list = rand.sample(list(node_lentgh_dic.keys()), raxml_sample_size)
         else:
-            liste_noeuds_raxml = [longueurs_noeuds[i][0] for i in
-                                  range(len(longueurs_noeuds) - 1, len(longueurs_noeuds) - 1 - nb_noeuds_arbre_objectif,
+            raxml_nodes_list = [nodes_length_list[i][0] for i in
+                                  range(len(nodes_length_list) - 1, len(nodes_length_list) - 1 - raxml_sample_size,
                                         -1)]
 
-        nb_noeuds_arbre = len(liste_noeuds_raxml)
+        raxml_nodes_nb = len(raxml_nodes_list)
         i = 0
-        for noeud in liste_noeuds_raxml:
+        for noeud in raxml_nodes_list:
             index_noeuds_raxml_dic[noeud] = i
             i += 1
 
-        liste_noeuds_raxml = []
-        longueurs_noeuds = []
 
-        print("Number of selected nodes to compute tree : " + str(nb_noeuds_arbre))
+        print("Number of selected nodes to compute tree : " + str(raxml_nodes_nb))
         tps2 = time.time()
         print("Time parsing nodes : " + str(tps2 - tps1))
-        # Second parcours du GFA pour lire les chemins et construire la structure renvoyée
+        # 2nd GFA browsing to get paths and construct the dictionnary returned by the function
         file.seek(0, 0)
-        ligne = file.readline()
+        line = file.readline()
         num_chemin = 0
         nb_noeuds_chemin_max = 0
 
         with tqdm(total=nb_chemins) as bar:
-            while ligne:
-                ligne_dec = ligne.split()
+            while line:
+                ligne_dec = line.split()
                 if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
                     bar.update(1)
                     num_chemin += 1
 
-                    walk = 0
-
-                    chromosome = ""
-                    # Le fichier GFA a plusieurs structure pour les chemins
-                    # on vérifie si les chemins sont indiqués sous la balise P ou W
-                    # le chemin est ensuite défini dans une partie différente de la ligne selon le cas
+                    # split path according to P lines or W lines separators
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
@@ -197,43 +174,43 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                         ind = 6
                         walk = 1
 
-                    chromosome, genome = get_chromosome_genome(ligne, chromosome_file)
+                    chromosome, genome = get_chromosome_genome(line, chromosome_file)
 
                     if genome not in genome_dic:
                         if strand:
                             genome_dic[genome] = np.zeros(2 * nb_noeuds)
                             genome_redondant_dic[genome] = np.zeros(2 * nb_noeuds)
-                            pav_dic[genome] = np.zeros(2 * nb_noeuds_arbre, dtype=int)
+                            pav_dic[genome] = np.zeros(2 * raxml_nodes_nb, dtype=int)
                         else:
                             genome_dic[genome] = np.zeros(nb_noeuds)
                             genome_redondant_dic[genome] = np.zeros(nb_noeuds)
-                            pav_dic[genome] = np.zeros(nb_noeuds_arbre, dtype=int)
+                            pav_dic[genome] = np.zeros(raxml_nodes_nb, dtype=int)
 
                     if genome not in stats:
                         stats[genome] = {"total+": 0, "total-": 0}
                     if chromosome not in stats[genome]:
                         stats[genome][chromosome] = {"+": 0, "-": 0}
 
-                    liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
-                    liste_strand = []
-                    liste_noeuds = []
+                    nodes_list_ = re.split(sep[walk], ligne_dec[ind])
+                    strand_list = []
+                    nodes_list = []
                     i = 0
-                    while i < len(liste_noeuds_) and len(liste_noeuds_[i]) > 0:
-                        if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
-                            liste_strand.append(liste_noeuds_[i])
-                            liste_noeuds.append(liste_noeuds_[i + 1])
+                    while i < len(nodes_list_) and len(nodes_list_[i]) > 0:
+                        if walk == 1 and nodes_list_[i] in ["<", ">"]:
+                            strand_list.append(nodes_list_[i])
+                            nodes_list.append(nodes_list_[i + 1])
                             i += 2
                         else:
-                            if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
-                                liste_strand.append(liste_noeuds_[i][-1])
-                                liste_noeuds.append(liste_noeuds_[i][:-1])
+                            if walk == 0 and nodes_list_[i][-1] in ["+", "-"]:
+                                strand_list.append(nodes_list_[i][-1])
+                                nodes_list.append(nodes_list_[i][:-1])
                                 i += 1
                             else:
                                 i += 1
 
-                    for n in range(0, len(liste_noeuds)):
-                        noeud = liste_noeuds[n]
-                        s = liste_strand[n]
+                    for n in range(0, len(nodes_list)):
+                        noeud = nodes_list[n]
+                        s = strand_list[n]
 
                         if noeud != "":
                             if strand:
@@ -242,42 +219,42 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
                                     genome_dic[genome][node_index[noeud]] = node_lentgh_dic[noeud]
                                     stats[genome][chromosome]["-"] += 1
                                     stats[genome]["total-"] += 1
-                                    nb_moins += 1
+                                    minus_nb += 1
                                 else:
                                     genome_redondant_dic[genome][node_index[noeud] + nb_noeuds] += 1
                                     genome_dic[genome][node_index[noeud] + nb_noeuds] = node_lentgh_dic[noeud]
                                     stats[genome][chromosome]["+"] += 1
                                     stats[genome]["total+"] += 1
-                                    nb_plus += 1
+                                    plus_nb += 1
                             else:
                                 genome_redondant_dic[genome][node_index[noeud]] += 1
                                 genome_dic[genome][node_index[noeud]] = node_lentgh_dic[noeud]
                                 if s in ["<", "-"]:
                                     stats[genome][chromosome]["-"] += 1
-                                    nb_moins += 1
+                                    minus_nb += 1
                                 else:
                                     stats[genome][chromosome]["+"] += 1
-                                    nb_plus += 1
+                                    plus_nb += 1
                             if noeud in index_noeuds_raxml_dic:
                                 if strand:
                                     if s in ["<", "-"]:
                                         pav_dic[genome][index_noeuds_raxml_dic[noeud]] = int(1)
                                     else:
-                                        pav_dic[genome][index_noeuds_raxml_dic[noeud] + nb_noeuds_arbre] = int(1)
+                                        pav_dic[genome][index_noeuds_raxml_dic[noeud] + raxml_nodes_nb] = int(1)
                                 else:
                                     pav_dic[genome][index_noeuds_raxml_dic[noeud]] = int(1)
 
-                    if nb_noeuds_chemin_max < len(liste_noeuds):
-                        nb_noeuds_chemin_max = len(liste_noeuds)
+                    if nb_noeuds_chemin_max < len(nodes_list):
+                        nb_noeuds_chemin_max = len(nodes_list)
 
-                ligne = file.readline()
+                line = file.readline()
 
     file.close()
     print("Number of nodes : " + str(nb_noeuds) + "\nLinks : " + str(nb_liens) + "\nPaths : " + str(
         nb_chemins) + "\nMaximum number of nodes in a path : " + str(nb_noeuds_chemin_max))
     tps3 = time.time()
     print("Time parsing paths : " + str(tps3 - tps2) + "Total time : " + str(tps3 - tps1))
-    print("Strand's statistics : reverse : " + str(nb_moins) + " direct : " + str(nb_plus))
+    print("Strand's statistics : reverse : " + str(minus_nb) + " direct : " + str(plus_nb))
     return genome_dic, genome_redondant_dic, pav_dic, stats
 
 
@@ -285,7 +262,7 @@ def charger_fichier_gfa(file_name, nb_noeuds_arbre_objectif=10000, type_selectio
 Function to save stats in csv file
 Parameters
     @file_name : name of output file
-    @stats : dictionnary from fonction charger_fichier_gfa
+    @stats : dictionnary from fonction load_gfa
 Returns 
 """
 
@@ -293,7 +270,7 @@ Returns
 def export_stats(file_name, stats):
     file = open(file_name, "w")
     with file:
-        file.write("genome,chromosome,direct strand number, reverse strandnumber\n")
+        file.write("genome,chromosome,direct strand number, reverse strand number\n")
         for g in stats:
             for chr in stats[g]:
                 if chr != "total+" and chr != "total-":
@@ -383,7 +360,7 @@ def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directo
                 dfP.loc[genome2, genome] = 0
                 dfNP.loc[genome2, genome] = 0
             else:
-                # calcul de la distance pondérée
+                # calcul of weighted distance
                 if redondance:
                     CP = np.dot(np.minimum(genome_redondant_dic[genome], genome_redondant_dic[genome2]),
                                 genome_dic[genome])
@@ -399,7 +376,7 @@ def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directo
                 dfP.loc[genome2, genome] = 1 - JP
                 dfP.loc[genome, genome2] = dfP[genome][genome2]
 
-                # Calcul de la distance non pondérée
+                # Calcul of non weighted distance
                 if redondance:
                     CNP = np.sum(np.minimum(genome_redondant_dic[genome], genome_redondant_dic[genome2]))
                     DNP = np.sum(np.maximum(genome_redondant_dic[genome], genome_redondant_dic[genome2]))
@@ -459,12 +436,12 @@ Distance computation methods:
 """
 
 
-def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cible=10000, methode="random",
+def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_nb=10000, methode="random",
                        redondance=True, strand=True, color_file_name=None, chromosome_file=None):
     print("Launch with args : \nfile_name : " + str(file_name)
           + "\nproject_directory : " + str(project_directory)
           + "\nproject_name : " + str(project_name)
-          + "\nnodes number : " + str(nb_noeuds_cible)
+          + "\nnodes number : " + str(raxml_sample_nb)
           + "\nmethod : " + str(methode)
           + "\nredundancy : " + str(redondance)
           + "\nstrand : " + str(strand)
@@ -480,7 +457,7 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
 
     matrice_pav = rep + "/pav_matrix.phy"
 
-    genome_dic, genome_redondant_dic, pav_dic, stats = charger_fichier_gfa(file_name, nb_noeuds_cible, methode, strand,
+    genome_dic, genome_redondant_dic, pav_dic, stats = load_gfa(file_name, raxml_sample_nb, methode, strand,
                                                                            chromosome_file)
 
     export_stats(rep + "/stats.csv", stats)
@@ -491,7 +468,7 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
     # conversion de la matrice de distance csv vers le format phylip
     distance_matrix_to_phylip(dfP, rep + "/weighted_distance_matrix.phy")
     distance_matrix_to_phylip(dfNP, rep + "/non_weighted_distance_matrix.phy")
-    # Commande RAxML
+    # RAxML command
     raxml_command = [
         "raxmlHPC",  # Le nom de l'exécutable RAxML
         "-s", "../pav_matrix.phy",  # Le fichier d'entrée
@@ -501,7 +478,7 @@ def analyser_pangenome(file_name, project_directory, project_name, nb_noeuds_cib
         "-n", project_name  # Nom du fichier de sortie
     ]
 
-    # Lancer la commande
+    # launching RaxML command
     subprocess.run(raxml_command, cwd=raxml_dir)
     newick_file_name = raxml_dir + "/RAxML_bestTree." + project_name
     plot_newick(newick_file_name, rep + "/tree_raxml.png", color_file_name)
@@ -518,7 +495,7 @@ returns
 
 
 def pav_to_phylip(pav_matrix_dic, matrice_distance_phylip_filename):
-    # Création du fichier phylip
+    # Creating phylip file
     file = open(matrice_distance_phylip_filename, "w")
 
     with file:
@@ -547,26 +524,26 @@ returns
 
 
 def distance_matrix_to_phylip(df, phylip_distance_matrix_file_name):
-    liste_echantillons = list(df.columns)
+    sample_list = list(df.columns)
     file_dm = open(phylip_distance_matrix_file_name, "w")
     with file_dm:
-        entete = str(len(liste_echantillons)) + "\n"
+        entete = str(len(sample_list)) + "\n"
         file_dm.write(entete)
-        for echantillon in liste_echantillons:
-            ligne = str(echantillon) + " "
+        for echantillon in sample_list:
+            line = str(echantillon) + " "
             for dist in df[echantillon]:
-                ligne += str(dist) + " "
-            ligne += "\n"
-            file_dm.write(ligne)
+                line += str(dist) + " "
+            line += "\n"
+            file_dm.write(line)
     file_dm.close()
 
 
 """
-Function to plot a dendrogram
+Function to plot dendrogram
 
 Parameters
-    @newick_tree: tree to be plotted in Newick format
-    @file_name: name of the output file
+    @newick_file: tree to be plotted in Newick format
+    @output_file: name of the output file
     @color_filename: this file allows coloring of the leaves in the generated tree
         The file must be in CSV format, separated by "," and must contain a header row
         Headers must include at least:
@@ -577,7 +554,7 @@ Parameters
 
 
 def plot_newick(newick_file, output_file, color_filename=None):
-    # Lire l’arbre Newick
+    # Load newick tree
     tree = Phylo.read(newick_file, "newick")
 
     label_colors = {}  # mapping label -> color
@@ -585,11 +562,11 @@ def plot_newick(newick_file, output_file, color_filename=None):
     if color_filename and os.path.exists(color_filename):
         df = pd.read_csv(color_filename)
 
-        # Créer dictionnaires sample → color et category
+        # Create dictionnary sample → color and category
         colors = dict(zip(df['sample'].astype(str), df['color']))
         categories = dict(zip(df['sample'].astype(str), df['category']))
 
-        # Modifier les noms des feuilles pour inclure la catégorie
+        # Modify leafs names to add category
         for clade in tree.get_terminals():
             orig_name = clade.name
             if orig_name in categories:
@@ -601,11 +578,10 @@ def plot_newick(newick_file, output_file, color_filename=None):
         for clade in tree.get_nonterminals():
             clade.name = None
     else:
-        # Pas de fichier : noms simples en noir
         for clade in tree.get_terminals():
             label_colors[clade.name] = "black"
 
-    # Dessin de l’arbre avec couleur des labels
+    # Draw tree with labels and color
     fig = plt.figure(figsize=(10, 12))
     ax = fig.add_subplot(1, 1, 1)
 
@@ -636,7 +612,7 @@ Returns:
 
 def calcul_arbre_nj(matrice_distance_filename, file_name, color_filename=None):
     df = pd.read_csv(matrice_distance_filename, index_col=0)
-    # conversion dataframe en matrice de distance inférieure
+    # dataframe to lower distance matrix conversion
     df_val = df.values
     triangulaire_inf = []
     for i in range(0, df_val.shape[0]):
@@ -645,7 +621,7 @@ def calcul_arbre_nj(matrice_distance_filename, file_name, color_filename=None):
             triangulaire_inf[i].append(df_val[i, j])
 
     dm = Phylo.TreeConstruction.DistanceMatrix(list(df.columns), triangulaire_inf)
-    # calcul de l'arbre
+    # computing tree
     constructor = DistanceTreeConstructor()
     tree = constructor.nj(dm)
     newick_tree = tree.format('newick')
@@ -654,83 +630,43 @@ def calcul_arbre_nj(matrice_distance_filename, file_name, color_filename=None):
     return newick_tree
 
 
-# Old fonction to plot dendogram depuis une matrice de distance
-def plot_dendogramme(csv_df_filename, color_filename=None):
-    df = pd.read_csv(csv_df_filename, index_col=0)
-    # c_dist = pdist(df) # computing the distance
-    # methodes possibles pour linkage : single, complete, average, weighted, centroid, median, ward
-    c_link = linkage(df, method='ward')  # computing the linkage
-    dendrogram(c_link, leaf_rotation=90, labels=df.columns, truncate_mode="level")
-    cat_df = None
-    if color_filename != None:
-        cat_df = pd.read_csv(color_filename, sep=',')
-        # cat = list(cat_df.iloc[:][1].unique)
-        ax = plt.gca()
-        xlbls = ax.get_xmajorticklabels()
-        newlbls = []
-        for lbl in xlbls:
-            # lbl.set_color('#8dd3c7')
-            # if (len(cat_df[cat_df['genome']==lbl.get_text()]['color'].values) > 0):
-            if (len(cat_df[cat_df['genome'] == lbl.get_text()]['pays_court'].values) > 0):
-                pays = str(cat_df[cat_df['genome'] == lbl.get_text()]['pays_court'].values[0])
-            else:
-                pays = ""
-            if (len(cat_df[cat_df['genome'] == lbl.get_text()]['color'].values) > 0):
-                color = cat_df[cat_df['genome'] == lbl.get_text()]['color'].values[0]
-            else:
-                color = '#000000'
-            lbl.set_text(lbl.get_text() + " - " + pays)
-            lbl.set_color(color)
-            newlbls.append(lbl)
-        xlbls = ax.set_xticklabels(newlbls)
-    plt.show()
-    return df, cat_df
-
 
 '''
-Fonction to reverse inversed chromosomes (chromosomes with more reversed strands than direct strands)
+Fonction to reverse inversed haplotype (chromosomes with more reversed strands than direct strands)
 The Nodes that are shared with other chromosomes (not detected as reversed) are not reversed
 '''
 
 
-def inverser_reverse_chromosome(file_name, output_file_name):
+def inverse_reverse_haplotype(file_name, output_file_name):
     file = open(file_name, "r")
     output_file = open(output_file_name, "w")
     nb_chemins = 0
-    stats = {}
 
-    # Définition des séparateurs possible selon le type de chemin (P ou W) et si on garde le strand ou non
-    # sep[0] dans un chemin de type Path
-    # sep[1] dans un chemin de type Walk
+    # Definition of P lines or W lines separators
+    # sep[0] for P lines
+    # sep[1] for W lines
     sep = ["[,;.*]", "(<|>)"]
     dic_count_direct_reverse_strand = {}
-    compteur_noeuds_chromosome = {}
-    noeuds_a_conserver = set()
+    conserved_nodes_set = set()
     temps_depart = time.time()
     with file, output_file:
         total_path = sum(1 for line in file if line.startswith(('P', 'W')))
         print("Debut du parsing, nombre de chemins : " + str(total_path))
         file.seek(0, 0)
-        ligne = file.readline()
+        line = file.readline()
         print("File opening " + str(file_name))
 
-        # Premier parcours du GFA pour trouver les noeuds
-        # Ce parcours sert à compter les noeuds pour ensuite créer les structures à la taille adaptée
-        # Il sert également à stocker la taille des noeuds dans le cas où l'on séelctionne les noeuds
-        # sur leur taille
+        #  First GFA browsing to find nodes to create the data frame and to get the nodes size
         tps1 = time.time()
 
         with tqdm(total=total_path) as bar:
-            while ligne:
-                ligne_dec = ligne.split()
+            while line:
+                ligne_dec = line.split()
                 if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
                     nb_chemins += 1
                     bar.update(1)
-                    # Pour le premier parcours du fichier on va préparer un dictionnaire
-                    # pour chaque génome et chaque chromosome on va compte le nombre de
-                    # strand direct et reverse de façon à inverser si le nombre de reverse
-                    # est supérieur au nombre de direct
-                    chromosome = ""
+                    # First GFA browsing => get haplotypes with higher reversed nodes number than direct nodes
+                    # These haplotypes will be inversed after
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
@@ -739,12 +675,10 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         ind = 6
                         walk = 1
 
-                    chromosome, genome = get_chromosome_genome(ligne)
+                    chromosome, genome = get_chromosome_genome(line)
 
-                    # préparation de la structure dic_count_direct_reverse_strand
-                    # on va compter le nombre de strand direct et reverse
-                    # si le reverse est supérieur au direct on inversera le chromosome
-                    # c'est du au fait que le séquençage des chromosomes n'est pas forcément dans le bon sens
+                    # the dic_count_direct_reverse_strand dictionary is used to detect haplotypes
+                    # for which there are more reverse nodes than direct and which should probably be reversed.
                     if genome not in dic_count_direct_reverse_strand:
                         dic_count_direct_reverse_strand[genome] = {}
 
@@ -758,9 +692,9 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count(">")
                         dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("<")
 
-                ligne = file.readline()
+                line = file.readline()
         dic_to_check = {}
-        # Recherche des genomes / chromosomes inversés
+        # Search for inversed haplotypes
         for g in dic_count_direct_reverse_strand:
             for c in dic_count_direct_reverse_strand[g]:
                 if dic_count_direct_reverse_strand[g][c]["-"] > dic_count_direct_reverse_strand[g][c]["+"]:
@@ -768,72 +702,56 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         dic_to_check[g].append(c)
                     else:
                         dic_to_check[g] = [c]
-        print("Liste des chromosomes à inverser : " + str(dic_to_check))
-        # Second parcours pour des questions de mémoires => on va récupérer les noeuds et le strand
-        # sur les chromosomes inversés
+        print("List of inversed haplotypes : " + str(dic_to_check))
+        # 2nd GFA browsing to get nodes and strand on inversed chromosome
         file.seek(0, 0)
-        ligne = file.readline()
-        print("Debut du 2eme parcours")
+        line = file.readline()
         with tqdm(total=total_path) as bar:
-            while ligne:
-                ligne_dec = ligne.split()
+            while line:
+                ligne_dec = line.split()
                 if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
                     nb_chemins += 1
                     bar.update(1)
-                    # Pour le premier parcours du fichier on va préparer un dictionnaire
-                    # pour chaque génome et chaque chromosome on va compte le nombre de
-                    # strand direct et reverse de façon à inverser si le nombre de reverse
-                    # est supérieur au nombre de direct
-                    chromosome = ""
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
-
 
                     else:
                         ind = 6
                         walk = 1
 
-                    chromosome, genome = get_chromosome_genome(ligne)
-
-                    set_noeuds = set()
+                    chromosome, genome = get_chromosome_genome(line)
 
                     if genome in dic_to_check and chromosome in dic_to_check[genome]:
-                        liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
+                        nodes_list_ = re.split(sep[walk], ligne_dec[ind])
                         i = 0
-                        while i < len(liste_noeuds_):
-                            noeud = ""
+                        while i < len(nodes_list_):
+                            node = ""
                             strand = ""
-                            if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
-                                noeud = liste_noeuds_[i + 1]
-                                strand = liste_noeuds_[i]
+                            if walk == 1 and nodes_list_[i] in ["<", ">"]:
+                                node = nodes_list_[i + 1]
+                                strand = nodes_list_[i]
                                 i += 2
                             else:
-                                if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
-                                    noeud = liste_noeuds_[i][:-1]
-                                    strand = liste_noeuds_[i][-1]
+                                if walk == 0 and nodes_list_[i][-1] in ["+", "-"]:
+                                    node = nodes_list_[i][:-1]
+                                    strand = nodes_list_[i][-1]
                                 i += 1
 
-                            if noeud != "" and strand != "" and noeud not in noeuds_a_conserver:
-                                noeuds_a_conserver.add(noeud)
-                ligne = file.readline()
+                            if node != "" and strand != "" and node not in conserved_nodes_set:
+                                conserved_nodes_set.add(node)
+                line = file.readline()
 
-        # 3ème parcours pour des questions de mémoires => on va vérifier les noeuds uniques
+        # 3rd GFA browsing to get uniques nodes
         file.seek(0, 0)
         ligne = file.readline()
-        print("Debut du 3eme parcours")
-        set_noeuds_redondants = set()
+        redundancy_nodes_set = set()
         with tqdm(total=total_path) as bar:
             while ligne:
                 ligne_dec = ligne.split()
                 if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
                     nb_chemins += 1
                     bar.update(1)
-                    # Pour le premier parcours du fichier on va préparer un dictionnaire
-                    # pour chaque génome et chaque chromosome on va compte le nombre de
-                    # strand direct et reverse de façon à inverser si le nombre de reverse
-                    # est supérieur au nombre de direct
-                    chromosome = ""
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
@@ -846,30 +764,27 @@ def inverser_reverse_chromosome(file_name, output_file_name):
 
                     if genome not in dic_to_check or (
                             genome in dic_to_check and chromosome not in dic_to_check[genome]):
-                        liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
+                        nodes_list_ = re.split(sep[walk], ligne_dec[ind])
                         i = 0
-                        while i < len(liste_noeuds_):
-                            noeud = ""
+                        while i < len(nodes_list_):
+                            node = ""
                             strand = ""
-                            if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
-                                noeud = liste_noeuds_[i + 1]
-                                strand = liste_noeuds_[i]
+                            if walk == 1 and nodes_list_[i] in ["<", ">"]:
+                                node = nodes_list_[i + 1]
                                 i += 2
                             else:
-                                if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
-                                    noeud = liste_noeuds_[i][:-1]
-                                    strand = liste_noeuds_[i][-1]
+                                if walk == 0 and nodes_list_[i][-1] in ["+", "-"]:
+                                    node = nodes_list_[i][:-1]
                                 i += 1
-                                # if noeud in noeuds_a_conserver and genome not in noeuds_a_conserver[noeud]["genomes"]:
-                            # On regarde si le noeud est partagé avec un génomé non inversé, si oui on supprimera ce noeud
-                            # de la liste des noeuds à inverser (les noeuds partagés par des chromosomes inversés sont à inverser)
-                            if noeud in noeuds_a_conserver:
-                                set_noeuds_redondants.add(noeud)
+                            # Check if node is shared with a non inversed haplotype, if it is then this node will
+                            # be removed form the list of nodes to inverse (nodes shared between only inversed haplotypes are inversed)
+                            if node in conserved_nodes_set:
+                                redundancy_nodes_set.add(node)
                 ligne = file.readline()
-        print("Nombre de noeuds à inverser dans le path : " + str(len(noeuds_a_conserver)))
-        noeuds_a_conserver = noeuds_a_conserver - set_noeuds_redondants
+        print("Number of nodes to inverse in the paths : " + str(len(conserved_nodes_set)))
+        conserved_nodes_set = conserved_nodes_set - redundancy_nodes_set
 
-        print("Nombre de noeuds uniques à inverser dans les noeuds et liens : " + str(len(noeuds_a_conserver)))
+        print("Number of unique node to inverse in nodes and links : " + str(len(conserved_nodes_set)))
 
         print("Number of paths : " + str(nb_chemins))
 
@@ -877,19 +792,19 @@ def inverser_reverse_chromosome(file_name, output_file_name):
         print("Time parsing nodes : " + str(tps2 - tps1))
 
         # Inversion du GFA
-        print("Génération du GFA")
-        total_lignes = sum(1 for line in file)
+        print("GFA construction")
+        total_lines = sum(1 for line in file)
         file.seek(0, 0)
-        ligne = file.readline()
-        nb_noeuds_inverses = 0
+        line = file.readline()
+        inversed_nodes_number = 0
         nb_noeuds_conserves = 0
-        with tqdm(total=total_lignes) as bar:
-            while ligne:
-                ligne_to_print = ligne
-                ligne_dec = ligne.split()
+        with tqdm(total=total_lines) as bar:
+            while line:
+                ligne_to_print = line
+                ligne_dec = line.split()
                 if ligne_dec[0] == 'S':
-                    if ligne_dec[1] in noeuds_a_conserver:
-                        # inversion de la séquence du noeud
+                    if ligne_dec[1] in conserved_nodes_set:
+                        # Inversing node's sequence
                         ligne_to_print = ligne_dec[0] + "\t" + ligne_dec[1] + "\t" + str(
                             Seq(ligne_dec[2]).reverse_complement())
                         for j in range(3, len(ligne_dec)):
@@ -899,9 +814,9 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                 ligne_to_print += ligne_dec[j]
                         ligne_to_print += "\n"
                 if ligne_dec[0] == 'L':
-                    if ligne_dec[1] in noeuds_a_conserver or ligne_dec[3] in noeuds_a_conserver:
+                    if ligne_dec[1] in conserved_nodes_set or ligne_dec[3] in conserved_nodes_set:
                         ligne_to_print = ligne_dec[0] + "\t" + ligne_dec[1] + "\t"
-                        if ligne_dec[1] in noeuds_a_conserver:
+                        if ligne_dec[1] in conserved_nodes_set:
                             if ligne_dec[2] == "+":
                                 ligne_to_print += "-"
                             else:
@@ -909,7 +824,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         else:
                             ligne_to_print += ligne_dec[2]
                         ligne_to_print += "\t" + ligne_dec[3] + "\t"
-                        if ligne_dec[3] in noeuds_a_conserver:
+                        if ligne_dec[3] in conserved_nodes_set:
                             if ligne_dec[4] == "+":
                                 ligne_to_print += "-"
                             else:
@@ -922,7 +837,6 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         ligne_to_print += "\n"
 
                 if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
-                    chromosome = ""
                     if ligne_dec[0] == 'P':
                         ind = 2
                         walk = 0
@@ -932,7 +846,7 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         ind = 6
                         walk = 1
 
-                    chromosome, genome = get_chromosome_genome(ligne)
+                    chromosome, genome = get_chromosome_genome(line)
 
                     if (genome in dic_to_check and chromosome in dic_to_check[genome]):
                         if walk == 1:
@@ -941,27 +855,25 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                              + ligne_dec[4] + "\t" + ligne_dec[5] + "\t"
                         else:
                             ligne_to_print = ligne_dec[0] + "\t" + ligne_dec[1] + "\t"
-                        liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
-                        liste_noeuds = []
+                        nodes_list_ = re.split(sep[walk], ligne_dec[ind])
+                        nodes_list = []
                         liste_strand = []
                         i = 0
-                        while i < len(liste_noeuds_):
-                            noeud = ""
-                            strand = ""
-                            if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
-                                liste_noeuds.append(liste_noeuds_[i + 1])
-                                liste_strand.append(liste_noeuds_[i])
+                        while i < len(nodes_list_):
+                            if walk == 1 and nodes_list_[i] in ["<", ">"]:
+                                nodes_list.append(nodes_list_[i + 1])
+                                liste_strand.append(nodes_list_[i])
                                 i += 2
                             else:
-                                if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
-                                    liste_noeuds.append(liste_noeuds_[i][:-1])
-                                    liste_strand.append(liste_noeuds_[i][-1])
+                                if walk == 0 and nodes_list_[i][-1] in ["+", "-"]:
+                                    nodes_list.append(nodes_list_[i][:-1])
+                                    liste_strand.append(nodes_list_[i][-1])
                                 i += 1
 
-                        for i in range(len(liste_noeuds) - 1, -1, -1):
+                        for i in range(len(nodes_list) - 1, -1, -1):
                             if walk == 1:
-                                if liste_noeuds[i] not in noeuds_a_conserver:
-                                    nb_noeuds_inverses += 1
+                                if nodes_list[i] not in conserved_nodes_set:
+                                    inversed_nodes_number += 1
                                     if (liste_strand[i] == "<"):
                                         ligne_to_print += ">"
                                     else:
@@ -969,11 +881,11 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                                 else:
                                     nb_noeuds_conserves += 1
                                     ligne_to_print += liste_strand[i]
-                                ligne_to_print += liste_noeuds[i]
+                                ligne_to_print += nodes_list[i]
                             else:
-                                ligne_to_print += liste_noeuds[i]
-                                if liste_noeuds[i] not in noeuds_a_conserver:
-                                    nb_noeuds_inverses += 1
+                                ligne_to_print += nodes_list[i]
+                                if nodes_list[i] not in conserved_nodes_set:
+                                    inversed_nodes_number += 1
                                     if (liste_strand[i] == "+"):
                                         ligne_to_print += "-"
                                     else:
@@ -984,14 +896,14 @@ def inverser_reverse_chromosome(file_name, output_file_name):
                         ligne_to_print += "\n"
 
                 output_file.write(ligne_to_print)
-                ligne = file.readline()
+                line = file.readline()
             bar.update(1)
         print(
-            "GFA généré, durée du traitement : " + str(time.time() - temps_depart) + " Nb de noeuds inversés : " + str(
-                nb_noeuds_inverses) + " Nb de noeuds conservé : " + str(nb_noeuds_conserves))
+            "GFA generated, total time : " + str(time.time() - temps_depart) + " Inversed nodes number : " + str(
+                inversed_nodes_number) + " Nb de noeuds conservé : " + str(nb_noeuds_conserves))
         file.close()
         output_file.close()
-        return noeuds_a_conserver, dic_count_direct_reverse_strand
+        return conserved_nodes_set, dic_count_direct_reverse_strand
 
 
 '''
@@ -1002,23 +914,21 @@ Fonction to reverse a GFA (+ or > becomes - or < and link / node sequences are i
 def reverse_gfa(file_name, output_file_name):
     file = open(file_name, "r")
     output_file = open(output_file_name, "w")
-    nb_chemins = 0
-    stats = {}
 
-    # Définition des séparateurs possible selon le type de chemin (P ou W) et si on garde le strand ou non
-    # sep[0] dans un chemin de type Path
-    # sep[1] dans un chemin de type Walk
+    # Definition of P lines or W lines separators
+    # sep[0] for P lines
+    # sep[1] for W lines
     sep = ["[,;.*]", "(<|>)"]
-    nb_noeuds_inverses = 0
+    inversed_nodes_number = 0
     with file, output_file:
         print("Start parsing")
         temps_depart = time.time()
-        ligne = file.readline()
-        while ligne:
-            ligne_to_print = ligne
-            ligne_dec = ligne.split()
+        line = file.readline()
+        while line:
+            ligne_to_print = line
+            ligne_dec = line.split()
             if ligne_dec[0] == 'S':
-                # inversion de la séquence du noeud
+                # Inversing node's sequence
                 ligne_to_print = ligne_dec[0] + "\t" + ligne_dec[1] + "\t" + str(Seq(ligne_dec[2]).reverse_complement())
                 for j in range(3, len(ligne_dec)):
                     if (j < len(ligne_dec) - 1):
@@ -1030,7 +940,6 @@ def reverse_gfa(file_name, output_file_name):
                 ligne_to_print = ligne_to_print.replace("+", "/plus/").replace("-", "+").replace("/plus/", "-")
 
             if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
-                chromosome = ""
                 if ligne_dec[0] == 'P':
                     ind = 2
                     walk = 0
@@ -1044,34 +953,32 @@ def reverse_gfa(file_name, output_file_name):
                                      + ligne_dec[4] + "\t" + ligne_dec[5] + "\t"
                 else:
                     ligne_to_print = ligne_dec[0] + "\t" + ligne_dec[1] + "\t"
-                liste_noeuds_ = re.split(sep[walk], ligne_dec[ind])
-                liste_noeuds = []
+                nodes_list_ = re.split(sep[walk], ligne_dec[ind])
+                nodes_list = []
                 liste_strand = []
                 i = 0
-                while i < len(liste_noeuds_):
-                    noeud = ""
-                    strand = ""
-                    if walk == 1 and liste_noeuds_[i] in ["<", ">"]:
-                        liste_noeuds.append(liste_noeuds_[i + 1])
-                        liste_strand.append(liste_noeuds_[i])
+                while i < len(nodes_list_):
+                    if walk == 1 and nodes_list_[i] in ["<", ">"]:
+                        nodes_list.append(nodes_list_[i + 1])
+                        liste_strand.append(nodes_list_[i])
                         i += 2
                     else:
-                        if walk == 0 and liste_noeuds_[i][-1] in ["+", "-"]:
-                            liste_noeuds.append(liste_noeuds_[i][:-1])
-                            liste_strand.append(liste_noeuds_[i][-1])
+                        if walk == 0 and nodes_list_[i][-1] in ["+", "-"]:
+                            nodes_list.append(nodes_list_[i][:-1])
+                            liste_strand.append(nodes_list_[i][-1])
                         i += 1
 
-                for i in range(len(liste_noeuds) - 1, -1, -1):
+                for i in range(len(nodes_list) - 1, -1, -1):
                     if walk == 1:
-                        nb_noeuds_inverses += 1
+                        inversed_nodes_number += 1
                         if (liste_strand[i] == "<"):
                             ligne_to_print += ">"
                         else:
                             ligne_to_print += "<"
-                        ligne_to_print += liste_noeuds[i]
+                        ligne_to_print += nodes_list[i]
                     else:
-                        ligne_to_print += liste_noeuds[i]
-                        nb_noeuds_inverses += 1
+                        ligne_to_print += nodes_list[i]
+                        inversed_nodes_number += 1
                         if (liste_strand[i] == "+"):
                             ligne_to_print += "-"
                         else:
@@ -1083,8 +990,8 @@ def reverse_gfa(file_name, output_file_name):
                 ligne_to_print += "\n"
 
             output_file.write(ligne_to_print)
-            ligne = file.readline()
+            line = file.readline()
         print("GFA generated, total time : " + str(time.time() - temps_depart) + "\nNumber of nodes inversed : " + str(
-            nb_noeuds_inverses))
+            inversed_nodes_number))
         file.close()
         output_file.close()

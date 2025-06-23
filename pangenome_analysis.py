@@ -24,7 +24,7 @@ if __name__ == "__main__":
         file_name = ""
         project_name = ""
         output_directory=""
-        nb_noeuds_cible = 10000
+        RaxML_sample_size = 10000
         pondere = True
         strand = True
         redudancy = True
@@ -44,7 +44,7 @@ if __name__ == "__main__":
             if opt in ("-p", "--projectname"):
                 project_name = arg
             if opt in ("-n", "--nodes_number"):
-                nb_noeuds_cible = int(arg)
+                RaxML_sample_size = int(arg)
             if opt in ("-s", "--strand"):
                 strand = arg.lower() == "true"
             if opt in ("-m", "--method"):
@@ -56,7 +56,7 @@ if __name__ == "__main__":
             if opt in ("-r", "--chromosome"):
                 chromosome = arg
 
-        if not isinstance(nb_noeuds_cible, int):
+        if not isinstance(RaxML_sample_size, int):
             print("nodes_number should be integer")
             exit(1)
         if file_name == "" or not os.path.exists(file_name):
@@ -78,4 +78,4 @@ if __name__ == "__main__":
             print("Unknown color_file_name")
             exit(1)
 
-        panorama.analyser_pangenome(file_name, output_directory, project_name, nb_noeuds_cible, method, redudancy, strand, color_file_name, chromosome)
+        panorama.analyser_pangenome(file_name, output_directory, project_name, RaxML_sample_size, method, redudancy, strand, color_file_name, chromosome)
