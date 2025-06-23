@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print("Command : " + str(sys.argv[0:]))
     # Récupérer les arguments passés depuis la ligne de commande
     if len(sys.argv) < 2 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
-        print('Usage: python pantoolbox.py -f|--graphfilename <file_name:mandatory> -d|--output_directory <output_directory : mandatory> -p|--project_name <project_name : mandatory> -n|--nodes_number  <nodes_number : optionnal, default=1000> -m|--method <methode : optionnal, default ="random"> -r|--redundancy <boolean : optionnal, default = True> -s|--strand <boolean : optionnal, default = True> -c|--colorfilename <colorfilename : optionnal, default = ""> -k|--chromosome <chromosome : optionnal, default = "">')
+        print('Usage: python pantoolbox.py -f|--graphfilename <file_name:mandatory> -d|--output_directory <output_directory : mandatory> -p|--project_name <project_name : mandatory> -n|--nodes_number  <nodes_number : optionnal, default=1000> -m|--method <methode : optionnal, default ="random"> -r|--redundancy <boolean : optionnal, default = True> -s|--strand <boolean : optionnal, default = True> -c|--colorfilename <colorfilename : optionnal, default = ""> -k|--chromosome <chromosome : optionnal, default = ""> -x|--maskednodesfilename <maskednodesfilename : optionnal, default = "">')
         sys.exit(1)
     else :
         file_name = ""
@@ -32,7 +32,7 @@ if __name__ == "__main__":
         color_file_name = ""
         
         try:
-            opts, args = getopt.getopt(argv, "f:d:p:n:s:m:r:c:k:", ["graphfilename=", "output_directory=", "projectname=", "nodes_number=","strand=", "method=","redundancy=", "colorfilename=", "chromosome="])
+            opts, args = getopt.getopt(argv, "f:d:p:n:s:m:r:c:k:x:", ["graphfilename=", "output_directory=", "projectname=", "nodes_number=","strand=", "method=","redundancy=", "colorfilename=", "chromosome=", "maskednodesfilename="])
         except getopt.GetoptError:
             print("Bad argument")
             sys.exit(2)
@@ -55,6 +55,8 @@ if __name__ == "__main__":
                 redudancy = arg.lower() == "true"
             if opt in ("-r", "--chromosome"):
                 chromosome = arg
+            if opt in ("-x", "--maskednodesfilename"):
+                masked_nodes_file_name = arg
 
         if not isinstance(RaxML_sample_size, int):
             print("nodes_number should be integer")
@@ -77,5 +79,8 @@ if __name__ == "__main__":
         if color_file_name != "" and not os.path.exists(color_file_name):
             print("Unknown color_file_name")
             exit(1)
+        if masked_nodes_file_name != "" and not os.path.exists(masked_nodes_file_name):
+            print("Unknown masked_nodes_file_name")
+            exit(1)
 
-        panorama.analyser_pangenome(file_name, output_directory, project_name, RaxML_sample_size, method, redudancy, strand, color_file_name, chromosome)
+        panorama.analyser_pangenome(file_name, output_directory, project_name, RaxML_sample_size, method, redudancy, strand, color_file_name, chromosome, masked_nodes_file_name)

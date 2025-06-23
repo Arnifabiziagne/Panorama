@@ -32,11 +32,11 @@ these nodes or not.
 Parameters
     @file_name: name of the GFA file to load
     @raxml_sample_size : specifies the desired number of nodes
-        This value is set to 10,000 by default, and the actual number of returned nodes will
-        be slightly different
+        This value is set to 10,000 by default
     @type_selection="random" or other: node selection mode for the PAV matrix, either selected randomly or by size (selecting the largest nodes)
     @strand: True to use strand, False otherwise
     @chromosome_file : if the GFA concerns a single chromosome, specify the chromosome number (or X / Y)
+    @masked_nodes_file_names : if some nodes must be masked, specify the nodes id in a text file (each line contains on id)
 
 Returns
     genome_dic: dictionary
@@ -53,22 +53,32 @@ Returns
 
 
 def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand=True,
-                        chromosome_file=None):
-    file = open(file_name, "r")
-    nb_noeuds = 0
+                        chromosome_file=None, masked_nodes_file_name = None):
+
+    nodes_nb = 1
     nb_liens = 0
     nb_chemins = 0
     stats = {}
     minus_nb = 0
     plus_nb = 0
+    set_masked_nodes = set()
 
+    # Getting the masked nodes if masked_nodes_file_names is not empty
+    if masked_nodes_file_name is not None and masked_nodes_file_name != "":
+        file_masked_node = open(masked_nodes_file_name, "r")
+        line = file_masked_node.readline()
+        while line:
+            set_masked_nodes.add(line.strip())
+            line = file_masked_node.readline()
+    print("Number of masked nodes : " + str(len(set_masked_nodes)))
     # Definition of the separators according to the line's type (P ou W)
     # sep[0] for P lines
     # sep[1] for W lines
     sep = ["[,;.*]", "(<|>)"]
     dic_count_direct_reverse_strand = {}
+    file = open(file_name, "r")
     with file:
-        ligne = file.readline()
+        line = file.readline()
         print("File opening " + str(file_name))
         genome_dic = {}
         genome_redondant_dic = {}
@@ -79,13 +89,16 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
         nodes_length_list = []
         # First GFA browsing to find nodes to create the data frame and to get the nodes size
         tps1 = time.time()
-        while ligne:
-            ligne_dec = ligne.split()
-            if ligne_dec[0] == 'S' and ligne_dec[1] not in node_lentgh_dic:
-                node_lentgh_dic[ligne_dec[1]] = len(ligne_dec[2])
-                nodes_length_list.append([ligne_dec[1], len(ligne_dec[2])])
-                node_index[ligne_dec[1]] = nb_noeuds
-                nb_noeuds += 1
+        while line:
+            ligne_dec = line.split()
+            if ligne_dec[0] == 'S' and ligne_dec[1] not in node_lentgh_dic :
+                if ligne_dec[1] in set_masked_nodes:
+                    node_index[ligne_dec[1]] = 0
+                else:
+                    node_index[ligne_dec[1]] = nodes_nb
+                    nodes_nb += 1
+                    node_lentgh_dic[ligne_dec[1]] = len(ligne_dec[2])
+                    nodes_length_list.append([ligne_dec[1], len(ligne_dec[2])])
 
             if ligne_dec[0] == 'L':
                 nb_liens += 1
@@ -97,7 +110,7 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
                     ind = 2
                 else:
                     ind = 6
-                chromosome, genome = get_chromosome_genome(ligne, chromosome_file)
+                chromosome, genome = get_chromosome_genome(line, chromosome_file)
                 # the dic_count_direct_reverse_strand dictionary is used to detect haplotypes
                 # for which there are more reverse nodes than direct and which should probably be reversed.
                 if genome not in dic_count_direct_reverse_strand:
@@ -113,7 +126,7 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
                     dic_count_direct_reverse_strand[genome][chromosome]["+"] += ligne_dec[ind].count(">")
                     dic_count_direct_reverse_strand[genome][chromosome]["-"] += ligne_dec[ind].count("<")
 
-            ligne = file.readline()
+            line = file.readline()
 
         dic_to_check = {}
 
@@ -132,8 +145,8 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
         # Sorting by node length
         nodes_length_list.sort(key=lambda x: x[1])
 
-        if raxml_sample_size > nb_noeuds:
-            raxml_sample_size = nb_noeuds
+        if raxml_sample_size > nodes_nb:
+            raxml_sample_size = nodes_nb
 
         if type_selection == "random":
             raxml_nodes_list = rand.sample(list(node_lentgh_dic.keys()), raxml_sample_size)
@@ -141,11 +154,11 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
             raxml_nodes_list = [nodes_length_list[i][0] for i in
                                   range(len(nodes_length_list) - 1, len(nodes_length_list) - 1 - raxml_sample_size,
                                         -1)]
-
+        nodes_length_list = []    
         raxml_nodes_nb = len(raxml_nodes_list)
         i = 0
-        for noeud in raxml_nodes_list:
-            index_noeuds_raxml_dic[noeud] = i
+        for node in raxml_nodes_list:
+            index_noeuds_raxml_dic[node] = i
             i += 1
 
 
@@ -157,12 +170,10 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
         line = file.readline()
         num_chemin = 0
         nb_noeuds_chemin_max = 0
-
         with tqdm(total=nb_chemins) as bar:
             while line:
                 ligne_dec = line.split()
                 if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
-                    bar.update(1)
                     num_chemin += 1
 
                     # split path according to P lines or W lines separators
@@ -173,17 +184,16 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
                     else:
                         ind = 6
                         walk = 1
-
                     chromosome, genome = get_chromosome_genome(line, chromosome_file)
-
+                    print("chromosome : " +str(chromosome) +  " genome : " + str(genome))
                     if genome not in genome_dic:
                         if strand:
-                            genome_dic[genome] = np.zeros(2 * nb_noeuds)
-                            genome_redondant_dic[genome] = np.zeros(2 * nb_noeuds)
+                            genome_dic[genome] = np.zeros(2 * (nodes_nb+1))
+                            genome_redondant_dic[genome] = np.zeros(2 * (nodes_nb+1))
                             pav_dic[genome] = np.zeros(2 * raxml_nodes_nb, dtype=int)
                         else:
-                            genome_dic[genome] = np.zeros(nb_noeuds)
-                            genome_redondant_dic[genome] = np.zeros(nb_noeuds)
+                            genome_dic[genome] = np.zeros(nodes_nb+1)
+                            genome_redondant_dic[genome] = np.zeros(nodes_nb+1)
                             pav_dic[genome] = np.zeros(raxml_nodes_nb, dtype=int)
 
                     if genome not in stats:
@@ -207,50 +217,49 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
                                 i += 1
                             else:
                                 i += 1
-
                     for n in range(0, len(nodes_list)):
-                        noeud = nodes_list[n]
+                        node = nodes_list[n]
                         s = strand_list[n]
 
-                        if noeud != "":
+                        if node != ""  and node_index[node] > 0:
                             if strand:
                                 if s in ["<", "-"]:
-                                    genome_redondant_dic[genome][node_index[noeud]] += 1
-                                    genome_dic[genome][node_index[noeud]] = node_lentgh_dic[noeud]
+                                    genome_redondant_dic[genome][node_index[node]] += 1
+                                    genome_dic[genome][node_index[node]] = node_lentgh_dic[node]
                                     stats[genome][chromosome]["-"] += 1
                                     stats[genome]["total-"] += 1
                                     minus_nb += 1
                                 else:
-                                    genome_redondant_dic[genome][node_index[noeud] + nb_noeuds] += 1
-                                    genome_dic[genome][node_index[noeud] + nb_noeuds] = node_lentgh_dic[noeud]
+                                    genome_redondant_dic[genome][node_index[node] + nodes_nb] += 1
+                                    genome_dic[genome][node_index[node] + nodes_nb] = node_lentgh_dic[node]
                                     stats[genome][chromosome]["+"] += 1
                                     stats[genome]["total+"] += 1
                                     plus_nb += 1
                             else:
-                                genome_redondant_dic[genome][node_index[noeud]] += 1
-                                genome_dic[genome][node_index[noeud]] = node_lentgh_dic[noeud]
+                                genome_redondant_dic[genome][node_index[node]] += 1
+                                genome_dic[genome][node_index[node]] = node_lentgh_dic[node]
                                 if s in ["<", "-"]:
                                     stats[genome][chromosome]["-"] += 1
                                     minus_nb += 1
                                 else:
                                     stats[genome][chromosome]["+"] += 1
                                     plus_nb += 1
-                            if noeud in index_noeuds_raxml_dic:
+                            if node in index_noeuds_raxml_dic:
                                 if strand:
                                     if s in ["<", "-"]:
-                                        pav_dic[genome][index_noeuds_raxml_dic[noeud]] = int(1)
+                                        pav_dic[genome][index_noeuds_raxml_dic[node]] = int(1)
                                     else:
-                                        pav_dic[genome][index_noeuds_raxml_dic[noeud] + raxml_nodes_nb] = int(1)
+                                        pav_dic[genome][index_noeuds_raxml_dic[node] + raxml_nodes_nb] = int(1)
                                 else:
-                                    pav_dic[genome][index_noeuds_raxml_dic[noeud]] = int(1)
+                                    pav_dic[genome][index_noeuds_raxml_dic[node]] = int(1)
 
                     if nb_noeuds_chemin_max < len(nodes_list):
                         nb_noeuds_chemin_max = len(nodes_list)
-
+                    bar.update(1)
                 line = file.readline()
 
     file.close()
-    print("Number of nodes : " + str(nb_noeuds) + "\nLinks : " + str(nb_liens) + "\nPaths : " + str(
+    print("Number of nodes : " + str(nodes_nb) + "\nLinks : " + str(nb_liens) + "\nPaths : " + str(
         nb_chemins) + "\nMaximum number of nodes in a path : " + str(nb_noeuds_chemin_max))
     tps3 = time.time()
     print("Time parsing paths : " + str(tps3 - tps2) + "Total time : " + str(tps3 - tps1))
@@ -328,7 +337,7 @@ Parameters
     @genome_redondant_dic: the structure returned by the GFA loading function 
         (dictionary containing genomes, the nodes present in each genome, and their number of occurrences)
     @project_directory: directory where output files will be stored
-    @redondance: if True, Jaccard distance is calculated on all nodes including redundant ones; 
+    @redundancy: if True, Jaccard distance is calculated on all nodes including redundant ones; 
         otherwise, only on presence/absence of nodes
     @color_filename: this file allows coloring of the leaves of the generated tree
         The file must be in CSV format, separated by "," and must contain a header row
@@ -343,7 +352,7 @@ Returns
 """
 
 
-def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directory, redondance=True,
+def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directory, redundancy=True,
                                color_file_name=None):
     print("Computing the distances")
     genome_list = list(genome_dic.keys())
@@ -361,7 +370,7 @@ def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directo
                 dfNP.loc[genome2, genome] = 0
             else:
                 # calcul of weighted distance
-                if redondance:
+                if redundancy:
                     CP = np.dot(np.minimum(genome_redondant_dic[genome], genome_redondant_dic[genome2]),
                                 genome_dic[genome])
                     DP = np.dot(np.maximum(genome_redondant_dic[genome], genome_redondant_dic[genome2]),
@@ -377,7 +386,7 @@ def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directo
                 dfP.loc[genome, genome2] = dfP[genome][genome2]
 
                 # Calcul of non weighted distance
-                if redondance:
+                if redundancy:
                     CNP = np.sum(np.minimum(genome_redondant_dic[genome], genome_redondant_dic[genome2]))
                     DNP = np.sum(np.maximum(genome_redondant_dic[genome], genome_redondant_dic[genome2]))
                 else:
@@ -411,9 +420,10 @@ of each selected node.
 Parameters
     @filename: name of the GFA file containing the pangenome
     @project_directory: will create a directory with this name to store the results
-    @nb_noeuds_cible: approximate number of nodes desired in the presence/absence matrix
+    @raxml_sample_size : specifies the desired number of nodes
+        This value is set to 10,000 by default
     @methode: "random" or "size", selects the nodes for analysis (either randomly or by choosing the largest nodes)
-    @redondance: if True, nodes present multiple times in a sample are considered; otherwise, 
+    @redundancy: if True, nodes present multiple times in a sample are considered; otherwise, 
         only the presence or absence of the node is used
     @strand: if True, strand information is taken into account; otherwise,
         only node presence is considered, regardless of direction
@@ -436,14 +446,14 @@ Distance computation methods:
 """
 
 
-def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_nb=10000, methode="random",
-                       redondance=True, strand=True, color_file_name=None, chromosome_file=None):
+def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_size=10000, methode="random",
+                       redundancy=True, strand=True, color_file_name=None, chromosome_file=None, masked_nodes_file_name = None):
     print("Launch with args : \nfile_name : " + str(file_name)
           + "\nproject_directory : " + str(project_directory)
           + "\nproject_name : " + str(project_name)
-          + "\nnodes number : " + str(raxml_sample_nb)
+          + "\nnodes number : " + str(raxml_sample_size)
           + "\nmethod : " + str(methode)
-          + "\nredundancy : " + str(redondance)
+          + "\nredundancy : " + str(redundancy)
           + "\nstrand : " + str(strand)
           + "\ncolor filename : " + str(color_file_name))
 
@@ -457,14 +467,14 @@ def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_
 
     matrice_pav = rep + "/pav_matrix.phy"
 
-    genome_dic, genome_redondant_dic, pav_dic, stats = load_gfa(file_name, raxml_sample_nb, methode, strand,
-                                                                           chromosome_file)
+    genome_dic, genome_redondant_dic, pav_dic, stats = load_gfa(file_name, raxml_sample_size, methode, strand,
+                                                                           chromosome_file, masked_nodes_file_name)
 
     export_stats(rep + "/stats.csv", stats)
 
     pav_to_phylip(pav_dic, matrice_pav)
     # Calcul des distances de Jaccard entre les paires
-    dfP, dfNP = calculate_distance_jaccard(genome_dic, genome_redondant_dic, rep, redondance, color_file_name)
+    dfP, dfNP = calculate_distance_jaccard(genome_dic, genome_redondant_dic, rep, redundancy, color_file_name)
     # conversion de la matrice de distance csv vers le format phylip
     distance_matrix_to_phylip(dfP, rep + "/weighted_distance_matrix.phy")
     distance_matrix_to_phylip(dfNP, rep + "/non_weighted_distance_matrix.phy")
@@ -580,6 +590,8 @@ def plot_newick(newick_file, output_file, color_filename=None):
     else:
         for clade in tree.get_terminals():
             label_colors[clade.name] = "black"
+        for clade in tree.get_nonterminals():
+            clade.name = None
 
     # Draw tree with labels and color
     fig = plt.figure(figsize=(10, 12))
@@ -626,7 +638,7 @@ def calcul_arbre_nj(matrice_distance_filename, file_name, color_filename=None):
     tree = constructor.nj(dm)
     newick_tree = tree.format('newick')
     Phylo.write(tree, file_name + ".nwk", 'newick')
-    plot_newick(newick_tree, file_name + ".png", color_filename)
+    plot_newick(file_name + ".nwk", file_name + ".png", color_filename)
     return newick_tree
 
 
@@ -900,7 +912,7 @@ def inverse_reverse_haplotype(file_name, output_file_name):
             bar.update(1)
         print(
             "GFA generated, total time : " + str(time.time() - temps_depart) + " Inversed nodes number : " + str(
-                inversed_nodes_number) + " Nb de noeuds conservé : " + str(nb_noeuds_conserves))
+                inversed_nodes_number) + " Nb of conserved nodes : " + str(nb_noeuds_conserves))
         file.close()
         output_file.close()
         return conserved_nodes_set, dic_count_direct_reverse_strand
