@@ -31,12 +31,13 @@ these nodes or not.
 
 Parameters
     @file_name: name of the GFA file to load
-    @raxml_sample_size : specifies the desired number of nodes
-        This value is set to 10,000 by default
-    @type_selection="random" or other: node selection mode for the PAV matrix, either selected randomly or by size (selecting the largest nodes)
+    @raxml_sample_percent : specifies the desired number of nodes in percent of total nodes
+        This value is set to 0.1% by default
     @strand: True to use strand, False otherwise
     @chromosome_file : if the GFA concerns a single chromosome, specify the chromosome number (or X / Y)
     @masked_nodes_file_names : if some nodes must be masked, specify the nodes id in a text file (each line contains on id)
+    @private_haplotypes_filter : the nodes shared less than this value won't be considered
+    
 
 Returns
     genome_dic: dictionary
@@ -52,16 +53,18 @@ Returns
 """
 
 
-def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand=True,
-                        chromosome_file=None, masked_nodes_file_name = None):
+def load_gfa(file_name, raxml_sample_percent=0.1, strand=True,
+                        chromosome_file=None, masked_nodes_file_name = None, private_haplotypes_filter = 0):
 
-    nodes_nb = 1
+    nodes_nb = 0
     nb_liens = 0
     nb_chemins = 0
     stats = {}
     minus_nb = 0
     plus_nb = 0
     set_masked_nodes = set()
+    filtered_nodes = set()
+    set_genomes = set()
 
     # Getting the masked nodes if masked_nodes_file_names is not empty
     if masked_nodes_file_name is not None and masked_nodes_file_name != "":
@@ -71,6 +74,7 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
             set_masked_nodes.add(line.strip())
             line = file_masked_node.readline()
     print("Number of masked nodes : " + str(len(set_masked_nodes)))
+
     # Definition of the separators according to the line's type (P ou W)
     # sep[0] for P lines
     # sep[1] for W lines
@@ -87,15 +91,13 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
         pav_dic = {}
         index_noeuds_raxml_dic = {}
         nodes_length_list = []
+        nodes = {}
         # First GFA browsing to find nodes to create the data frame and to get the nodes size
         tps1 = time.time()
         while line:
             ligne_dec = line.split()
             if ligne_dec[0] == 'S' and ligne_dec[1] not in node_lentgh_dic :
-                if ligne_dec[1] in set_masked_nodes:
-                    node_index[ligne_dec[1]] = 0
-                else:
-                    node_index[ligne_dec[1]] = nodes_nb
+                    nodes[ligne_dec[1]] = nodes_nb
                     nodes_nb += 1
                     node_lentgh_dic[ligne_dec[1]] = len(ligne_dec[2])
                     nodes_length_list.append([ligne_dec[1], len(ligne_dec[2])])
@@ -110,7 +112,8 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
                     ind = 2
                 else:
                     ind = 6
-                chromosome, genome = get_chromosome_genome(line, chromosome_file)
+                chromosome, genome = get_chromosome_genome(line, haplotype=False, chromosome_file=chromosome_file)
+                set_genomes.add(genome)
                 # the dic_count_direct_reverse_strand dictionary is used to detect haplotypes
                 # for which there are more reverse nodes than direct and which should probably be reversed.
                 if genome not in dic_count_direct_reverse_strand:
@@ -129,7 +132,8 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
             line = file.readline()
 
         dic_to_check = {}
-
+        raxml_sample_size = min(nodes_nb,int(raxml_sample_percent * nodes_nb /100))
+        print("Number of sampled nodes : " + str(raxml_sample_size))
         # Search of genomes / chromosomes potentialy inversed
         for g in dic_count_direct_reverse_strand:
             for c in dic_count_direct_reverse_strand[g]:
@@ -141,19 +145,29 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
 
         print("Inversed Genomes / chromosomes detected : " + str(dic_to_check))
         print("Number of paths : " + str(nb_chemins))
-
+        dic_count_direct_reverse_strand = {}
         # Sorting by node length
         nodes_length_list.sort(key=lambda x: x[1])
+        
+        if private_haplotypes_filter > 0 :
+            gi = 0
+            genomes_index = {}
+            for g in set_genomes:
+                genomes_index[g] = gi
+                gi += 1
+            filtered_nodes = mask_nodes(file_name, nodes, genomes_index, private_haplotypes_filter,chromosome_file)
+            set_masked_nodes = set_masked_nodes | filtered_nodes
+        print("Number of filtered nodes : " + str(len(filtered_nodes)))
+        print("Number of total masked nodes : " + str(len(set_masked_nodes)))
+        nodes_nb = 0
+        for n in nodes:
+            if n not in set_masked_nodes:
+                node_index[n] = nodes_nb
+                nodes_nb += 1
+        nodes = {}
 
-        if raxml_sample_size > nodes_nb:
-            raxml_sample_size = nodes_nb
+        raxml_nodes_list = rand.sample(list(node_index.keys()), raxml_sample_size)
 
-        if type_selection == "random":
-            raxml_nodes_list = rand.sample(list(node_lentgh_dic.keys()), raxml_sample_size)
-        else:
-            raxml_nodes_list = [nodes_length_list[i][0] for i in
-                                  range(len(nodes_length_list) - 1, len(nodes_length_list) - 1 - raxml_sample_size,
-                                        -1)]
         nodes_length_list = []    
         raxml_nodes_nb = len(raxml_nodes_list)
         i = 0
@@ -184,16 +198,18 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
                     else:
                         ind = 6
                         walk = 1
-                    chromosome, genome = get_chromosome_genome(line, chromosome_file)
+                    chromosome, genome = get_chromosome_genome(line, haplotype=False, chromosome_file=chromosome_file)
                     print("chromosome : " +str(chromosome) +  " genome : " + str(genome))
                     if genome not in genome_dic:
                         if strand:
-                            genome_dic[genome] = np.zeros(2 * (nodes_nb+1))
-                            genome_redondant_dic[genome] = np.zeros(2 * (nodes_nb+1))
+                            genome_redondant_dic[genome] = np.zeros(2 * nodes_nb, dtype=np.int32)
+                            genome_dic[genome] = np.zeros(2 * nodes_nb, dtype=np.int32)
+                            
                             pav_dic[genome] = np.zeros(2 * raxml_nodes_nb, dtype=int)
                         else:
-                            genome_dic[genome] = np.zeros(nodes_nb+1)
-                            genome_redondant_dic[genome] = np.zeros(nodes_nb+1)
+                            genome_redondant_dic[genome] = np.zeros(nodes_nb, dtype=np.int32)
+                            genome_dic[genome] = np.zeros(nodes_nb, dtype=np.int32)
+                            
                             pav_dic[genome] = np.zeros(raxml_nodes_nb, dtype=int)
 
                     if genome not in stats:
@@ -221,7 +237,7 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
                         node = nodes_list[n]
                         s = strand_list[n]
 
-                        if node != ""  and node_index[node] > 0:
+                        if node != ""  and node in node_index:
                             if strand:
                                 if s in ["<", "-"]:
                                     genome_redondant_dic[genome][node_index[node]] += 1
@@ -268,14 +284,83 @@ def load_gfa(file_name, raxml_sample_size=10000, type_selection="random", strand
 
 
 """
+Function that returns a list of nodes to mask
+The nodes are selected according to this rule :
+    if a node if present in < m haplotype or in > n-m haplotype (n is the total number of haplotypes) then it is masked
+Parameters
+    @file_name : name of output file
+    @private_haplotypes_filter : min number of haplotypes to take a node into account
+Returns 
+"""
+def mask_nodes(file_name, nodes_index, genomes_index, private_haplotypes_filter = 0, chromosome_file=None):
+    set_masked_nodes = set()
+    
+    if private_haplotypes_filter == 0 :
+        return set_masked_nodes
+    else:
+        # Definition of the separators according to the line's type (P ou W)
+        # sep[0] for P lines
+        # sep[1] for W lines
+        sep = ["[,;.*]", "(<|>)"]
+        file = open(file_name, "r")
+        matrix = np.zeros((len(nodes_index), len(genomes_index)), dtype=bool)
+        with file:
+            line = file.readline()
+            print("File opening " + str(file_name))
+            dic_nodes = {}
+            # First GFA browsing to find nodes to create the data frame and to get the nodes size
+            tps1 = time.time()
+            while line:
+                ligne_dec = line.split()
+                if ligne_dec[0] == 'P' or ligne_dec[0] == 'W':
+
+                    if ligne_dec[0] == 'P':
+                        ind = 2
+                        walk = 0
+
+                    else:
+                        ind = 6
+                        walk = 1
+                    chromosome, genome = get_chromosome_genome(line,haplotype=False,chromosome_file=chromosome_file)
+                    print("chromosome : " +str(chromosome) +  " genome : " + str(genome))
+                    nodes_list_ = re.split(sep[walk], ligne_dec[ind])
+                    strand_list = []
+                    nodes_list = []
+                    i = 0
+                    while i < len(nodes_list_) and len(nodes_list_[i]) > 0:
+                        if walk == 1 and nodes_list_[i] in ["<", ">"]:
+                            strand_list.append(nodes_list_[i])
+                            nodes_list.append(nodes_list_[i + 1])
+                            i += 2
+                        else:
+                            if walk == 0 and nodes_list_[i][-1] in ["+", "-"]:
+                                strand_list.append(nodes_list_[i][-1])
+                                nodes_list.append(nodes_list_[i][:-1])
+                                i += 1
+                            else:
+                                i += 1
+                    for n in range(0, len(nodes_list)):
+                        node = nodes_list[n]
+                        i = nodes_index[node]-1
+                        j = genomes_index[genome]
+                        matrix[i,j] = True
+                line = file.readline()
+            if private_haplotypes_filter < len(genomes_index) :
+                for n in nodes_index:
+                    if sum(matrix[nodes_index[n]-1,:]) <= private_haplotypes_filter:
+                        set_masked_nodes.add(n)
+        matrix = None
+        print("nodes masked in " + str(time.time()-tps1))
+        return set_masked_nodes
+                    
+
+"""
 Function to save stats in csv file
 Parameters
     @file_name : name of output file
     @stats : dictionnary from fonction load_gfa
 Returns 
 """
-
-
 def export_stats(file_name, stats):
     file = open(file_name, "w")
     with file:
@@ -316,14 +401,14 @@ def get_chromosome_genome(WP_line, haplotype=True, chromosome_file=None):
             else:
                 genome = name_dec[0]
             if len(name_dec) > 0:
-                chromosome = name_dec[-1].upper().replace("CHR", "").replace("0", "")
+                chromosome = re.sub("^0*", "", name_dec[-1].upper().replace("CHR", ""))
         else:
             chromosome = str(ligne_dec[3])
             if haplotype:
                 genome = ligne_dec[1] + "_" + ligne_dec[2]
             else:
                 genome = ligne_dec[1]
-    if chromosome_file != None:
+    if chromosome_file != None and chromosome_file != "":
         chromosome = chromosome_file
     return chromosome, genome
 
@@ -408,7 +493,6 @@ def calculate_distance_jaccard(genome_dic, genome_redondant_dic, project_directo
     dfNP.to_csv(project_directory + "/" + "non_weighted_distance_matrix.csv")
     calcul_arbre_nj(project_directory + "/" + "non_weighted_distance_matrix.csv",
                     project_directory + "/" + "non_weighted_nj_tree", color_file_name)
-    print("Distances computed")
     return dfP, dfNP
 
 
@@ -420,9 +504,8 @@ of each selected node.
 Parameters
     @filename: name of the GFA file containing the pangenome
     @project_directory: will create a directory with this name to store the results
-    @raxml_sample_size : specifies the desired number of nodes
-        This value is set to 10,000 by default
-    @methode: "random" or "size", selects the nodes for analysis (either randomly or by choosing the largest nodes)
+    @raxml_sample_percent : specifies the desired number of nodes in percent of total nodes
+        This value is set to 0.1% by default
     @redundancy: if True, nodes present multiple times in a sample are considered; otherwise, 
         only the presence or absence of the node is used
     @strand: if True, strand information is taken into account; otherwise,
@@ -446,17 +529,20 @@ Distance computation methods:
 """
 
 
-def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_size=10000, methode="random",
-                       redundancy=True, strand=True, color_file_name=None, chromosome_file=None, masked_nodes_file_name = None):
+def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_percent=0.1,
+                       redundancy=True, strand=True, color_file_name=None, chromosome_file=None, masked_nodes_file_name = None, private_haplotypes_filter = 0):
     print("Launch with args : \nfile_name : " + str(file_name)
           + "\nproject_directory : " + str(project_directory)
           + "\nproject_name : " + str(project_name)
-          + "\nnodes number : " + str(raxml_sample_size)
-          + "\nmethod : " + str(methode)
+          + "\nnodes sample (%) : " + str(raxml_sample_percent)
           + "\nredundancy : " + str(redundancy)
           + "\nstrand : " + str(strand)
-          + "\ncolor filename : " + str(color_file_name))
-
+          + "\ncolor filename : " + str(color_file_name)
+          + "\nchromosome : " + str(chromosome_file)
+          + "\nmasked_nodes_file_name : " + str(masked_nodes_file_name)
+          + "\nprivate_haplotypes_filter : " + str(private_haplotypes_filter)
+          )
+    start_time = time.time()
     rep = project_directory + "/" + project_name
     if not os.path.exists(rep):
         os.makedirs(rep)
@@ -467,8 +553,8 @@ def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_
 
     matrice_pav = rep + "/pav_matrix.phy"
 
-    genome_dic, genome_redondant_dic, pav_dic, stats = load_gfa(file_name, raxml_sample_size, methode, strand,
-                                                                           chromosome_file, masked_nodes_file_name)
+    genome_dic, genome_redondant_dic, pav_dic, stats = load_gfa(file_name, raxml_sample_percent, strand,
+                                                                           chromosome_file, masked_nodes_file_name,private_haplotypes_filter)
 
     export_stats(rep + "/stats.csv", stats)
 
@@ -492,6 +578,7 @@ def analyser_pangenome(file_name, project_directory, project_name, raxml_sample_
     subprocess.run(raxml_command, cwd=raxml_dir)
     newick_file_name = raxml_dir + "/RAxML_bestTree." + project_name
     plot_newick(newick_file_name, rep + "/tree_raxml.png", color_file_name)
+    print("Distances computed in " + str(time.time()-start_time) + " s")
 
 
 """
@@ -905,6 +992,8 @@ def inverse_reverse_haplotype(file_name, output_file_name):
                                 else:
                                     nb_noeuds_conserves += 1
                                     ligne_to_print += liste_strand[i]
+                                if i > 0:
+                                    ligne_to_print += ","
                         ligne_to_print += "\n"
 
                 output_file.write(ligne_to_print)
