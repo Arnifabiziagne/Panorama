@@ -20,8 +20,10 @@ from neo4j.exceptions import ServiceUnavailable
 DB_URL="bolt://localhost:7687"
 AUTH=("neo4j", "Administrateur")
 
-#Delay in s to wait before neo4j is UP (for big database it could take long time)
-neo4j_start_delay = 300
+#Delay in s to wait between tests of the database connexion
+neo4j_start_delay = 10
+#max_iter_test_connexion is the maximum number of pooling database to test if it is up
+max_iter_test_connexion = 60
 
 
 def test_connection(DB_URL, AUTH):
@@ -55,6 +57,13 @@ def start_neo4j_container(container_name, DB_URL, AUTH):
 
     # Waiting for neo4j up
     time.sleep(neo4j_start_delay)
+    i = 0
+    while test_connection(DB_URL, AUTH) == False and i < max_iter_test_connexion :
+        i += 1
+        print("trying to connect to database - iteration " + str(i))
+        time.sleep(neo4j_start_delay)
+    if i < max_iter_test_connexion :
+        print("database up")
     return True
 
 def get_driver():

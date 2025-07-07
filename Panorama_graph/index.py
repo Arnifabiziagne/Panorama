@@ -17,7 +17,10 @@ import callbacks.phylogenetic_callbacks
 import callbacks.gwas_callbacks
 
 from neo4j_requests import *
+from config import get_driver
 
+
+driver = get_driver()
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='shared_storage_nodes', data=[], storage_type='memory'),
