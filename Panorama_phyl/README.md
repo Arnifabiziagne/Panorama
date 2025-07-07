@@ -1,9 +1,9 @@
-Panorama project : build a phylogenetic tree from a gfa file.
+Panorama_phyl project : build a phylogenetic tree from a gfa file.
 
 # Installation 
 
 ## Install miniconda
-    panorama use miniconda environment (https://docs.anaconda.com/miniconda/miniconda-install/)
+    panorama_phyl use miniconda environment (https://docs.anaconda.com/miniconda/miniconda-install/)
 
 ## Create environment (local)
     conda env create -f panorama.yaml 
