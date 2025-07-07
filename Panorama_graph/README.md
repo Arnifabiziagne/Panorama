@@ -14,5 +14,12 @@ It allows the following functionalities :
 ## Create environment
     TODO
 
+## Generate the database
+    There are 2 ways to generate database :
+    - From a dump file : this is the fastest way but the dump must be available.
+    - From the GFA file (and gtf / gff if available) : use the construct_DB function of neoj4_DB_contruction.py script. 
+        If the pangenome is big this can take a long time. According to the memory available, it is necessary to limit the 
+        batch size. If a gtf / gff file is present, the genome_ref must be set in order to link annotations nodes with the main nodes of pangenome.
+
 ## Use the tool
     You can use the tool from the graphical interface. To launch it, just launch the index.py file.

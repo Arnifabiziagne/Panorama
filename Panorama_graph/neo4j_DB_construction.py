@@ -11,8 +11,8 @@ import os
 from config import get_driver
 
 
-#taille_lot_BDD fixe la taille des données envoyées en BDD
-taille_lot_BDD = 10000
+#batch_size_BDD fixe la taille des données envoyées en BDD
+batch_size_BDD = 10000
 
 
 logging.getLogger("neo4j").setLevel(logging.ERROR)
@@ -22,15 +22,15 @@ logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 def creer_noeuds_batch(session, dic_noeuds, node_name="Noeud", create = False):
 
-    nb_transactions = max(1,ceil(len(dic_noeuds)/taille_lot_BDD))
+    nb_transactions = max(1,ceil(len(dic_noeuds)/batch_size_BDD))
     current_transaction = 0
     liste_noeuds = list(dic_noeuds.items())
     with tqdm(total=nb_transactions) as bar :
-        while len(dic_noeuds)-current_transaction*taille_lot_BDD > 0:
+        while len(dic_noeuds)-current_transaction*batch_size_BDD > 0:
             # Démarrer une transaction
             with session.begin_transaction() as tx:
-                ind_depart = current_transaction*taille_lot_BDD                
-                batch = liste_noeuds[ind_depart:ind_depart+min(taille_lot_BDD, len(dic_noeuds)-current_transaction*taille_lot_BDD)]
+                ind_depart = current_transaction*batch_size_BDD                
+                batch = liste_noeuds[ind_depart:ind_depart+min(batch_size_BDD, len(dic_noeuds)-current_transaction*batch_size_BDD)]
                 if create == False :
                     query = (
                     "UNWIND $batch AS node "
@@ -214,15 +214,15 @@ def create_labels_chromosomes(liste_chromosomes=[]):
 
 def creer_relations_batch(session, liste_relations):
     
-    nb_transactions = ceil(len(liste_relations)/taille_lot_BDD)
+    nb_transactions = ceil(len(liste_relations)/batch_size_BDD)
     current_transaction = 0
     with tqdm(total=nb_transactions) as bar :
-        while len(liste_relations)-current_transaction*taille_lot_BDD > 0:
+        while len(liste_relations)-current_transaction*batch_size_BDD > 0:
             # Démarrer une transaction
             with session.begin_transaction() as tx:
-                ind_depart = current_transaction*taille_lot_BDD
+                ind_depart = current_transaction*batch_size_BDD
 
-                batch = liste_relations[ind_depart:ind_depart+min(taille_lot_BDD, len(liste_relations)-current_transaction*taille_lot_BDD)]
+                batch = liste_relations[ind_depart:ind_depart+min(batch_size_BDD, len(liste_relations)-current_transaction*batch_size_BDD)]
                 query = f"""
                         UNWIND $batch AS pair
                         MATCH (a:Noeud {{name: pair.depart}})
@@ -242,19 +242,19 @@ Puis elle va créer les indexes : kmer et relations avec les noeuds
 '''
 def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, dic_noeuds):
     
-    nb_transactions = ceil(len(dic_noeuds)/taille_lot_BDD)
+    nb_transactions = ceil(len(dic_noeuds)/batch_size_BDD)
     current_transaction = 0
     liste_noeuds = list(dic_noeuds.keys())
     print("Début de création des séquences en BDD")
     with tqdm(total=len(dic_noeuds)) as bar :
-        while len(dic_noeuds)-current_transaction*taille_lot_BDD > 0:
+        while len(dic_noeuds)-current_transaction*batch_size_BDD > 0:
             # Démarrer une transaction
             with session.begin_transaction() as tx:
-                ind_depart = current_transaction*taille_lot_BDD
-                liste_noeuds_transaction = liste_noeuds[ind_depart:ind_depart+min(taille_lot_BDD, len(dic_noeuds)-current_transaction*10000)]
+                ind_depart = current_transaction*batch_size_BDD
+                liste_noeuds_transaction = liste_noeuds[ind_depart:ind_depart+min(batch_size_BDD, len(dic_noeuds)-current_transaction*10000)]
     
                 print("Transaction " + str(current_transaction))
-                for t in range(min(taille_lot_BDD, len(dic_noeuds)-current_transaction*taille_lot_BDD)):
+                for t in range(min(batch_size_BDD, len(dic_noeuds)-current_transaction*batch_size_BDD)):
                     nc = liste_noeuds_transaction[t]
                     q = """
                         CREATE (n:Sequence {name:$nom, sequence:$sequence})
@@ -264,21 +264,21 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, dic_noeuds
                         nom=nc,
                         sequence=dic_noeuds[nc]
                     )
-                bar.update(min(taille_lot_BDD, len(dic_noeuds)-current_transaction*taille_lot_BDD))
+                bar.update(min(batch_size_BDD, len(dic_noeuds)-current_transaction*batch_size_BDD))
                 current_transaction += 1
     print("Fin de création des séquences en BDD")
     liste_kmer = list(dic_kmer_relation.keys())
     print("Début de création des indexes en BDD")
     current_transaction = 0
     with tqdm(total=len(dic_kmer_relation)) as bar :
-        while len(dic_kmer_relation)-current_transaction*taille_lot_BDD > 0:
+        while len(dic_kmer_relation)-current_transaction*batch_size_BDD > 0:
             # Démarrer une transaction
             with session.begin_transaction() as tx:
-                ind_depart = current_transaction*taille_lot_BDD
-                liste_kmer_transaction = liste_kmer[ind_depart:ind_depart+min(taille_lot_BDD, len(dic_kmer_relation)-current_transaction*10000)]
+                ind_depart = current_transaction*batch_size_BDD
+                liste_kmer_transaction = liste_kmer[ind_depart:ind_depart+min(batch_size_BDD, len(dic_kmer_relation)-current_transaction*10000)]
     
                 print("Transaction " + str(current_transaction))
-                for t in range(min(taille_lot_BDD, len(dic_kmer_relation)-current_transaction*taille_lot_BDD)):
+                for t in range(min(batch_size_BDD, len(dic_kmer_relation)-current_transaction*batch_size_BDD)):
                     kmer = liste_kmer_transaction[t]
                     q = """
                         CREATE (k:kmer {kmer:$kmer, taille:$taille})
@@ -293,7 +293,7 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, dic_noeuds
                         kmer=kmer,
                         taille=kmer_size
                     )
-                bar.update(min(taille_lot_BDD, len(dic_kmer_relation)-current_transaction*taille_lot_BDD))
+                bar.update(min(batch_size_BDD, len(dic_kmer_relation)-current_transaction*batch_size_BDD))
                 current_transaction += 1
     print("Fin de création des indexes en BDD")
     return
@@ -438,14 +438,14 @@ Input :
     - gfa_file_name : fichier gfa à charger
     - chromosome_file : si le fichier est relatif à un seul chromosome, indiqué le nom du chromosome (chaine de caractère)
     - chromosome_prefix : si True alors le nom du noeud est préfixé par le chromosome (c'est le cas si chromosome_file ets renseigné), si False et pas de chromosome_file alors le noeud n'est pas préfixé
-    - taille_lot : le découpage se fait par les noeuds, l'outil va traiter des lots de "taille_lot"
-    - noeud_depart : au cas où il y a eu un problème lors d'un chargement, on peut reprendre à un noeud donné
+    - batch_size : le découpage se fait par les noeuds, l'outil va traiter des lots de "batch_size"
+    - start_node : au cas où il y a eu un problème lors d'un chargement, on peut reprendre à un noeud donné
     - create : si c'est la première exécution on peut mettre true, dans ce cas l'outil va créer en BDD sans regarder l'existance
                 dans les autres cas il vaut mieux mettre à False
     - haplotype : indique si le nom de l'échantillon doit être concaténer avec l'haplotype
 
 '''
-def charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = None, chromosome_prefix = False, taille_lot = 5000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
+def charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
     sep = ["[,;.*]", "(<|>)"]
     nb_lots = 0
     set_genome = set()
@@ -514,11 +514,11 @@ def charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = None, chromosome_p
                 nodes_set_chromosome = set(nodes_set_next_chromosome)
                 nodes_set_next_chromosome = set()
                 print("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
-                nb_lots = ceil(len(nodes_set_chromosome)/taille_lot)
+                nb_lots = ceil(len(nodes_set_chromosome)/batch_size)
                 current_lot = 0
                 while current_lot < nb_lots :
                     temps_0_lot = time.time()
-                    set_noeuds_lot = set(list(nodes_set_chromosome)[current_lot*taille_lot:min(len(nodes_set_chromosome),(current_lot+1)*taille_lot)])
+                    set_noeuds_lot = set(list(nodes_set_chromosome)[current_lot*batch_size:min(len(nodes_set_chromosome),(current_lot+1)*batch_size)])
                     current_lot += 1
                     print("chromosome " + c + " lot " + str(current_lot) + "/"+str(nb_lots) + " nombre noeuds : " + str(len(set_noeuds_lot)))
                     #Parcours du fichier pour récupérer la liste des noeuds à traiter pour ce lot
@@ -1093,12 +1093,14 @@ def creer_relations_annotations_neo4j(genome_ref, chromosome=None):
 
 #Main function to construct the whole db from the gfa file
 #If the gfa relate to a single chromosome, chromosome_file must contains the reference of this chromosome (1, 2, X, Y, etc.)
-def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, chromosome_file = None, noeud_depart = 0, taille_lot = 5000000, create=False):
+#batch_size value is important to limit memory usage, according to the memory available it can be necessary to reduce this value for big pangenomes graphs.
+#genome_ref is required if an annotation_file_name is present : this name is used to link the annotations nodes with the main nodes of the graph.
+def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, chromosome_file = None, start_node = 0, batch_size = 5000000, create=False):
     start_time = time.time()
     charger_sequences(gfa_file_name, chromosome_file, create=create)
     sequence_time = time.time()
     print("Sequences loaded in " + str(sequence_time-start_time) + " s")
-    charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = chromosome_file, taille_lot = taille_lot, noeud_depart = noeud_depart, create = create)
+    charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = chromosome_file, batch_size = batch_size, start_node = start_node, create = create)
     graph_time = time.time()
     print("Graph loaded in " + str(graph_time-sequence_time) + " s")
     creer_indexes(genome_ref)
@@ -1121,7 +1123,7 @@ def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, 
 #This function load multiple gfa files : each filme must relate to a single chromosome
 #The files must be named so that last character before .gfa extension contains the reference of the chromosome
 #Exmples : chr1.gfa, chr01.gfa, chromosome_1.gfa, exemple_chr_X.gfa, etc.
-def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None, genome_ref = None, chromosome_file = None, noeud_depart = 0, taille_lot = 5000000, create=False):
+def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None, genome_ref = None, chromosome_file = None, start_node = 0, batch_size = 5000000, create=False):
     start_time = time.time()
     for gfa_file_name in  os.listdir(gfa_chromosomes_dir):
         if gfa_file_name.endswith(".gfa"):
@@ -1135,7 +1137,7 @@ def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None,
             print("Loading chromosome : " + str(chromosome))
             if chromosome != "" :
                 charger_sequences(gfa_file_name, chromosome_file=chromosome, create=create)
-                charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = chromosome_file, taille_lot = taille_lot, noeud_depart = noeud_depart, create = create)
+                charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = chromosome_file, batch_size = batch_size, start_node = start_node, create = create)
     db_time = time.time()
     print("Sequences loaded in " + str(db_time-start_time) + " s")
     creer_indexes(genome_ref)
@@ -1168,5 +1170,5 @@ def contruire_sequences_et_indexes_bdd(gfa_file_name, kmer_size=31):
 def launcher():
     for c in ["18", "19", "20", "21", "22", "X", "Y"]:
         print("chargement du chromosome : " + str(c))
-        set_genomes = charger_noeuds_gfa_neo4j("/home/fgraziani/work/project/Pangenomique/GFA/humain/hprc-mc/chr"+str(c)+".gfa", chromosome_file = str(c), taille_lot=1000000, create=False)
+        set_genomes = charger_noeuds_gfa_neo4j("/home/fgraziani/work/project/Pangenomique/GFA/humain/hprc-mc/chr"+str(c)+".gfa", chromosome_file = str(c), batch_size=1000000, create=False)
     
