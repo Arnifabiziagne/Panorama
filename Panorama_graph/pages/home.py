@@ -133,7 +133,7 @@ def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes
         edges_dict = {}
         for genome in selected_genomes:
             nodes_g = df[df["genomes"].apply(lambda g: genome in g)].copy()
-            col = f"{genome}_noeud"
+            col = f"{genome}_position"
             if col not in nodes_g.columns:
                 continue
             nodes_g = nodes_g[nodes_g[col].notnull()].copy()
@@ -461,10 +461,10 @@ def display_element_data(node_data, edge_data):
         )
     elif triggered_id == 'graph' and ctx.triggered[0]['prop_id'] == 'graph.tapNodeData' and node_data:
         return (
-            f"Noeud sélectionné : {node_data.get('label', node_data.get('id'))}\n"
-            f"• Taille : {node_data.get('taille')}\n"
-            f"• Flux : {node_data.get('flux')}\n"
-            f"• Génomes : {', '.join(node_data.get('genomes', []))}"
+            f"Selected node : {node_data.get('label', node_data.get('id'))}\n"
+            f"• Size : {node_data.get('taille')}\n"
+            f"• Flow : {node_data.get('flux')}\n"
+            f"• Genomes : {', '.join(node_data.get('genomes', []))}"
             f"• Annotations : {', '.join(node_data.get('annotations', []))}"
         )
     return "Click on a node or link to display data."

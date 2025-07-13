@@ -98,7 +98,8 @@ def creer_indexes(genome_ref=None):
         "CREATE INDEX AnnotationIndexStart IF NOT EXISTS FOR (a:Annotation) ON (a.start)",
         "CREATE INDEX AnnotationIndexEnd IF NOT EXISTS FOR (a:Annotation) ON (a.end)",
         "CREATE INDEX AnnotationIndexGeneId IF NOT EXISTS FOR (a:Annotation) ON (a.gene_id)",
-        "CREATE INDEX AnnotationIndexGeneName IF NOT EXISTS FOR (a:Annotation) ON (a.gene_name)"
+        "CREATE INDEX AnnotationIndexGeneName IF NOT EXISTS FOR (a:Annotation) ON (a.gene_name)",
+        "CREATE INDEX SequenceIndexSequence IF NOT EXISTS FOR (s:Sequence) ON (s.sequence)"
         ]
     if genome_ref is not None:
         indexes_queries.append("CREATE INDEX NoeudIndex"+str(genome_ref)+"_position IF NOT EXISTS FOR (n:Noeud) ON (n."+str(genome_ref)+"_position)")
@@ -1095,12 +1096,12 @@ def creer_relations_annotations_neo4j(genome_ref, chromosome=None):
 #If the gfa relate to a single chromosome, chromosome_file must contains the reference of this chromosome (1, 2, X, Y, etc.)
 #batch_size value is important to limit memory usage, according to the memory available it can be necessary to reduce this value for big pangenomes graphs.
 #genome_ref is required if an annotation_file_name is present : this name is used to link the annotations nodes with the main nodes of the graph.
-def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, chromosome_file = None, start_node = 0, batch_size = 5000000, create=False):
+def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
     start_time = time.time()
     charger_sequences(gfa_file_name, chromosome_file, create=create)
     sequence_time = time.time()
     print("Sequences loaded in " + str(sequence_time-start_time) + " s")
-    charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = chromosome_file, batch_size = batch_size, start_node = start_node, create = create)
+    charger_noeuds_gfa_neo4j(gfa_file_name, chromosome_file = chromosome_file,  chromosome_prefix = chromosome_prefix, batch_size = batch_size, create = create, start_chromosome = start_chromosome, haplotype=haplotype, create_only_relations=create_only_relations)
     graph_time = time.time()
     print("Graph loaded in " + str(graph_time-sequence_time) + " s")
     creer_indexes(genome_ref)

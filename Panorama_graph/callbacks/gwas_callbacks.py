@@ -17,6 +17,8 @@ if root_path not in sys.path:
 
 from app import app
 from neo4j_requests import *
+import base64
+import io
 
 #populates genomes checkboxes
 @app.callback(
@@ -54,11 +56,15 @@ def update_dropdown(data):
     Input('btn-find-shared', 'n_clicks'),
     State('genome-list', 'value'),
     State("gwas-page-store", "data"),
-    State("min-node-size-int", 'value'),
+    State("gwas-min-node-size-int", 'value'),
+    State("gwas-min-percent_selected", 'value'),
+    State("gwas-max-percent_selected", 'value'),
+    State("gwas-region-gap", 'value'),
+    State('gwas-toggle-deletion', 'value'),
     State("gwas_chromosomes_dropdown", 'value'),
     prevent_initial_call=True
 )
-def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, chromosome):
+def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, min_percent_selected, max_percent_selected, region_gap, deletion_checkbox, chromosome):
     if min_node_size is not None and min_node_size != "" and isinstance(min_node_size, int):
         min_size = min_node_size
     else:
@@ -70,10 +76,36 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
     data["checkboxes"]= selected_genomes
     if not selected_genomes:
         return "Choose at least one genome.",data, ""
-
+    deletion = False
+    if 'show' in deletion_checkbox : 
+        deletion = True
+    
     try:       
-        dic_region, analyse = find_shared_regions(selected_genomes, chromosomes = c,node_min_size = min_size)
+        dic_region, analyse = find_shared_regions(selected_genomes, chromosomes = c,node_min_size = min_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, max_percent_selected_genomes = max_percent_selected)
+
         analyse_to_plot = analyse[list(analyse.keys())[0]]
+        no_annotations = True
+        i = 0
+        keys = list(analyse.keys())
+        while no_annotations and i < len(keys):
+            current_key = keys[i]
+            r = 0
+            while r < len(analyse[current_key]) and no_annotations :
+                if len(analyse[current_key][r]["annotations"]) > 0:
+                    no_annotations = False
+                    analyse_to_plot = analyse[current_key]
+                r += 1
+            i += 1
+                
+        #print("analyse to plot : " + str(analyse_to_plot))
+        
+        for r in range(len(analyse_to_plot)):
+            annotation = ""
+            if len(analyse_to_plot[r]["annotations"]) > 0:
+                for annot in analyse_to_plot[r]["annotations"]:
+                    annotation += annot["gene_name"] + "\n"
+            analyse_to_plot[r]["annotations"] = annotation
+
         data["analyse"] = analyse_to_plot
         return f"{len(analyse_to_plot)} shared regions found.",data, ""
     
@@ -92,16 +124,20 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
 )
 def handle_row_selection(selected_rows, table_data, data):
     redirect = "/gwas"
+
     if not selected_rows:
         return no_update, data, redirect, ""
-
+    print(table_data[selected_rows[0]])
     row = table_data[selected_rows[0]]
-    start = row['start']
-    stop = row['stop']
+    print(row)
+    start = int(row['start'])
+    stop = int(row['stop'])
     chromosome = row['chromosome']
     genome = row['genome']
+    print("search region genome " +str(genome) + " chromosome " + str(chromosome) + " start " + str(start) + " stop " + str(stop))
     try:
-        nodes = get_nodes_by_region(genome, chromosome, start, stop)
+        print("search region genome " +str(genome) + " chromosome " + str(chromosome) + " start " + str(start) + " stop " + str(stop))
+        nodes = get_nodes_by_region(genome, str(chromosome), start, stop)
         redirect = "/"
         return html.Div([
             html.P(f"Found nodes into the region : {len(nodes)}")
@@ -111,7 +147,7 @@ def handle_row_selection(selected_rows, table_data, data):
     
 #Restore checklist
 @app.callback(
-    Output('shared-region-table', 'data'),
+    Output('shared-region-table', 'data',allow_duplicate=True),
     Output("genome-list", "value"),
     Input("gwas-page-store", "modified_timestamp"),
     Input("gwas-page-store", "data"),
@@ -120,5 +156,58 @@ def handle_row_selection(selected_rows, table_data, data):
 )
 def restore_checklist_state(ts, data):
     return data["analyse"], data["checkboxes"]
+
+#Callback to save the gwas data table into csv file
+@app.callback(
+    Output('save-feedback', 'children'),
+    Input('save-csv-button', 'n_clicks'),
+    State('shared-region-table', 'data'),
+    prevent_initial_call=True
+)
+def save_csv(n_clicks, table_data):
+    print(f"Callback triggered: n_clicks={n_clicks}, table_data={table_data}")
+    if not table_data:
+        return "No data."
+    df = pd.DataFrame(table_data)
+    save_path = os.path.join(os.getcwd(), "/gwas/shared_regions.csv")
+    print("save path : " + str(save_path))
+    df.to_csv(save_path, index=False)
+    
+    return f"File saved : {save_path}"
+
+#Callback to loads csv file into data table
+@app.callback(
+    Output('shared-region-table', 'data',allow_duplicate=True),
+    Input('upload-csv', 'contents'),
+    State('upload-csv', 'filename'),
+    prevent_initial_call=True
+)
+def load_csv(contents, filename):
+    if contents is None:
+        return None
+
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    try:
+        df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+        return df.to_dict('records')
+    except Exception as e:
+        print(f"Error while loading file : {e}")
+        return None
+    
+
+@app.callback(
+    Output('upload-csv', 'style'),
+    Input('load-csv-button', 'n_clicks'),
+    prevent_initial_call=True
+)
+def show_upload_area(n_clicks):
+    return {
+        'display': 'block',
+        'borderWidth': '1px',
+        'borderStyle': 'dashed',
+        'padding': '10px',
+        'marginTop': '10px'
+    }
 
 

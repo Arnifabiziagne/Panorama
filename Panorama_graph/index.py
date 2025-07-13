@@ -12,9 +12,11 @@ from sidebar import sidebar
 import argparse
 import pages.home as home
 import pages.phylogenetic as phylogenetic
+import pages.sequences as sequences
 import pages.gwas as gwas
 import callbacks.phylogenetic_callbacks
 import callbacks.gwas_callbacks
+import callbacks.sequences_callbacks
 
 from neo4j_requests import *
 from config import get_driver
@@ -92,6 +94,8 @@ def display_page(pathname):
         return phylogenetic.layout()
     elif pathname == "/gwas":
         return gwas.layout()
+    elif pathname == "/sequences":
+        return sequences.layout()
     else:
         return html.H1("Page non trouvée")
 

@@ -17,6 +17,8 @@ sidebar = html.Div([
         dcc.Link('GWAS', href='/gwas', className='nav-link'),
         html.Br(),
         dcc.Link('Phylogenetic', href='/phylogenetic', className='nav-link'),
+        html.Br(),
+        dcc.Link('Sequences', href='/sequences', className='nav-link'),
         html.Hr()
     ], className='navbar'),
 ])

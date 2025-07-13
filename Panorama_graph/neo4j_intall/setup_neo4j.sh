@@ -9,6 +9,8 @@ HTTP_PORT="7474"
 BOLT_PORT="7687"
 CONF_SOURCE_FILE="./conf/neo4j.conf"
 CONF_FILE="../db_conf.json"
+NEO4J_BASE_DIR="../data"
+DUMP_SOURCE_FILE="../dump/neo4j.dump"
 
 # --- HELP FUNCTION ---
 function usage() {
@@ -67,13 +69,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- VALIDATION ---
-if [ -z "$NEO4J_BASE_DIR" ]; then
-  echo "❌ The --base-dir parameter is required."
+if [ -z "$CONTAINER_NAME" ]; then
+  echo "❌ The --container-name parameter is required."
   usage
   exit 1
-fi
-if [ -z "$CONTAINER_NAME" ]; then
-	CONTAINER_NAME="neo4j-instance-${HTTP_PORT}"
 fi
 NEO4J_AUTH="neo4j/Administrateur"
 NEO4J_LOGIN="neo4j"
@@ -119,7 +118,7 @@ for dir in data logs conf import plugins; do
   mkdir -p "$NEO4J_BASE_DIR/$dir"
 done
 
-if [ -n "${DUMP_SOURCE_FILE:-}" ] && [ ! -f "$DUMP_DEST_FILE" ]; then
+if [ ! -f "$DUMP_DEST_FILE" ]; then
   if [ ! -f "$DUMP_SOURCE_FILE" ]; then
     echo "❌ Dump file not found: $DUMP_SOURCE_FILE"
     exit 1
