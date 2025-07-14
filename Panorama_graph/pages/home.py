@@ -74,10 +74,10 @@ def compute_stylesheet(color_number):
     return stylesheet
 
 
-def flux_to_rgb(flux):
-    r = int(255 * flux)
+def flow_to_rgb(flow):
+    r = int(255 * flow)
     g = int(0)
-    b = int(255 * (1 - flux))
+    b = int(255 * (1 - flow))
     return f'rgb({r},{g},{b})'
 
 
@@ -87,17 +87,17 @@ def get_color_palette(n):
     return [f'rgb({int(r*255)}, {int(g*255)}, {int(b*255)})' for r, g, b, _ in cmap(np.linspace(0, 1, n))]
 
 
-def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True):
+def compute_graph_elements(data, selected_genomes, size_min, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True):
     all_genomes = get_genomes()
     all_chromosomes = get_chromosomes()
     if data != None and len(data) > 0:
         df = records_to_dataframe(data)
-        df = df[df["taille"] >= taille_min].copy()
+        df = df[df["size"] >= size_min].copy()
         df = df[df["genomes"].apply(lambda g: any(x in selected_genomes for x in g))].copy()
         
     
         def moyenne_position(row):
-            positions = [row.get(f"{g}_noeud") for g in row["genomes"] if f"{g}_noeud" in row]
+            positions = [row.get(f"{g}_node") for g in row["genomes"] if f"{g}_node" in row]
             positions = [p for p in positions if p is not None]
             return np.mean(positions) if positions else 0
     
@@ -113,19 +113,19 @@ def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes
         color_map = {k: c for k, c in zip(genome_keys, get_color_palette(len(genome_keys)))}
         
         nodes = []
-        taille_max = df['taille'].max()
-        taille_min = df['taille'].min()
-        taille_max_noeud = 100
+        size_max = df['size'].max()
+        size_min = df['size'].min()
+        size_max_noeud = 100
 
         for _, row in df.iterrows():
             nodes.append({
-                'data': {'id': row['name'], 'taille' : row['taille'], 'flux':row['flux'], 'genomes':row['genomes'], 'chromosome':row['chromosome'], 'annotations':row['annotations']},
+                'data': {'id': row['name'], 'size' : row['size'], 'flow':row['flow'], 'genomes':row['genomes'], 'chromosome':row['chromosome'], 'annotations':row['annotations']},
                 'position': {'x': row['x'], 'y': row['y']},
                 'style': {
-                    'background-color':flux_to_rgb(row['flux']),
+                    'background-color':flow_to_rgb(row['flow']),
                     'shape':'circle',
-                    'width': (10+row['taille']-taille_min) / taille_max*taille_max_noeud+taille_min,
-                    'height': (10+row['taille']-taille_min) / taille_max*taille_max_noeud+taille_min,
+                    'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                    'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
                 }
             })
         
@@ -146,11 +146,11 @@ def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes
                 edge_key = tuple(sorted([source, target]))
                 if edge_key not in edges_dict:
                     edges_dict[edge_key] = {}
-                    edges_dict[edge_key]["flux"] = 1
+                    edges_dict[edge_key]["flow"] = 1
                     edges_dict[edge_key]["annotations"] = set()
                     edges_dict[edge_key]["genomes"] = [genome]
                 else :
-                    edges_dict[edge_key]["flux"] += 1
+                    edges_dict[edge_key]["flow"] += 1
                     if genome not in edges_dict[edge_key]["genomes"] :
                         edges_dict[edge_key]["genomes"].append(genome)
                 
@@ -165,14 +165,14 @@ def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes
                 colored_genomes[g] = c
         for (source, target), dic in edges_dict.items(): 
             link_color = 'gray'
-            flux = dic["flux"]
+            flow = dic["flow"]
             if specifics_genomes is not None and len(specifics_genomes) > 0:
                 #Uncomment to get the paths shared by the wholes selected genomes and only these genomes
                 #if all(g in specifics_genomes for g in dic["genomes"]) and all(g in dic["genomes"] for g in specifics_genomes):
                 #Path are colored in red if it contains at leat one of seleted genomes but no unselected genome
                 if all(g in specifics_genomes for g in dic["genomes"]):
                     link_color = 'red'
-                    flux = len(all_genomes)
+                    flow = len(all_genomes)
             label = ""
             if labels:
 
@@ -188,14 +188,14 @@ def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes
                 'data': {
                     'source': source,
                     'target': target,
-                    'flux': flux,
+                    'flow': flow,
                     'genomes' : dic["genomes"]
                 },
                 'style': {
                     'line-color': link_color,
                     'label':label,
                     'text-rotation':'autorotate',
-                    'width': (flux+int(0.2*len(all_genomes)))/len(all_genomes)*10
+                    'width': (flow+int(0.2*len(all_genomes)))/len(all_genomes)*10
                     }
             })
 
@@ -209,7 +209,7 @@ def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes
                             'data': {
                                 'source': source,
                                 'target': target,
-                                'flux':1,
+                                'flow':1,
                                 'genomes' : [g]
                             },
                             'classes':f'offset-{i}',
@@ -226,16 +226,15 @@ def compute_graph_elements(data, selected_genomes, taille_min, specifics_genomes
         return []
 
 
-def layout(data=None, taille_limite_initiale = 10):
+def layout(data=None, initial_size_limit = 10):
     all_genomes = get_genomes()
     all_chromosomes = get_chromosomes()
     if data != None :
-        elements = compute_graph_elements(data,all_genomes, taille_limite_initiale, [], [])
+        elements = compute_graph_elements(data,all_genomes, initial_size_limit, [], [])
     else :
         elements = []
     print("nombre d'élements : " + str(len(elements)))
-    #taille_max = max(el['data'].get('taille',0) for el in elements if 'taille' in el["data"])
-    taille_max = 500
+    max_size = 500
     
     return html.Div([
 
@@ -324,19 +323,19 @@ def layout(data=None, taille_limite_initiale = 10):
                     html.Label("Minimal size of nodes :"),
            
                     dcc.Slider(
-                        id='taille_slider',
+                        id='size_slider',
                         min=0,
-                        max=taille_max,
-                        step=int(100/taille_max),
+                        max=size_max,
+                        step=int(100/size_max),
                         value=10,
                         tooltip={"placement": "bottom", "always_visible": False},
                     ),
                     
-                    html.Div(id='taille_stats', style={'marginTop': '10px'})
+                    html.Div(id='size_stats', style={'marginTop': '10px'})
                     
                     ]),
                 html.Div([
-                    html.Div(id='taille-output', children='Min node size : 10', style={'margin':'10px'}),
+                    html.Div(id='size-output', children='Min node size : 10', style={'margin':'10px'}),
                     html.H4("Layout", style={'marginLeft':'50px'}),
                     dcc.Dropdown(
                         id='layout-dropdown',
@@ -456,14 +455,14 @@ def display_element_data(node_data, edge_data):
     if triggered_id == 'graph' and ctx.triggered[0]['prop_id'] == 'graph.tapEdgeData' and edge_data:
         return (
             f"Lien sélectionné : {edge_data.get('source')} → {edge_data.get('target')}\n"
-            f"• Flux : {edge_data.get('flux')}\n"
+            f"• Flow : {edge_data.get('flow')}\n"
             f"• Génomes : {', '.join(edge_data.get('genomes', []))}"
         )
     elif triggered_id == 'graph' and ctx.triggered[0]['prop_id'] == 'graph.tapNodeData' and node_data:
         return (
             f"Selected node : {node_data.get('label', node_data.get('id'))}\n"
-            f"• Size : {node_data.get('taille')}\n"
-            f"• Flow : {node_data.get('flux')}\n"
+            f"• Size : {node_data.get('size')}\n"
+            f"• Flow : {node_data.get('flow')}\n"
             f"• Genomes : {', '.join(node_data.get('genomes', []))}"
             f"• Annotations : {', '.join(node_data.get('annotations', []))}"
         )
@@ -473,7 +472,7 @@ def display_element_data(node_data, edge_data):
 @app.callback(
     Output("graph", "elements"),
     Output("nb-noeuds", 'children'),
-    Output("taille-output", 'children'),
+    Output("size-output", 'children'),
     Output('shared_storage_nodes', 'data', allow_duplicate=True),
     Output('output-zone', 'children'),
     Output('annotations-info', 'children'),
@@ -484,7 +483,7 @@ def display_element_data(node_data, edge_data):
     State({'type':'color-picker', 'index': ALL}, 'value'),
     Input('show-labels', 'value'),
     Input('update-btn', 'n_clicks'), 
-    Input('taille_slider', 'value'),
+    Input('size_slider', 'value'),
     Input('search-button', 'n_clicks'),
     State('start-input', 'value'),
     State('end-input', 'value'),
@@ -497,7 +496,7 @@ def display_element_data(node_data, edge_data):
     State('shared_storage_nodes', 'data'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, taille_slider_val, n_clicks, start, end, gene_name, gene_id, genome, genome_ref, chromosome,data_storage, data_storage_nodes):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, size_slider_val, n_clicks, start, end, gene_name, gene_id, genome, genome_ref, chromosome,data_storage, data_storage_nodes):
     ctx = dash.callback_context
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
@@ -522,11 +521,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 if gene_name is not None :
                     new_data = get_nodes_by_gene(genome_ref, gene_name=gene_name,chromosome=chromosome)
                     data_storage_nodes = new_data
-            elements = compute_graph_elements(new_data, selected_genomes, taille_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
+            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
         else:
-            elements = compute_graph_elements(data_storage_nodes, selected_genomes, taille_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
+            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
     else :
-        elements = compute_graph_elements(data_storage_nodes, selected_genomes, taille_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
+        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
 
     defined_color = 0
     for c in color_genomes:
@@ -544,7 +543,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     for a in set_annot:
         annotations += str(a) + "\n"
 
-    return elements, f"{count} displayed nodes", f"Min node size  : {taille_slider_val}",data_storage_nodes,"",annotations, stylesheet
+    return elements, f"{count} displayed nodes", f"Min node size  : {size_slider_val}",data_storage_nodes,"",annotations, stylesheet
 
 
 #color picker

@@ -72,7 +72,7 @@ def layout():
                 {"name": "start", "id": "start"},
                 {"name": "stop", "id": "stop"},
                 {"name": "annotations", "id": "annotations"},
-                {"name": "taille", "id": "taille"}
+                {"name": "size", "id": "size"}
             ],
             data=[],
             style_table={'overflowX': 'auto'},

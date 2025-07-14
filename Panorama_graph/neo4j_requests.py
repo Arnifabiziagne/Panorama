@@ -68,7 +68,7 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
             if start is not None and end is not None :
                 print("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome))
                 query_1 = """
-                MATCH (n:Noeud)
+                MATCH (n:Node)
                 WHERE n.chromosome = $chromosome and n.`"""+str(search_genome)+"""_position` >= $start and n.`"""+str(search_genome)+"""_position` <= $stop
                 RETURN DISTINCT n
                 ORDER BY n.`"""+str(search_genome)+"""_position`
@@ -102,7 +102,7 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
                 
                 # Step 3 : Get the nodes and annotations for each genomes in shared_genomes
                 query_genome = f"""
-                MATCH (m:Noeud)
+                MATCH (m:Node)
                 WHERE  m.chromosome = $chromosome 
                 AND (
                 """
@@ -134,7 +134,7 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
                     total_nodes = get_nodes_number(chromosome)
                     if total_nodes <= max_nodes_number : 
                         query_genome = f"""
-                        MATCH (m:Noeud)
+                        MATCH (m:Node)
                         WHERE  m.chromosome = $chromosome 
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
                         RETURN m, collect(a.gene_name) as annotations
@@ -168,14 +168,14 @@ def get_nodes_by_gene(genome_ref, gene_id=None, gene_name=None, chromosome = Non
                 print("Looking for gene name : " + str(gene_name))
                 if chromosome is None or chromosome == "" :
                     query_1 = """
-                    MATCH (a:Annotation {gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Noeud)
+                    MATCH (a:Annotation {gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Node)
                     RETURN DISTINCT n
                     ORDER BY n.`"""+str(genome_ref)+"""_position`
                     """
                     result_1 = session.run(query_1, gene_name=gene_name)
                 else:
                     query_1 = """
-                    MATCH (a:Annotation {chromosome:$chromosome, gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Noeud)
+                    MATCH (a:Annotation {chromosome:$chromosome, gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Node)
                     RETURN DISTINCT n
                     ORDER BY n.`"""+str(genome_ref)+"""_position`
                     """
@@ -185,7 +185,7 @@ def get_nodes_by_gene(genome_ref, gene_id=None, gene_name=None, chromosome = Non
                 print("Looking for gene id : " + str(gene_id))
                 if chromosome is None or chromosome == "" :
                     query_1 = """
-                    MATCH (a:Annotation {gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Noeud)
+                    MATCH (a:Annotation {gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Node)
                     RETURN DISTINCT n
                     ORDER BY n.`"""+str(genome_ref)+"""_position`
                     """
@@ -193,7 +193,7 @@ def get_nodes_by_gene(genome_ref, gene_id=None, gene_name=None, chromosome = Non
                     
                 else:
                     query_1 = """
-                    MATCH (a:Annotation {chromosome:$chromosome, gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Noeud)
+                    MATCH (a:Annotation {chromosome:$chromosome, gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Node)
                     RETURN DISTINCT n
                     ORDER BY n.`"""+str(genome_ref)+"""_position`
                     """
@@ -243,7 +243,7 @@ def get_nodes_by_gene(genome_ref, gene_id=None, gene_name=None, chromosome = Non
                     print("Search for genome : " + str(g))
                     if end - start < max_bp_seeking and end - start > 0:
                         query_genome = f"""
-                        MATCH (m:Noeud)
+                        MATCH (m:Node)
                         WHERE m.chromosome = $chromosome and m.{champ_position} >= $start AND m.{champ_position} <= $end
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
                         RETURN m, collect(a.gene_name) as annotations
@@ -270,7 +270,7 @@ def get_first_annotation_after_position(genome_ref, chromosome="1", position=0):
     with get_driver() as driver:
 
         query = """
-        MATCH (n:Noeud)-[:A_POUR_ANNOTATION]->(a:Annotation)
+        MATCH (n:Node)-[:A_POUR_ANNOTATION]->(a:Annotation)
         WHERE n.chromosome = $chromosome and n.`"""+str(genome_ref)+"""_position` > $position
         WITH n, a
         ORDER BY n.HER_position ASC
@@ -290,7 +290,7 @@ def get_annotations_in_position_range(genome_ref, chromosome="1", start_position
     with get_driver() as driver:
 
         query = """
-        MATCH (n:Noeud)-[:A_POUR_ANNOTATION]->(a:Annotation)
+        MATCH (n:Node)-[:A_POUR_ANNOTATION]->(a:Annotation)
         WHERE n.chromosome = $chromosome and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end
         RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name
         """
@@ -324,12 +324,12 @@ def get_nodes_number(chromosome=None):
     with get_driver() as driver:
         if chromosome is None and chromosome != "":
             query = """
-            MATCH (n:Noeud) 
+            MATCH (n:Node) 
             RETURN count(n) as total
             """
         else:
             query = """
-            MATCH (n:Noeud) 
+            MATCH (n:Node) 
             where n.chromosome=$chromosome
             RETURN count(n) as total
             """
@@ -413,14 +413,14 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
         if type_search == "before" :
 
             query = """
-            MATCH (n:Noeud)
+            MATCH (n:Node)
             WHERE n.chromosome = $chromosome and n.`"""+str(genome)+"""_position` <= $genome_position AND $genome_ref in n.genomes
             return max(n.`"""+str(genome_ref)+"""_position`) as ref_position
             """
         else:
 
             query = """
-            MATCH (n:Noeud)
+            MATCH (n:Node)
             WHERE n.chromosome = $chromosome and n.`"""+str(genome)+"""_position` >= $genome_position AND $genome_ref in n.genomes
             return min(n.`"""+str(genome_ref)+"""_position`) as ref_position
             """
@@ -461,10 +461,10 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 nb_regions_total = 0
                 nb_associated_genomes = len(genomes_list)
                 
-                flux_max = nb_associated_genomes / nb_genomes + 0.00000001
-                flux_min = (flux_max-0.00000002) * min_percent_selected_genomes / 100  
+                max_flow = nb_associated_genomes / nb_genomes + 0.00000001
+                min_flow = (max_flow-0.00000002) * min_percent_selected_genomes / 100  
                 
-                flux_max = max_percent_selected_genomes * flux_max / 100
+                max_flow = max_percent_selected_genomes * max_flow / 100
 
                 print("genomes number : " + str(nb_genomes))
                 
@@ -481,34 +481,34 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 for c in chromosome_list :
                     print("chromosome : " + str(c))
                     dic_regions[c] = {}
-                    query = 'MATCH (n:Noeud) USING INDEX n:Noeud(chromosome) where n.chromosome = "' + str(c) 
-                    query += '" AND n.flux <= ' + str(flux_max) + ' AND n.flux >= ' + str(flux_min) + ' AND n.taille >= ' + str(node_min_size)
+                    query = 'MATCH (n:Node) USING INDEX n:Node(chromosome) where n.chromosome = "' + str(c) 
+                    query += '" AND n.flow <= ' + str(max_flow) + ' AND n.flow >= ' + str(min_flow) + ' AND n.size >= ' + str(node_min_size)
                     query += " AND ALL(g in n.genomes WHERE g IN $genomes_list)"
                     query += " AND all(g2 in $genomes_list WHERE g2 IN n.genomes)"
                     
                     dic_number_to_position = {}  
-                    dic_number_to_taille = {}
+                    dic_number_to_size = {}
                     for g in genomes_list :
-                        dic_regions[c][g] = {"nodes_position_list":[], "taille":[], "regions" : []}
+                        dic_regions[c][g] = {"nodes_position_list":[], "size":[], "regions" : []}
                         dic_number_to_position[g] = {}
-                        dic_number_to_taille[g] = {}
+                        dic_number_to_size[g] = {}
                         #query += ' AND "' + str(g) + '" IN n.genomes'
 
-                    query += " RETURN n AS noeuds order by n.`"+str(genome_position_ref)+"_position` ASC"
+                    query += " RETURN n AS nodes order by n.`"+str(genome_position_ref)+"_position` ASC"
                     #print(query)
                     result1 = list(session.run(query, genomes_list=genomes_list))
                     if deletion :
 
-                        query = "MATCH (n:Noeud)"
-                        query += ' USING INDEX n:Noeud(chromosome) where n.chromosome = "' + str(c) + '"'
+                        query = "MATCH (n:Node)"
+                        query += ' USING INDEX n:Node(chromosome) where n.chromosome = "' + str(c) + '"'
                         query += """ AND ALL(g IN $genomes_list WHERE g IN n.genomes)
                             AND size(n.genomes) > size($genomes_list)
                             WITH n, [g IN n.genomes WHERE NOT g IN $genomes_list] AS autres_genomes
-                            MATCH (n)-[]->(m:Noeud)
+                            MATCH (n)-[]->(m:Node)
                             WHERE ALL(g IN autres_genomes WHERE g IN m.genomes)
                               AND NONE(g IN $genomes_list WHERE g IN m.genomes)
-                              AND  m.taille  >= """ + str(node_min_size)
-                        query += " RETURN n AS noeuds order by n.`"+str(genome_position_ref)+"_position`"
+                              AND  m.size  >= """ + str(node_min_size)
+                        query += " RETURN n AS nodes order by n.`"+str(genome_position_ref)+"_position`"
 
                         result = result1 + list(session.run(query, genomes_list=genomes_list))
                     else:
@@ -519,22 +519,22 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     nb_regions_total += len(result)
                     for r in result:
                         for g in genomes_list:
-                            dic_regions[c][g]["nodes_position_list"].append(r["noeuds"][g+"_position"]) 
-                            dic_regions[c][g]["taille"].append(r["noeuds"]["taille"]) 
+                            dic_regions[c][g]["nodes_position_list"].append(r["nodes"][g+"_position"]) 
+                            dic_regions[c][g]["size"].append(r["nodes"]["size"]) 
                     #Group regions if they are separated vy less than nodes_max_gap
                     for g in genomes_list :
                         dic_regions[c][g]["nodes_position_list"].sort()
                         for i in range(len(dic_regions[c][g]["nodes_position_list"])):
                             if i == 0 :
                                 region_start = dic_regions[c][g]["nodes_position_list"][0]
-                                region_stop = region_start + dic_regions[c][g]["taille"][0]
+                                region_stop = region_start + dic_regions[c][g]["size"][0]
                             else :
                                 if dic_regions[c][g]["nodes_position_list"][i] < dic_regions[c][g]["nodes_position_list"][i-1] + nodes_max_gap :
                                     region_stop = dic_regions[c][g]["nodes_position_list"][i]
                                 else :
-                                    dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "taille" : region_stop - region_start})
+                                    dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "size" : region_stop - region_start})
                                     region_start = dic_regions[c][g]["nodes_position_list"][i]
-                                    region_stop = region_start + dic_regions[c][g]["taille"][i]
+                                    region_stop = region_start + dic_regions[c][g]["size"][i]
             print("Total number of regions : " +str(nb_regions_total))
             dic_regions_2 = {}
             for c, genomes in dic_regions.items():
@@ -555,7 +555,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
                             #r["first_annotation_after_region"] = get_first_annotation_after_position(genome_ref=g,chromosome=c, position=r["stop"])
                         analyse[g].append(r)
-                analyse[g] = sorted(analyse[g], key=lambda d: d['taille'], reverse=True)
+                analyse[g] = sorted(analyse[g], key=lambda d: d['size'], reverse=True)
             
             
             print("Total time : "+ str(time.time()-temps_depart))
@@ -566,8 +566,8 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
 def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000, output_html="pangenome_variability.html"):
     with get_driver() as driver:
         if ref_genome == None :
-            ref_noeud = "moyenne_noeud"
-            ref_position = "moyenne_position"
+            ref_noeud = "node_mean"
+            ref_position = "position_mean"
         else :
             ref_noeud = f"{ref_genome}_noeud"
             ref_position = f"{ref_genome}_position"
@@ -583,18 +583,18 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
         for chromosome in chromosomes:
             print("Compute variability on chromosome " + str(chromosome))
             query = f"""
-            MATCH (n:Noeud)
+            MATCH (n:Node)
             WHERE n.chromosome = $chromosome
-            WITH FLOOR(n.{ref_position} / {window_size}) AS Window, n.{ref_position} AS position, n.flux AS flux
+            WITH FLOOR(n.{ref_position} / {window_size}) AS Window, n.{ref_position} AS position, n.flow AS flow
             WITH Window, 
                  collect(position) AS positions, 
-                 avg(flux) AS moyenne_flux, 
+                 avg(flow) AS flow_mean, 
                  count(*) AS nodes_number
             RETURN 
                 Window,
                 reduce(min_pos = head(positions), p IN positions | CASE WHEN p < min_pos THEN p ELSE min_pos END) AS start_position,
                 reduce(max_pos = head(positions), p IN positions | CASE WHEN p > max_pos THEN p ELSE max_pos END) AS end_position,
-                moyenne_flux,
+                flow_mean,
                 nodes_number
             ORDER BY Window
             """
@@ -615,18 +615,18 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
                 "<br>Start: " + df['start_position'].astype(str) +
                 "<br>End: " + df['end_position'].astype(str) +
                 "<br>Size: " + df['window_size'].astype(str) +
-                "<br>Moyenne flux: " + df['moyenne_flux'].round(2).astype(str)
+                "<br>Flow mean: " + df['flow_mean'].round(2).astype(str)
             )
         
             # Create figure
             fig = px.scatter(
                 df,
                 x='Window',
-                y='moyenne_flux',
+                y='flow_mean',
                 hover_name='hover_text',
                 labels={
                     'Window': 'Window',
-                    'moyenne_flux': 'Moyenne du flux'
+                    'flow_mean': 'Flow mean'
                 },
                 title=f"Flow variability - Chromosome {chromosome} ({ref_genome}) - window size {window_size}",
                 height=500
@@ -644,7 +644,7 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
         
         # Combine all graphs into a single HTML file
         with open(output_html, 'w') as f:
-            f.write("<html><head><title>Variabilité flux</title></head><body>\n")
+            f.write("<html><head><title>Flow variability</title></head><body>\n")
             for part in html_parts:
                 f.write(part + "<hr>\n")
             f.write("</body></html>")
@@ -676,10 +676,10 @@ def compute_phylo_tree_from_nodes(nodes_data,output_dir = "", weighted=False):
         for g in genomes :
             if g in nodes_data[n]["strandM"]:
                 genome_redondant_strand_matrix[index_genomes[g], i] += 1
-                genome_strand_matrix[index_genomes[g], i] = nodes_data[n]["taille"]
+                genome_strand_matrix[index_genomes[g], i] = nodes_data[n]["size"]
             if g in nodes_data[n]["strandP"]:
                 genome_redondant_strand_matrix[index_genomes[g], i+nodes_nb] += 1
-                genome_strand_matrix[index_genomes[g], i+nodes_nb] = nodes_data[n]["taille"]
+                genome_strand_matrix[index_genomes[g], i+nodes_nb] = nodes_data[n]["size"]
         i += 1
     #computes Jaccard distance on matrix
     jaccard_matrix = np.zeros((len(genomes), len(genomes)))
@@ -758,89 +758,89 @@ def compute_distance_matrix(distance_matrix_filename = "distances.csv", chromoso
                 genomes = record["genomes"]
 
             distance_matrix = pd.DataFrame(data=0,index=genomes, columns=genomes)
-            dic_taille_genome = {}   
+            dic_size_genome = {}   
             if ponderation :
                 #Get the genome size
                 query = """
-                    MATCH (n:Noeud)
+                    MATCH (n:Node)
                     UNWIND n.genomes AS g
-                    RETURN g AS genome, sum(n.taille) AS total_taille
+                    RETURN g AS genome, sum(n.size) AS total_size
                     """
-                result_taille_genomes = list(session.run(query))
+                result_size_genomes = list(session.run(query))
                 if strand == False:
-                    #Calcul des tailles par genome
+                    #computes size for each genome
 
                     #Get intersection size
                     query = """
-                        MATCH (n:Noeud)
+                        MATCH (n:Node)
                         UNWIND n.genomes AS g1
                         UNWIND n.genomes AS g2
                         with g1,g2,n
                         WHERE g1 < g2 
-                        return g1, g2, sum(n.taille) AS taille_intersection
-                        ORDER BY taille_intersection DESC
+                        return g1, g2, sum(n.size) AS size_intersection
+                        ORDER BY size_intersection DESC
                         """
 
                 else:
                     query = """
-                        MATCH (n:Noeud)
-                        WITH n.taille AS taille, n.strandM AS strandM, n.strandP AS strandP
-                        WITH taille,
+                        MATCH (n:Node)
+                        WITH n.size AS size, n.strandM AS strandM, n.strandP AS strandP
+                        WITH size,
                              [x IN range(0, size(strandM)-2) | [strandM[x], strandM[x+1..]]] +
                              [x IN range(0, size(strandP)-2) | [strandP[x], strandP[x+1..]]] AS pairGroups
                         UNWIND pairGroups AS group
                         UNWIND group[1] AS g2
-                        WITH group[0] AS g1, g2, taille
+                        WITH group[0] AS g1, g2, size
                         WHERE g1 < g2
-                        RETURN g1, g2, sum(taille) AS taille_intersection
-                        ORDER BY taille_intersection DESC
+                        RETURN g1, g2, sum(size) AS size_intersection
+                        ORDER BY size_intersection DESC
                         """
                 result_intersection = list(session.run(query))
                     
             else:
                 #Get the node numbers
                 query = """
-                    MATCH (n:Noeud)
+                    MATCH (n:Node)
                     UNWIND n.genomes AS g
-                    RETURN g AS genome, count(*) AS total_taille
+                    RETURN g AS genome, count(*) AS total_size
                 """
-                result_taille_genomes = list(session.run(query)) 
+                result_size_genomes = list(session.run(query)) 
                 if strand == False:
 
                     #Get intersection size
                     query = """
-                        MATCH (n:Noeud)
+                        MATCH (n:Node)
                         UNWIND n.genomes AS g1
                         UNWIND n.genomes AS g2
                         with g1,g2,n
                         WHERE g1 < g2 
-                        return g1, g2, count(*) AS taille_intersection
-                        ORDER BY taille_intersection DESC
+                        return g1, g2, count(*) AS size_intersection
+                        ORDER BY size_intersection DESC
                         """
                 else:
                     query = """
-                        MATCH (n:Noeud)
-                        WITH n.taille AS taille, n.strandM AS strandM, n.strandP AS strandP
-                        WITH taille,
+                        MATCH (n:Node)
+                        WITH n.size AS size, n.strandM AS strandM, n.strandP AS strandP
+                        WITH size,
                              [x IN range(0, size(strandM)-2) | [strandM[x], strandM[x+1..]]] +
                              [x IN range(0, size(strandP)-2) | [strandP[x], strandP[x+1..]]] AS pairGroups
                         UNWIND pairGroups AS group
                         UNWIND group[1] AS g2
-                        WITH group[0] AS g1, g2, taille
+                        WITH group[0] AS g1, g2, size
                         WHERE g1 < g2
-                        RETURN g1, g2, count(*) AS taille_intersection
-                        ORDER BY taille_intersection DESC
+                        RETURN g1, g2, count(*) AS size_intersection
+                        ORDER BY size_intersection DESC
                         """
                 result_intersection = list(session.run(query))
             
-        for r in result_taille_genomes:
-            dic_taille_genome[r["genome"]] = r["total_taille"]
-        print(dic_taille_genome)
+        for r in result_size_genomes:
+            dic_size_genome[r["genome"]] = r["total_size"]
+        print(dic_size_genome)
         for r in result_intersection:
             g1 = r["g1"]
             g2 = r["g2"]
-            inter = r["taille_intersection"]
-            distance_matrix.loc[g1,g2] = 1-inter/(dic_taille_genome[g1]+dic_taille_genome[g2]-inter)
+            inter = r["size_intersection"]
+            distance_matrix.loc[g1,g2] = 1-inter/(dic_size_genome[g1]+dic_size_genome[g2]-inter)
             distance_matrix.loc[g2,g1] = distance_matrix.loc[g1,g2]
                 
                 

@@ -21,6 +21,9 @@ import callbacks.sequences_callbacks
 from neo4j_requests import *
 from config import get_driver
 
+version="1.0.0"
+
+
 
 driver = get_driver()
 app.layout = html.Div([

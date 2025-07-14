@@ -9,8 +9,8 @@ HTTP_PORT="7474"
 BOLT_PORT="7687"
 CONF_SOURCE_FILE="./conf/neo4j.conf"
 CONF_FILE="../db_conf.json"
-NEO4J_BASE_DIR="/home/fgraziani/work/project/Pangenomique/neo4j/chloroplast/data"
-DUMP_SOURCE_FILE="/home/fgraziani/work/project/Pangenomique/neo4j/chloroplast/data/import/neo4j.dump"
+NEO4J_BASE_DIR="../data"
+DUMP_SOURCE_FILE="../data/import/neo4j.dump"
 
 echo "NEO4J_BASE_DIR $NEO4J_BASE_DIR"
 
@@ -122,11 +122,11 @@ done
 
 if [ ! -f "$DUMP_DEST_FILE" ]; then
   if [ ! -f "$DUMP_SOURCE_FILE" ]; then
-    echo "❌ Dump file not found: $DUMP_SOURCE_FILE"
-    exit 1
+    echo "❌ Dump file not found: $DUMP_SOURCE_FILE, starting with empty database."
+  else
+  	echo "📦 Copying dump to import directory..."
+  	cp "$DUMP_SOURCE_FILE" "$DUMP_DEST_FILE"
   fi
-  echo "📦 Copying dump to import directory..."
-  cp "$DUMP_SOURCE_FILE" "$DUMP_DEST_FILE"
 else
   echo "ℹ️ No dump provided, starting with empty database."
 fi
