@@ -30,5 +30,5 @@ It allows the following functionalities :
         If the pangenome is big this can take a long time. According to the memory available, it is necessary to limit the 
         batch size. If a gtf / gff file is present, the genome_ref must be set in order to link annotations nodes with the main nodes of pangenome.
 
-## Use the tool
+## Use the tool 
     You can use the tool from the graphical interface. To launch it, just launch the index.py file : python index.py
