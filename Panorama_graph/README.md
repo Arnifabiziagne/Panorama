@@ -12,7 +12,9 @@ It allows the following functionalities :
 - Copy all the files / directories in the Panorama_graph project where do you want to store your data
 - If there is a dump file available, move or copy it into ./data/data/import/neo4j.dump
 - Go into neo4j_install directory and run the script (replace $container_name with the desired name) : bash ./setup_neo4j.sh --container-name $container_name
-- Run index.py and go to http://localhost:8050
+- Only the first time : create the conda environnement : conda env create -f panorama_graph.yaml 
+- Load conda environnement : conda activate panorama_graph
+- Run index.py (python index.py) and go to http://localhost:8050
 
 ## Install neo4
     See the readme in neo4j_install directory
