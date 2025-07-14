@@ -2,7 +2,7 @@ Setup neo4j
 ---------
 To setup neo4j, first download the neo4j_install directory. In the neo4j_install directory launch the setup_neo4j.sh script with the following parameters :
 * --base-dir $neo4j_data_base_directory : by default the directory is set to ../data directory, if the data must be store in another directory, set it with this parameter.
-* --dump $dump_file : optionnal. The defaut dump file is ../data/import/neo4j.dump. If the dump file is in another location, set it with this parameter.
+* --dump $dump_file : optionnal. The defaut dump file is ../data/data/import/neo4j.dump. If the dump file is in another location, set it with this parameter.
 * --image neo4j:$version : optionnal. Default is the 2025.05-community-bullseye version. The version of neo4j image must be compatible with the dump file.
 * --http-port $HTTP_PORT : optionnal. Default is 7474. It is necessary to launch multiple database.
 * --bolt-port $BOLT_PORT : optionnal. Default is 7687. It is necessary to launch multiple database.

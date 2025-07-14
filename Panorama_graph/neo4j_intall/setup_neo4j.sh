@@ -9,8 +9,10 @@ HTTP_PORT="7474"
 BOLT_PORT="7687"
 CONF_SOURCE_FILE="./conf/neo4j.conf"
 CONF_FILE="../db_conf.json"
-NEO4J_BASE_DIR="../data"
-DUMP_SOURCE_FILE="../dump/neo4j.dump"
+NEO4J_BASE_DIR="/home/fgraziani/work/project/Pangenomique/neo4j/chloroplast/data"
+DUMP_SOURCE_FILE="/home/fgraziani/work/project/Pangenomique/neo4j/chloroplast/data/import/neo4j.dump"
+
+echo "NEO4J_BASE_DIR $NEO4J_BASE_DIR"
 
 # --- HELP FUNCTION ---
 function usage() {
@@ -23,7 +25,7 @@ Options:
   --image       Neo4j Docker image (default: $DOCKER_IMAGE)
   --http-port   HTTP port to expose (default: $HTTP_PORT)
   --bolt-port   Bolt port to expose (default: $BOLT_PORT)
-  --container-name   Name of the docker container (default: neo4j-instance-$HTTP_PORT)
+  --container-name   Name of the docker container
   -h, --help    Show this help message
 
 EOF

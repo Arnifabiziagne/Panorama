@@ -33,8 +33,11 @@ from Bio import Phylo
 
 
 #This value is used to limit the nodes number when seeking for regions :
-#If the region contains more nodes than this value then it is ignored
+#If the region is wider than this value then it is ignored
 max_bp_seeking = 500000
+
+#Maximal number of nodes to get the whole region
+max_nodes_number = 100000
 
 logging.getLogger("neo4j").setLevel(logging.ERROR)
 
@@ -49,24 +52,28 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
 
     #TODO : les annotations peuvent etre sur plusieurs chromosome => voir comment le traiter
     temps_depart = time.time()
+    nodes_data = {}
+    if end is None:
+        stop = max_bp_seeking
+    else:
+        stop = end
     with get_driver() as driver:
 
         data = {}
-        nodes_data = []
         shared_genomes = []
-    
+        print("start : " + str(start) + " end :" +str(end))
         with driver.session() as session:
     
             # Step 1 : find the region
             if start is not None and end is not None :
-                print("Look for region : " + str(start) + " - " + str(end) + " - chromosome " + str(chromosome))
+                print("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome))
                 query_1 = """
                 MATCH (n:Noeud)
-                WHERE n.chromosome = $chromosome and n.`"""+str(search_genome)+"""_position` >= $start and n.`"""+str(search_genome)+"""_position` <= $end
+                WHERE n.chromosome = $chromosome and n.`"""+str(search_genome)+"""_position` >= $start and n.`"""+str(search_genome)+"""_position` <= $stop
                 RETURN DISTINCT n
                 ORDER BY n.`"""+str(search_genome)+"""_position`
                 """
-                result_1 = session.run(query_1, chromosome=chromosome, start=start, end=end)
+                result_1 = session.run(query_1, chromosome=chromosome, start=start, stop=stop)
                 find_nodes = [record["n"] for record in result_1]
                 print("Number of nodes found : " + str(len(find_nodes)))
                 # Setp 2 : shared_genomes construct
@@ -92,37 +99,55 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
                                 "end": position
                         })
 
-                nodes_data = {}
+                
                 # Step 3 : Get the nodes and annotations for each genomes in shared_genomes
+                query_genome = f"""
+                MATCH (m:Noeud)
+                WHERE  m.chromosome = $chromosome 
+                AND (
+                """
+                first = True
                 for g in shared_genomes:
                     genome = g["genome"]
                     champ_position = f"`{genome}_position`"
                     start = g["start"]
                     end = g["end"]
                     if end - start < max_bp_seeking and end - start > 0:
-                        print("Search nodes for genome : " + str(g))
-                        query_genome = f"""
-                        MATCH (m:Noeud)
-                        WHERE  m.chromosome = $chromosome and m.{champ_position} >= $start AND m.{champ_position} <= $end 
+                        if first :
+                            query_genome += f"(m.{champ_position} >= $start AND m.{champ_position} <= $end)"
+                            first = False
+                        else :
+                            query_genome += f"OR (m.{champ_position} >= $start AND m.{champ_position} <= $end)"
+                query_genome += """)
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
                         RETURN m, collect(a.gene_name) as annotations
-                        ORDER BY m.{champ_position}
                             """
-                        result_genome = session.run(query_genome, chromosome=chromosome, start=start, end=end)
+                print(query_genome)
+                result = session.run(query_genome, chromosome=chromosome, start=start, end=end)
+                for record in result :
+                    nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
 
-
-                        for record in result_genome:
-                            if record["m"]["name"] not in nodes_data :
-                                nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
-                            else:
-                                for a in range(len(record["annotations"])):
-                                    nodes_data[record["m"]["name"]]["annotations"].add(record["annotations"][a])
-                    else :
-                        if end - start >= max_bp_seeking:
-                            print("Region too wide for genome : " + str(g) + " start : " + str(start) + " end : " + str(end))
+            else:
+                #if end is set to None, get all the nodes if the number of nodes is less than max_nodes_number
+                
+                if start == 0 and end is None :
+                    total_nodes = get_nodes_number(chromosome)
+                    if total_nodes <= max_nodes_number : 
+                        query_genome = f"""
+                        MATCH (m:Noeud)
+                        WHERE  m.chromosome = $chromosome 
+                        OPTIONAL MATCH (m)-[]->(a:Annotation)
+                        RETURN m, collect(a.gene_name) as annotations
+                            """
+                        result = session.run(query_genome, chromosome=chromosome)
+                        for record in result:
+                            nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
+                    else  :
+                        print("Region too wide")
+                        nodes_data = {}
+            if len(nodes_data) > 0 :
                 for elt in nodes_data:
                     nodes_data[elt]["annotations"] = list(nodes_data[elt]["annotations"])
-            print("searching annotations")
         print("Total time : " + str(time.time() - temps_depart))
         return nodes_data
 
@@ -291,6 +316,30 @@ def get_chromosomes():
                 all_chromosomes = record["all_chromosomes"]
     
     return all_chromosomes
+
+
+#This function will get the number of nodes in the graph
+def get_nodes_number(chromosome=None):
+    total = 0
+    with get_driver() as driver:
+        if chromosome is None and chromosome != "":
+            query = """
+            MATCH (n:Noeud) 
+            RETURN count(n) as total
+            """
+        else:
+            query = """
+            MATCH (n:Noeud) 
+            where n.chromosome=$chromosome
+            RETURN count(n) as total
+            """
+        all_chromosomes = []
+        with driver.session() as session:
+            result = session.run(query, chromosome=chromosome)
+            for record in result:
+                total = record["total"]
+    
+    return total
 
 #This function will get all genomes present in the pangenome graph
 def get_genomes():

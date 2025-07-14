@@ -514,7 +514,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     if ctx.triggered and len(ctx.triggered[0]['prop_id'].split('.')) > 0:
         input_id = ctx.triggered[0]['prop_id'].split('.')[0]
         if input_id == "search-button" and n_clicks > 0:
-            if start is not None and start is not None :
+            if start is not None :
                 new_data = get_nodes_by_region(genome, chromosome=chromosome, start=start, end=end)
                 data_storage_nodes = new_data
                 print("len new_data : " + str(len(new_data)))
