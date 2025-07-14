@@ -10,7 +10,8 @@ BOLT_PORT="7687"
 CONF_SOURCE_FILE="./conf/neo4j.conf"
 CONF_FILE="../db_conf.json"
 NEO4J_BASE_DIR="../data"
-DUMP_SOURCE_FILE="../data/import/neo4j.dump"
+DUMP_SOURCE_FILE_DEFAULT="../import/neo4j.dump"
+DUMP_SOURCE_FILE=""
 
 echo "NEO4J_BASE_DIR $NEO4J_BASE_DIR"
 
@@ -79,7 +80,7 @@ fi
 NEO4J_AUTH="neo4j/Administrateur"
 NEO4J_LOGIN="neo4j"
 NEO4J_PASSWORD="Administrateur"
-DUMP_DEST_DIR="$NEO4J_BASE_DIR/import"
+DUMP_DEST_DIR="../data/import"
 DUMP_DEST_FILE="$DUMP_DEST_DIR/neo4j.dump"
 PLUGINS_DIR="$NEO4J_BASE_DIR/plugins"
 CONF_DIR="$NEO4J_BASE_DIR/conf"
@@ -114,21 +115,26 @@ function check_and_prepare_data_dir() {
   fi
 }
 
-
 echo "📁 Creating Neo4j directories (data, logs, conf, import, plugins)..."
 for dir in data logs conf import plugins; do
   mkdir -p "$NEO4J_BASE_DIR/$dir"
 done
 
-if [ ! -f "$DUMP_DEST_FILE" ]; then
-  if [ ! -f "$DUMP_SOURCE_FILE" ]; then
-    echo "❌ Dump file not found: $DUMP_SOURCE_FILE, starting with empty database."
-  else
-  	echo "📦 Copying dump to import directory..."
-  	cp "$DUMP_SOURCE_FILE" "$DUMP_DEST_FILE"
-  fi
+if [ -d "$DUMP_DEST_DIR" ]; then
+    # If DUMP_SOURCE_FILE is set (not empty) and the file exists
+    if [ -n "$DUMP_SOURCE_FILE" ] && [ -f "$DUMP_SOURCE_FILE" ]; then
+        echo "Moving $DUMP_SOURCE_FILE to $DUMP_DEST_FILE"
+        mv "$DUMP_SOURCE_FILE" "$DUMP_DEST_FILE"
+    # Otherwise, if the default dump file exists
+    elif [ -f "$DUMP_SOURCE_FILE_DEFAULT" ]; then
+        echo "Moving $DUMP_SOURCE_FILE_DEFAULT to $DUMP_DEST_FILE"
+        mv "$DUMP_SOURCE_FILE_DEFAULT" "$DUMP_DEST_FILE"
+    elif [ ! -f "$DUMP_DEST_FILE" ]; then
+        echo "No dump file found. The database will start with no data."
+    fi
 else
-  echo "ℹ️ No dump provided, starting with empty database."
+    echo "Destination directory '$DUMP_DEST_FILE' does not exist."
+    exit 
 fi
 
 
@@ -168,7 +174,7 @@ docker run -d \
 echo "⏳ Waiting 10 seconds for Neo4j to start..."
 sleep 10
 
-if [ -n "${DUMP_SOURCE_FILE:-}" ] && [ -f "$DUMP_DEST_FILE" ]; then
+if [ -f "$DUMP_DEST_FILE" ]; then
   echo "📥 Preparing to import dump..."
   check_and_prepare_data_dir
   echo "🛑 Stopping Neo4j before import..."
@@ -183,8 +189,9 @@ if [ -n "${DUMP_SOURCE_FILE:-}" ] && [ -f "$DUMP_DEST_FILE" ]; then
     echo "❌ Fail loading dump"
     exit 1
   }
+  
   echo "▶️ Restarting Neo4j..."
-  docker exec $CONTAINER_NAME neo4j start
+  docker start $CONTAINER_NAME
 fi
 
 # Creating JSON conf file
