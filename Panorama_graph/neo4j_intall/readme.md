@@ -11,16 +11,16 @@ To setup neo4j, first download the neo4j_install directory. In the neo4j_install
 Remarks :
 ---------
 * The database can be construct from the GFA file instead of using a dump file, but il the dump file is available it is faster to load it than to reconstruct the whole database.
-* The dump file (if required) is ideally located in ../data/import
+* The dump file (if required) is ideally located in ../import
 * If data already exists, the script will check it and ask to delete existing data before dumping new data
 * neo4j image must be compatible with the dump file
 * APOC plugins for 2025-05-0-community-bullseye version is in the setup directory but if another version of neo4j is used, the apoc plugin will be downloaded
 * Once database is up, you can access the data in a browser : http://localhost:$HTTP_PORT (replace $HTTP_PORT by the defined port, by default 7474). The default login is "neo4j" and password "Administrateur".
 
-Basic usage exemple
+Basic usage exemple (default configuration)
 ---------
 * the neo4j data are stored in "../data/data". 
-* The dump file "neo4j.dump" is in "../data/import" directory (this file should be download before)
+* The dump file "neo4j.dump" is in "../import" directory (this file should be download before)
 * The version of neo4j is 2025.05-community-bullseye
 * The http port to use is 7474
 * The bolt port to use is 7687
@@ -29,7 +29,7 @@ Command :
 bash ./setup_neo4j.sh --container-name neo4j_pangenome_test
 
 
-Usage exemple
+Usage exemple (non default configuration)
 ---------
 * the neo4j data are stored in "~/work/project/neo4j". 
 * The dump file "base.dump" is in "~/work/project/neo4j/impot" directory (this file should be download before)
@@ -50,6 +50,5 @@ Once the setup script terminated, the neo4j database could be managed with the f
 * Show logs : docker logs -f $CONTAINER_NAME
 * Get the status : docker exec -it $CONTAINER_NAME neo4j status
 * Delete the container (without deleting data) : docker rm -f $CONTAINER_NAME
-* Dump the database (docker must be running) : 
-	- docker run --rm --user=neo4j -v ./data/data:/data -v ./data/import:/import neo4j:2025.05.0-community-bullseye  neo4j-admin database dump --to-path=/import neo4j
-	- docker run --rm --user=neo4j -v $PATH_TO_DATA/data:/data neo4j:2025.05.0-community-bullseye  neo4j-admin database dump --to-path=/data/dump neo4j
+* Dump the database (docker must be running) :
+	- docker run --rm --user=neo4j -v $PATH_TO_DATA/data:/data -v $PATH_TO_DATA/import:/import neo4j:2025.05.0-community-bullseye  neo4j-admin database dump --to-path=/import neo4j
