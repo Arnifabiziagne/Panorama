@@ -234,7 +234,7 @@ def layout(data=None, initial_size_limit = 10):
     else :
         elements = []
     print("nombre d'élements : " + str(len(elements)))
-    max_size = 500
+    size_max = 500
     
     return html.Div([
 
