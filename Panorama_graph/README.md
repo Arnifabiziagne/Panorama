@@ -12,6 +12,7 @@ It allows the following functionalities :
 - Docker available
 - 16 GB RAM
 - Conda
+- The version of panorama_graph used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
 
 ## Quickstart
 - Installation (only the first time) :
