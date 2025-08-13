@@ -396,7 +396,7 @@ def get_chromosome_genome(WP_line, haplotype=True, chromosome_file = None):
             if len(name_dec) > 0 :
                 chromosome = re.sub("^0*", "", name_dec[-1].upper().replace("CHR", ""))
         else:
-            chromosome = str(ligne_dec[3])
+            chromosome = re.sub("^0*", "", str(ligne_dec[3]).upper().replace("CHR", ""))
             if haplotype :
                 genome = ligne_dec[1]+"_"+ligne_dec[2]
             else : 
@@ -806,7 +806,7 @@ def update_csv_line(csv_fields_index, dic_node, csv_line):
 
 #Same function than load_gfa_data_to_neo4j but create a dump csv file to import with neo4j-admin import (only for new DB creation)
 #The dump is faster and adapted to big DB but require a manual step after csv generation
-def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, haplotype = True, create_only_relations = False):
+def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, haplotype = True):
     sep = ["[,;.*]", "(<|>)"]
     batch_nb = 0
     set_genome = set()
@@ -815,6 +815,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     relations_repeat_nodes = {}
     total_nodes = 0
     total_path = 0
+    total_relations = 0
     nodes_size_dic = {}
     temps_depart = time.time()
     set_all_genomes = set()
@@ -846,7 +847,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                     break
         
         if last_line:
-            last_node_id = last_line[0]
+            last_node_id = int(last_line[0])
             
     csv_sequence_file = open(import_dir+"/sequences.csv", "a", newline="", encoding="utf-8") 
     sequences_writer = csv.writer(csv_sequence_file)
@@ -923,159 +924,182 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                 if chromosomes_list[k] == first_chromosome:
                     index_first_chromosme = k
         print("Genomes number : " + str(len(set_all_genomes)) + " - chromosomes list : " + str(set_all_chromosomes))
-        #If create_only_relations is set to True then the nodes are not processed
-        if not create_only_relations :
-            print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(start_chromosome))
-            for k in range(index_first_chromosme,len(chromosomes_list)) :
-                c = chromosomes_list[k]
-                relations_repeat_nodes = {}
-                dic_nodes_id = {}
-                set_relations = set()
-                nodes_set_chromosome = set(nodes_set_next_chromosome)
-                nodes_set_next_chromosome = set()
-                print("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
-                batch_nb = ceil(len(nodes_set_chromosome)/batch_size)
-                current_batch = 0
-                while current_batch < batch_nb :
-                    temps_0_lot = time.time()
-                    
-                    nodes_batch_set = set(list(nodes_set_chromosome)[current_batch*batch_size:min(len(nodes_set_chromosome),(current_batch+1)*batch_size)])
-                    current_batch += 1
-                    print("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
-                    #Relations for the chromosome are computed only on the last batch
-                    if current_batch == batch_nb:
-                        compute_relations_batch = True
-                    else:
-                        compute_relations_batch = False
-                    
-                    file.seek(0,0)
-                    ligne = file.readline()
-    
-                    #Path browsing for the batch 
-                    dic_batch_nodes_index = {}
-                    ref_nodes_dic = {}
-                    nodes_list = []
-                    liste_strand = []
-                    position_count = {}
-                    nodes_count = {}
-                    set_genomes_lot = set()    
-                    nodes_set = set()
-                    with tqdm(total=total_path) as bar2 :
-                        while ligne:
-                            ligne_dec = ligne.split()
-                            if len(ligne_dec) > 0:
-                                if ligne[0] == 'P' or ligne[0] == 'W':
-                                    chromosome, genome = get_chromosome_genome(ligne, haplotype = haplotype, chromosome_file=chromosome_file)
-                                    ligne = None
-                                    if current_batch == batch_nb and k < len(chromosomes_list) - 1 and chromosome == chromosomes_list[k+1]:
-                                        #last batch for the chromosome, retrieves the nodes to be processed for the next chromosome
-                                        if ligne_dec[0] == 'P':
-                                            ind = 2
-                                            walk = 0
-                                            nodes_list = re.split(sep[walk], ligne_dec[ind])
-                                            nodes_set_next_chromosome |= set([chaine[:-1] for chaine in nodes_list])
-                                        else:
-                                            ind = 6
-                                            walk = 1
-                                            nodes_list = re.split(sep[walk], ligne_dec[ind])
-                                            nodes_set_next_chromosome |= set([nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0])
+        print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(start_chromosome) + "\nstart index : " + str(node_id))
+        for k in range(index_first_chromosme,len(chromosomes_list)) :
+            c = chromosomes_list[k]
+            relations_repeat_nodes = {}
+            dic_nodes_id = {}
+            total_relations += len(set_relations)
+            set_relations = set()
+            nodes_set_chromosome = set(nodes_set_next_chromosome)
+            nodes_set_next_chromosome = set()
+            print("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
+            batch_nb = ceil(len(nodes_set_chromosome)/batch_size)
+            current_batch = 0
+            while current_batch < batch_nb :
+                temps_0_lot = time.time()
+                
+                nodes_batch_set = set(list(nodes_set_chromosome)[current_batch*batch_size:min(len(nodes_set_chromosome),(current_batch+1)*batch_size)])
+                current_batch += 1
+                print("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
+                #Relations for the chromosome are computed only on the last batch
+                if current_batch == batch_nb:
+                    compute_relations_batch = True
+                else:
+                    compute_relations_batch = False
+                
+                file.seek(0,0)
+                ligne = file.readline()
+
+                #Path browsing for the batch 
+                dic_batch_nodes_index = {}
+                ref_nodes_dic = {}
+                nodes_list = []
+                liste_strand = []
+                position_count = {}
+                nodes_count = {}
+                set_genomes_lot = set()    
+                nodes_set = set()
+                with tqdm(total=total_path) as bar2 :
+                    while ligne:
+                        ligne_dec = ligne.split()
+                        if len(ligne_dec) > 0:
+                            if ligne[0] == 'P' or ligne[0] == 'W':
+                                chromosome, genome = get_chromosome_genome(ligne, haplotype = haplotype, chromosome_file=chromosome_file)
+                                ligne = None
+                                if current_batch == batch_nb and k < len(chromosomes_list) - 1 and chromosome == chromosomes_list[k+1]:
+                                    #last batch for the chromosome, retrieves the nodes to be processed for the next chromosome
+                                    if ligne_dec[0] == 'P':
+                                        ind = 2
+                                        walk = 0
+                                        nodes_list = re.split(sep[walk], ligne_dec[ind])
+                                        nodes_set_next_chromosome |= set([chaine[:-1] for chaine in nodes_list])
+                                    else:
+                                        ind = 6
+                                        walk = 1
+                                        nodes_list = re.split(sep[walk], ligne_dec[ind])
+                                        nodes_set_next_chromosome |= set([nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0])
+                                
+                                if chromosome == c:
+                                    if ligne_dec[0] == 'P':
+                                        ind = 2
+                                        walk = 0
+                                        nodes_list = re.split(sep[walk], ligne_dec[ind])
+                                        liste_strand = [chaine[-1] for chaine in nodes_list]
+                                        nodes_list = [chaine[:-1] for chaine in nodes_list]
+                                        # if chromosome_file == None :
+                                        #     liste_strand = [chaine[-1] for chaine in nodes_list]
+                                        #     nodes_list = [chaine[:-1] for chaine in nodes_list]
+                                        # else :
+                                        #     liste_strand = [chaine[-1] for chaine in nodes_list]
+                                        #     nodes_list = [chromosome_file+"_"+chaine[:-1] for chaine in nodes_list]                              
+                                    else:
+                                        ind = 6
+                                        walk = 1
+                                        nodes_list = re.split(sep[walk], ligne_dec[ind])
+                                        liste_strand = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 != 0]
+                                        nodes_list = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
+                                        # if chromosome_file == None :
+                                        #     nodes_list = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
+                                        # else:
+                                        #     nodes_list = [chromosome_file+"_"+nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
+      
+                                    if chromosome is not None and chromosome not in set_chromosome:
+                                        set_chromosome.add(chromosome)
                                     
-                                    if chromosome == c:
-                                        if ligne_dec[0] == 'P':
-                                            ind = 2
-                                            walk = 0
-                                            nodes_list = re.split(sep[walk], ligne_dec[ind])
-                                            liste_strand = [chaine[-1] for chaine in nodes_list]
-                                            nodes_list = [chaine[:-1] for chaine in nodes_list]
-                                            # if chromosome_file == None :
-                                            #     liste_strand = [chaine[-1] for chaine in nodes_list]
-                                            #     nodes_list = [chaine[:-1] for chaine in nodes_list]
-                                            # else :
-                                            #     liste_strand = [chaine[-1] for chaine in nodes_list]
-                                            #     nodes_list = [chromosome_file+"_"+chaine[:-1] for chaine in nodes_list]                              
-                                        else:
-                                            ind = 6
-                                            walk = 1
-                                            nodes_list = re.split(sep[walk], ligne_dec[ind])
-                                            liste_strand = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 != 0]
-                                            nodes_list = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
-                                            # if chromosome_file == None :
-                                            #     nodes_list = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
-                                            # else:
-                                            #     nodes_list = [chromosome_file+"_"+nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
-          
-                                        if chromosome is not None and chromosome not in set_chromosome:
-                                            set_chromosome.add(chromosome)
-                                        
-                                        if genome != "_MINIGRAPH_":
-                                            if genome not in set_genome:
-                                                set_genome.add(genome)
-                                            if genome not in set_genomes_lot :
-                                                set_genomes_lot.add(genome)
-                                                nodes_count[genome] = {}
-                                                position_count[genome] = {}
-                                            if chromosome not in nodes_count[genome] :
-                                                nodes_count[genome][chromosome] = 0
-                                                position_count[genome][chromosome] = {}
-                                                position_count[genome][chromosome]["current_position"] = 0
-                                                position_count[genome][chromosome]["previous_position"] = 0
-                                                position_count[genome][chromosome]["current_contig"] = ""
-                                            #For walk, start position is available => this position is used
-                                            if ind == 6:
-                                                if position_count[genome][chromosome]["current_contig"] != ligne_dec[3] :
-                                                    #New contig => add the start of next contig
-                                                    position_count[genome][chromosome]["current_position"] += int(ligne_dec[4])
-                                                else :
-                                                    #Same contig => add the potential gaps
-                                                    if position_count[genome][chromosome]["previous_position"] - int(ligne_dec[4]) > 0 :
-                                                        position_count[genome][chromosome]["current_position"] += position_count[genome][chromosome]["previous_position"] - int(ligne_dec[4])
-                                                position_count[genome][chromosome]["current_contig"] = ligne_dec[3]
-                                                position_count[genome][chromosome]["previous_position"] = int(ligne_dec[5])
-        
-                                            node = ""
-                                            relation_node = ""
-                                            previous_node_relation = ""
-                                            ref_node = ""
-                                            prefix_ref_node = ""
-                                            strand = ""
-                                            ligne_dec=None
-                                            #Graph linearization
-                                            # Browse nodes list : if node already exist for the same sequence
-                                            # then create a new node (For example, if it is the sixth iteration for node S1, we will create S1_6)
-                                            for i in range(len(nodes_list)):
-                                                if i > 0:
-                                                    previous_node = node
-                                                node = nodes_list[i]
+                                    if genome != "_MINIGRAPH_":
+                                        if genome not in set_genome:
+                                            set_genome.add(genome)
+                                        if genome not in set_genomes_lot :
+                                            set_genomes_lot.add(genome)
+                                            nodes_count[genome] = {}
+                                            position_count[genome] = {}
+                                        if chromosome not in nodes_count[genome] :
+                                            nodes_count[genome][chromosome] = 0
+                                            position_count[genome][chromosome] = {}
+                                            position_count[genome][chromosome]["current_position"] = 0
+                                            position_count[genome][chromosome]["previous_position"] = 0
+                                            position_count[genome][chromosome]["current_contig"] = ""
+                                        #For walk, start position is available => this position is used
+                                        if ind == 6:
+                                            if position_count[genome][chromosome]["current_contig"] != ligne_dec[3] :
+                                                #New contig => add the start of next contig
+                                                position_count[genome][chromosome]["current_position"] += int(ligne_dec[4])
+                                            else :
+                                                #Same contig => add the potential gaps
+                                                if position_count[genome][chromosome]["previous_position"] - int(ligne_dec[4]) > 0 :
+                                                    position_count[genome][chromosome]["current_position"] += position_count[genome][chromosome]["previous_position"] - int(ligne_dec[4])
+                                            position_count[genome][chromosome]["current_contig"] = ligne_dec[3]
+                                            position_count[genome][chromosome]["previous_position"] = int(ligne_dec[5])
+    
+                                        node = ""
+                                        relation_node = ""
+                                        previous_node_relation = ""
+                                        ref_node = ""
+                                        prefix_ref_node = ""
+                                        strand = ""
+                                        ligne_dec=None
+                                        #Graph linearization
+                                        # Browse nodes list : if node already exist for the same sequence
+                                        # then create a new node (For example, if it is the sixth iteration for node S1, we will create S1_6)
+                                        for i in range(len(nodes_list)):
+                                            if i > 0:
+                                                previous_node = node
+                                            node = nodes_list[i]
+                                            ref_node = node
+                                            size = nodes_size_dic[ref_node]
+                                            if chromosome_prefix or (chromosome_file is not None and chromosome_file != ""):
+                                                node = chromosome + "_" + node
+                                            prefix_ref_node = node
+                                            if chromosome_file is not None and chromosome_file != "":
                                                 ref_node = node
-                                                size = nodes_size_dic[ref_node]
-                                                if chromosome_prefix or (chromosome_file is not None and chromosome_file != ""):
-                                                    node = chromosome + "_" + node
-                                                prefix_ref_node = node
-                                                if chromosome_file is not None and chromosome_file != "":
-                                                    ref_node = node
-                                                #Node is consider only if it is part of batch
-                                                if ref_node in nodes_batch_set:
-                                                    strand = ""
-                                                    if (i < len(liste_strand) and liste_strand[i] in ["-", "<"]):
-                                                        strand = "M"
-                                                    else:
-                                                        strand = "P"
+                                            #Node is consider only if it is part of batch
+                                            if ref_node in nodes_batch_set:
+                                                strand = ""
+                                                if (i < len(liste_strand) and liste_strand[i] in ["-", "<"]):
+                                                    strand = "M"
+                                                else:
+                                                    strand = "P"
+                                                
+                                                if node not in nodes_set:
+                                                    if strand == "P" :
+                                                        dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandP":[genome], "strandM":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
+                                                    else :
+                                                        dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandM":[genome], "strandP":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
+                                                    csv_nodes_lines.append(create_node_csv_line(csv_fields_index, dic_node))
+                                                    dic_batch_nodes_index[node] = batch_node_id
+                                                    dic_nodes_id[node] = node_id
+                                                    node_id += 1
+                                                    batch_node_id += 1
+                                                    nodes_set.add(node)
+                                                else:
+                                                    tmp_node_id = dic_batch_nodes_index[node]
+                                                    tmp_genomes = csv_nodes_lines[tmp_node_id][csv_fields_index["genomes"]]
+                                                    if genome not in tmp_genomes : 
+                                                        dic_node_update = {"genomes":genome, 
+                                                                           "strand"+strand:genome,
+                                                                           genome+"_node": nodes_count[genome][chromosome],
+                                                                           genome+"_position": position_count[genome][chromosome]["current_position"]
+                                                                           }
+                                                        tmp_position_min = csv_nodes_lines[tmp_node_id][csv_fields_index["position_min"]]
+                                                        tmp_position_max = csv_nodes_lines[tmp_node_id][csv_fields_index["position_max"]]
+                                                        if position_count[genome][chromosome]["current_position"] < tmp_position_min:
+                                                            dic_node_update["position_min"]= position_count[genome][chromosome]["current_position"]
+                                                        if position_count[genome][chromosome]["current_position"] > tmp_position_max:
+                                                            dic_node_update["position_max"] = position_count[genome][chromosome]["current_position"]
+                                                        csv_nodes_lines[tmp_node_id]=update_csv_line(csv_fields_index, dic_node_update, csv_nodes_lines[tmp_node_id])
                                                     
-                                                    if node not in nodes_set:
-                                                        if strand == "P" :
-                                                            dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandP":[genome], "strandM":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
-                                                        else :
-                                                            dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandM":[genome], "strandP":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
-                                                        csv_nodes_lines.append(create_node_csv_line(csv_fields_index, dic_node))
-                                                        dic_batch_nodes_index[node] = batch_node_id
-                                                        dic_nodes_id[node] = node_id
-                                                        node_id += 1
-                                                        batch_node_id += 1
-                                                        nodes_set.add(node)
                                                     else:
-                                                        tmp_node_id = dic_batch_nodes_index[node]
-                                                        tmp_genomes = csv_nodes_lines[tmp_node_id][csv_fields_index["genomes"]]
-                                                        if genome not in tmp_genomes : 
+                                                        if ref_node not in ref_nodes_dic:
+                                                            ref_nodes_dic[ref_node] = {}
+                                                        if genome+"-"+chromosome not in ref_nodes_dic[ref_node] :
+                                                            ref_nodes_dic[ref_node][genome+"-"+chromosome] = 2
+                                                        else:
+                                                            ref_nodes_dic[ref_node][genome+"-"+chromosome] += 1
+                                                        node = node + "_" + str(ref_nodes_dic[ref_node][genome+"-"+chromosome])
+
+                                                        if node in nodes_set:
+                                                            tmp_node_id = dic_batch_nodes_index[node]
                                                             dic_node_update = {"genomes":genome, 
                                                                                "strand"+strand:genome,
                                                                                genome+"_node": nodes_count[genome][chromosome],
@@ -1088,163 +1112,68 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                                                             if position_count[genome][chromosome]["current_position"] > tmp_position_max:
                                                                 dic_node_update["position_max"] = position_count[genome][chromosome]["current_position"]
                                                             csv_nodes_lines[tmp_node_id]=update_csv_line(csv_fields_index, dic_node_update, csv_nodes_lines[tmp_node_id])
-                                                        
                                                         else:
-                                                            if ref_node not in ref_nodes_dic:
-                                                                ref_nodes_dic[ref_node] = {}
-                                                            if genome+"-"+chromosome not in ref_nodes_dic[ref_node] :
-                                                                ref_nodes_dic[ref_node][genome+"-"+chromosome] = 2
-                                                            else:
-                                                                ref_nodes_dic[ref_node][genome+"-"+chromosome] += 1
-                                                            node = node + "_" + str(ref_nodes_dic[ref_node][genome+"-"+chromosome])
-    
-                                                            if node in nodes_set:
-                                                                tmp_node_id = dic_batch_nodes_index[node]
-                                                                dic_node_update = {"genomes":genome, 
-                                                                                   "strand"+strand:genome,
-                                                                                   genome+"_node": nodes_count[genome][chromosome],
-                                                                                   genome+"_position": position_count[genome][chromosome]["current_position"]
-                                                                                   }
-                                                                tmp_position_min = csv_nodes_lines[tmp_node_id][csv_fields_index["position_min"]]
-                                                                tmp_position_max = csv_nodes_lines[tmp_node_id][csv_fields_index["position_max"]]
-                                                                if position_count[genome][chromosome]["current_position"] < tmp_position_min:
-                                                                    dic_node_update["position_min"]= position_count[genome][chromosome]["current_position"]
-                                                                if position_count[genome][chromosome]["current_position"] > tmp_position_max:
-                                                                    dic_node_update["position_max"] = position_count[genome][chromosome]["current_position"]
-                                                                csv_nodes_lines[tmp_node_id]=update_csv_line(csv_fields_index, dic_node_update, csv_nodes_lines[tmp_node_id])
-                                                            else:
-                                                                if strand == "P" :
-                                                                    dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandP":[genome], "strandM":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
-                                                                else :
-                                                                    dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandM":[genome], "strandP":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
-                                                                csv_nodes_lines.append(create_node_csv_line(csv_fields_index, dic_node))
-                                                                dic_batch_nodes_index[node] = batch_node_id
-                                                                node_id += 1
-                                                                batch_node_id += 1
-                                                                dic_nodes_id[node] = node_id
-                                                                nodes_set.add(node) 
-                                                                #Update max on the ref node
-                                                                tmp_node_ref_id = dic_batch_nodes_index[prefix_ref_node]
-                                                                tmp_max = csv_nodes_lines[tmp_node_ref_id][csv_fields_index["max"]]
-                                                                csv_nodes_lines[tmp_node_ref_id]=update_csv_line(csv_fields_index, {"max":tmp_max+1}, csv_nodes_lines[tmp_node_ref_id])
-                                                nodes_count[genome][chromosome] += 1
-                                                position_count[genome][chromosome]["current_position"] += size
-                                                #compute relations
-                                                if compute_relations_batch:
-                                                    if i > 0 :
-                                                        previous_node_relation = node_relation
-                                                    if node in relations_repeat_nodes :
-                                                        if genome+"-"+chromosome in relations_repeat_nodes[node]:
-                                                            relations_repeat_nodes[node][genome+"-"+chromosome] += 1
-                                                            node_relation = node+"_"+ str(relations_repeat_nodes[node][genome+"-"+chromosome])
-                                                        else:
-                                                            relations_repeat_nodes[node][genome+"-"+chromosome] = 1
-                                                            node_relation = node
+                                                            if strand == "P" :
+                                                                dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandP":[genome], "strandM":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
+                                                            else :
+                                                                dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandM":[genome], "strandP":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
+                                                            csv_nodes_lines.append(create_node_csv_line(csv_fields_index, dic_node))
+                                                            dic_batch_nodes_index[node] = batch_node_id
+                                                            node_id += 1
+                                                            batch_node_id += 1
+                                                            dic_nodes_id[node] = node_id
+                                                            nodes_set.add(node) 
+                                                            #Update max on the ref node
+                                                            tmp_node_ref_id = dic_batch_nodes_index[prefix_ref_node]
+                                                            tmp_max = csv_nodes_lines[tmp_node_ref_id][csv_fields_index["max"]]
+                                                            csv_nodes_lines[tmp_node_ref_id]=update_csv_line(csv_fields_index, {"max":tmp_max+1}, csv_nodes_lines[tmp_node_ref_id])
+                                            nodes_count[genome][chromosome] += 1
+                                            position_count[genome][chromosome]["current_position"] += size
+                                            #compute relations
+                                            if compute_relations_batch:
+                                                if i > 0 :
+                                                    previous_node_relation = node_relation
+                                                if node in relations_repeat_nodes :
+                                                    if genome+"-"+chromosome in relations_repeat_nodes[node]:
+                                                        relations_repeat_nodes[node][genome+"-"+chromosome] += 1
+                                                        node_relation = node+"_"+ str(relations_repeat_nodes[node][genome+"-"+chromosome])
                                                     else:
-                                                        relations_repeat_nodes[node] = {genome+"-"+chromosome:1}
+                                                        relations_repeat_nodes[node][genome+"-"+chromosome] = 1
                                                         node_relation = node
-                                                    if i > 0 and previous_node_relation+"->"+node_relation not in set_relations :
-                                                        set_relations.add(previous_node_relation+"->"+node_relation)
-                                                        relations_writer.writerow([dic_nodes_id[previous_node_relation], dic_nodes_id[node_relation], "gfa_link"])
-                                    bar2.update(1)
-                            ligne = file.readline() 
-                    nodes_list = None
-                    #Flow computing
-                    print("\nSize of elements to create into csv : " + str(len(csv_nodes_lines)))
-                    for line in csv_nodes_lines:
-                        line[csv_fields_index["flow"]] = len(line[csv_fields_index["genomes"]])/len(set_all_genomes) if len(set_all_genomes) > 0 else 0
-                        for idx in [csv_fields_index["genomes"],csv_fields_index["strandP"], csv_fields_index["strandM"]]:
-                            line[idx] = ";".join(line[idx])
+                                                else:
+                                                    relations_repeat_nodes[node] = {genome+"-"+chromosome:1}
+                                                    node_relation = node
+                                                if i > 0 and previous_node_relation+"->"+node_relation not in set_relations :
+                                                    set_relations.add(previous_node_relation+"->"+node_relation)
+                                                    relations_writer.writerow([dic_nodes_id[previous_node_relation], dic_nodes_id[node_relation], "gfa_link"])
+                                bar2.update(1)
+                        ligne = file.readline() 
+                nodes_list = None
+                #Flow computing
+                print("\nSize of elements to create into csv : " + str(len(csv_nodes_lines)))
+                for line in csv_nodes_lines:
+                    line[csv_fields_index["flow"]] = len(line[csv_fields_index["genomes"]])/len(set_all_genomes) if len(set_all_genomes) > 0 else 0
+                    for idx in [csv_fields_index["genomes"],csv_fields_index["strandP"], csv_fields_index["strandM"]]:
+                        line[idx] = ";".join(line[idx])
    
-                        values_position = [v for v in line[csv_fields_index["flow"]+1:-1:2] if v is not None]
-                        values_node = [v for v in line[csv_fields_index["flow"]+2:-1:2] if v is not None]
-                        line[csv_fields_index["position_mean"]] = int(sum(values_position) / len(values_position)) if len(values_position) > 0 else 0
-                        line[csv_fields_index["node_mean"]] = int(sum(values_node) / len(values_node)) if len(values_node) > 0 else 0
-                    nodes_writer.writerows(csv_nodes_lines)
-                    csv_nodes_lines = []
-                    batch_node_id = 0
-                    dic_batch_nodes_index = {}
+                    values_position = [v for v in line[csv_fields_index["flow"]+1:-1:2] if v is not None]
+                    values_node = [v for v in line[csv_fields_index["flow"]+2:-1:2] if v is not None]
+                    line[csv_fields_index["position_mean"]] = int(sum(values_position) / len(values_position)) if len(values_position) > 0 else 0
+                    line[csv_fields_index["node_mean"]] = int(sum(values_node) / len(values_node)) if len(values_node) > 0 else 0
+                nodes_writer.writerows(csv_nodes_lines)
+                csv_nodes_lines = []
+                batch_node_id = 0
+                dic_batch_nodes_index = {}
 
-                        
-                        
-            nodes_size_dic = None
-            print("Nodes creation is terminated\nTotal time : " + str(time.time()-temps_depart) + "\nGenomes analysed : " + str(set_genome) + "\nNodes number : "+str(total_nodes) )
+                    
+                    
+        nodes_size_dic = None
+        print("Csv creation is terminated\nTotal time : " + str(time.time()-temps_depart) + "\nGenomes analysed : " + str(set_genome) + "\nNodes number : "+str(total_nodes) +"\nRelations number : " + str(total_relations))
         
-        #Relationships are processed afterwards because node splitting does not guarantee that 
-        #relationships will be created between the correct nodes in the event of duplicate nodes. 
-        #Relationships will therefore be processed by chromosome.
-        # print("\nStart relations")
-        # set_relations = set()
-        # liste_relations = []
-        # nodes_list = []
-        # liste_strand = []
-        # current_batch = 0
-        # for k in range(index_first_chromosme,len(chromosomes_list)) :
-        #     c = chromosomes_list[k]
-        #     repeat_nodes = {}
-        #     file.seek(0,0)
-        #     ligne = file.readline()
-        #     current_batch += 1
-        #     print("chromosome " + str(current_batch) + " / " + str(len(chromosomes_list)-index_first_chromosme))
-        #     with tqdm(total=total_path) as bar3 :
-        #         while ligne:
-        #             ligne_dec = ligne.split()
-        #             if len(ligne_dec) > 0:
-        #                 if ligne[0] == 'P' or ligne[0] == 'W':
-        #                     chromosome, genome = get_chromosome_genome(ligne, haplotype = haplotype, chromosome_file=chromosome_file)
-        #                     if chromosome == c:
-        #                         if ligne_dec[0] == 'P':
-        #                             ind = 2
-        #                             walk = 0
-        #                             nodes_list = re.split(sep[walk], ligne_dec[ind])
-        #                             if chromosome_prefix or (chromosome_file is not None and chromosome_file != ""):
-        #                                 liste_strand = [chaine[-1] for chaine in nodes_list]
-        #                                 nodes_list = [chromosome+"_"+chaine[:-1] for chaine in nodes_list]   
-        #                             else :
-        #                                 liste_strand = [chaine[-1] for chaine in nodes_list]
-        #                                 nodes_list = [chaine[:-1] for chaine in nodes_list]                           
-        #                         else:
-        #                             ind = 6
-        #                             walk = 1
-        #                             nodes_list = re.split(sep[walk], ligne_dec[ind])
-        #                             liste_strand = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 != 0]
-        #                             if chromosome_prefix or (chromosome_file is not None and chromosome_file != ""):
-        #                                 nodes_list = [chromosome+"_"+nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
-        #                             else:
-        #                                 nodes_list = [nodes_list[j] for j in range(1, len(nodes_list)) if j % 2 == 0]
-        
-        
-        #                         if genome != "_MINIGRAPH_":
-        #                             node = ""
-        #                             ref_node = ""
-        #                             strand = ""
-        #                             # Browse nodes list : if node already exist for the same sequence
-        #                             # then create a new node (For example, if it is the sixth iteration for node S1, we will create S1_6)
-        #                             for i in range(len(nodes_list)):
-        #                                 if i > 0:
-        #                                     previous_node = node
-        #                                 node = nodes_list[i]
-        #                                 if node in repeat_nodes :
-        #                                     if genome+"-"+chromosome in repeat_nodes[node]:
-        #                                         repeat_nodes[node][genome+"-"+chromosome] += 1
-        #                                         node = node+"_"+ str(repeat_nodes[node][genome+"-"+chromosome])
-        #                                     else:
-        #                                         repeat_nodes[node][genome+"-"+chromosome] = 1
-        #                                 else:
-        #                                     repeat_nodes[node] = {genome+"-"+chromosome:1}
-        #                                 if i > 0 and previous_node+"->"+node not in set_relations :
-        #                                     set_relations.add(previous_node+"->"+node)
-        #                                     print([dic_nodes_id[previous_node], dic_nodes_id[node], "gfa_link"])
-        #                                     relations_writer.writerow([dic_nodes_id[previous_node], dic_nodes_id[node], "gfa_link"])
-        #                     bar3.update(1)
-        #             ligne = file.readline() 
-
-        # print("End of relationships creation\nTime : " + str(time.time()-temps_depart) + "\nNumberof relationships created : " + str(len(set_relations)))
-        # set_relations = set()
                                                 
     file.close()
 
-    print("treatment completed\nTotal time : "+ str(time.time()-temps_depart))
+    print("Treatment completed\nTotal time : "+ str(time.time()-temps_depart))
     return set_genome
 
 
