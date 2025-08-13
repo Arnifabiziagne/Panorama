@@ -667,7 +667,7 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                                                                     nodes_dic[node] = {"genomes":[genome], "max":1, "ref_node" : ref_node, "strandM":[genome], "strandP":[], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
                                                                 nodes_dic[node][genome+"_node"] = nodes_count[genome][chromosome]   
                                                                 nodes_dic[node][genome+"_position"] = position_count[genome][chromosome]["current_position"]   
-                                                                nodes_dic[node]["max"]+=1
+                                                                nodes_dic[ref_node]["max"]+=1
                                                                 nodes_set.add(node)
                                                                 
                                                 nodes_count[genome][chromosome] += 1
