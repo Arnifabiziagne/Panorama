@@ -820,7 +820,6 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     set_all_genomes = set()
     set_all_chromosomes = set()
     chromosomes_list = []
-    set_relations = set()
     dic_nodes_id = {}
     dic_batch_nodes_index = {}
     ref_nodes_dic = {}
@@ -930,6 +929,8 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             for k in range(index_first_chromosme,len(chromosomes_list)) :
                 c = chromosomes_list[k]
                 relations_repeat_nodes = {}
+                dic_nodes_id = {}
+                set_relations = set()
                 nodes_set_chromosome = set(nodes_set_next_chromosome)
                 nodes_set_next_chromosome = set()
                 print("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
