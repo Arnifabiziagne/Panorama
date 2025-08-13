@@ -819,7 +819,6 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     temps_depart = time.time()
     set_all_genomes = set()
     set_all_chromosomes = set()
-    liste_relations = []
     chromosomes_list = []
     set_relations = set()
     dic_nodes_id = {}
@@ -829,7 +828,6 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     node_id = 0
     batch_node_id = 0
     csv_nodes_lines = []
-    current_chromosome_relations = ""
     nodes_set_next_chromosome = set()
     first_chromosome = None
     print_header_nodes = not os.path.isfile(import_dir+"/nodes.csv")
@@ -921,13 +919,12 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                 current_batch = 0
                 while current_batch < batch_nb :
                     temps_0_lot = time.time()
-
+                    
                     nodes_batch_set = set(list(nodes_set_chromosome)[current_batch*batch_size:min(len(nodes_set_chromosome),(current_batch+1)*batch_size)])
                     current_batch += 1
                     print("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
                     #Relations for the chromosome are computed only on the last batch
                     if current_batch == batch_nb:
-                        current_chromosome = c
                         compute_relations_batch = True
                     else:
                         compute_relations_batch = False
@@ -936,6 +933,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                     ligne = file.readline()
     
                     #Path browsing for the batch 
+                    dic_batch_nodes_index = {}
                     ref_nodes_dic = {}
                     nodes_list = []
                     liste_strand = []
