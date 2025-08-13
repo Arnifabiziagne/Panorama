@@ -195,7 +195,8 @@ if [ -f "$CSV_NODES_FILE" ] && [ -f "$CSV_RELATIONSHIPS_FILE" ]; then
     "$DOCKER_IMAGE" \
     neo4j-admin database import full \
       --verbose \
-	  --nodes=/import/nodes.csv \
+	  --nodes=Node=/import/nodes.csv \
+	  --nodes=Sequence=/import/sequences.csv \
       --relationships=/import/relations.csv || {
         echo "❌ Failed to import CSV files"
         exit 1
