@@ -248,16 +248,7 @@ def layout(data=None, initial_size_limit = 10):
                         dcc.Dropdown(
                             id='genomes-dropdown',
                             options=[{'label': genome, 'value': genome} for genome in all_genomes],
-                            value='HER',
-                            style={'width': '200px'}
-                        )
-                    ], style={'marginRight': '30px'}),
-                    html.Div([
-                        html.Label("Ref genome", style={'display': 'block', 'marginBottom': '5px'}),
-                        dcc.Dropdown(
-                            id='genomes-ref-dropdown',
-                            options=[{'label': genome, 'value': genome} for genome in all_genomes],
-                            value='HER',
+                            value=all_genomes[0],
                             style={'width': '200px'}
                         )
                     ], style={'marginRight': '30px'}),
@@ -288,7 +279,7 @@ def layout(data=None, initial_size_limit = 10):
                             id='genename-input',
                             type='text',
                             placeholder='Nom de gene',
-                            debounce=True,  # Déclenche le callback uniquement après validation (Entrée ou perte de focus)
+                            debounce=True,  
                             style={'marginRight':"10px"}
                         ),
                         html.Label("Gene id : "),
@@ -296,7 +287,7 @@ def layout(data=None, initial_size_limit = 10):
                             id='geneid-input',
                             type='text',
                             placeholder='id de gene',
-                            debounce=True  # Déclenche le callback uniquement après validation (Entrée ou perte de focus)
+                            debounce=True
                         )
                     ], style={'marginBottom':'20px'}),
                     html.Button('Search', id='search-button', n_clicks=0, style={'marginTop': '10px'}),
@@ -490,13 +481,12 @@ def display_element_data(node_data, edge_data):
     State('genename-input', 'value'),
     State('geneid-input', 'value'),
     State('genomes-dropdown', 'value'),
-    State('genomes-ref-dropdown', 'value'),
     State('chromosomes-dropdown', 'value'),
     State('shared_storage', 'data'),
     State('shared_storage_nodes', 'data'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, size_slider_val, n_clicks, start, end, gene_name, gene_id, genome, genome_ref, chromosome,data_storage, data_storage_nodes):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, size_slider_val, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes):
     ctx = dash.callback_context
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
@@ -519,8 +509,10 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 print("len new_data : " + str(len(new_data)))
             else : 
                 if gene_name is not None :
-                    new_data = get_nodes_by_gene(genome_ref, gene_name=gene_name,chromosome=chromosome)
+                    new_data = get_nodes_by_gene(genome, gene_name=gene_name,chromosome=chromosome)
                     data_storage_nodes = new_data
+                else :
+                    new_data = get_nodes_by_region(genome, chromosome=chromosome, start=0, end=end)
             elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
         else:
             elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)

@@ -819,7 +819,6 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     temps_depart = time.time()
     set_all_genomes = set()
     set_all_chromosomes = set()
-    liste_relations = []
     chromosomes_list = []
     set_relations = set()
     dic_nodes_id = {}
@@ -829,13 +828,27 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     node_id = 0
     batch_node_id = 0
     csv_nodes_lines = []
-    current_chromosome_relations = ""
     nodes_set_next_chromosome = set()
     first_chromosome = None
     print_header_nodes = not os.path.isfile(import_dir+"/nodes.csv")
     print_header_relations = not os.path.isfile(import_dir+"/relations.csv")
     print_header_sequences = not os.path.isfile(import_dir+"/sequence.csv")
-    
+    last_node_id = -1
+    if os.path.isfile(import_dir+"/nodes.csv") :
+        last_line = None
+        with open(import_dir+"/nodes.csv", mode='r', newline='') as file_node:
+            reader = csv.reader(file_node)
+            while True:
+                try:
+                    line = next(reader)
+                    if line:
+                        last_line = line
+                except StopIteration:
+                    break
+        
+        if last_line:
+            last_node_id = last_line[0]
+            
     csv_sequence_file = open(import_dir+"/sequences.csv", "a", newline="", encoding="utf-8") 
     sequences_writer = csv.writer(csv_sequence_file)
     if print_header_sequences:
@@ -886,7 +899,10 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                 
             ligne = file.readline() 
         last_index = len(csv_fields_index)
-        node_id = total_nodes
+        if last_node_id > -1:
+            node_id = last_node_id
+        else:
+            node_id = total_nodes
         csv_header_node = [":ID", "name:STRING", "max:LONG","ref_node:STRING", "size:LONG", "chromosome:STRING", "position_min:LONG", "position_max:LONG", "genomes:STRING[]","strandP:STRING[]", "strandM:STRING[]", "position_mean:LONG", "node_mean:LONG", "flow:DOUBLE"]
         for g in set_all_genomes:
             csv_fields_index[g+"_position"] = last_index
@@ -921,13 +937,12 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                 current_batch = 0
                 while current_batch < batch_nb :
                     temps_0_lot = time.time()
-
+                    
                     nodes_batch_set = set(list(nodes_set_chromosome)[current_batch*batch_size:min(len(nodes_set_chromosome),(current_batch+1)*batch_size)])
                     current_batch += 1
                     print("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
                     #Relations for the chromosome are computed only on the last batch
                     if current_batch == batch_nb:
-                        current_chromosome = c
                         compute_relations_batch = True
                     else:
                         compute_relations_batch = False
@@ -936,6 +951,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                     ligne = file.readline()
     
                     #Path browsing for the batch 
+                    dic_batch_nodes_index = {}
                     ref_nodes_dic = {}
                     nodes_list = []
                     liste_strand = []
