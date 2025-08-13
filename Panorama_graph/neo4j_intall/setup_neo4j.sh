@@ -106,8 +106,10 @@ function check_and_prepare_data_dir() {
     read -p "Do you want to delete existing data to import the dump? (yes/no) " answer
     if [[ "$answer" =~ ^(yes|y|oui|o)$ ]]; then
       echo "🧹 Deleting old data..."
-      rm -rf "$NEO4J_BASE_DIR/data/databases/neo4j"
-      rm -rf "$NEO4J_BASE_DIR/data/transactions"
+      rm -rf "$NEO4J_BASE_DIR/data"
+      rm -rf "$NEO4J_BASE_DIR/conf"
+	  rm -rf "$NEO4J_BASE_DIR/logs"
+	  rm -rf "$NEO4J_BASE_DIR/plugin"
     else
       echo "❌ Import cancelled. Existing data kept."
       exit 1
@@ -153,26 +155,6 @@ else
 fi
 
 
-echo "🚀 Starting Neo4j ($DOCKER_IMAGE) on HTTP port $HTTP_PORT and Bolt port $BOLT_PORT..."
-docker run -d \
-  --name $CONTAINER_NAME \
-  -e NEO4J_AUTH=$NEO4J_AUTH \
-  -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
-  -e NEO4J_apoc_export_file_enabled=true \
-  -e NEO4J_apoc_import_file_enabled=true \
-  -e NEO4J_apoc_import_file_use__neo4j__config=true \
-  -e NEO4J_PLUGINS=\[\"apoc\"\] \
-  -p "$HTTP_PORT:7474" \
-  -p "$BOLT_PORT:7687" \
-  -v "$NEO4J_BASE_DIR/data":/data \
-  -v "$NEO4J_BASE_DIR/logs":/logs \
-  -v "$NEO4J_BASE_DIR/conf":/conf \
-  -v "$NEO4J_BASE_DIR/import":/import \
-  -v "$NEO4J_BASE_DIR/plugins":/plugins \
-  "$DOCKER_IMAGE"
-
-echo "⏳ Waiting 10 seconds for Neo4j to start..."
-sleep 10
 
 if [ -f "$DUMP_DEST_FILE" ]; then
   echo "📥 Preparing to import dump..."
@@ -193,6 +175,57 @@ if [ -f "$DUMP_DEST_FILE" ]; then
   echo "▶️ Restarting Neo4j..."
   docker start $CONTAINER_NAME
 fi
+
+
+# --- IMPORT CSV FILES IF PRESENT ---
+CSV_NODES_FILE="$DUMP_DEST_DIR/nodes.csv"
+CSV_RELATIONSHIPS_FILE="$DUMP_DEST_DIR/relations.csv"
+
+if [ -f "$CSV_NODES_FILE" ] && [ -f "$CSV_RELATIONSHIPS_FILE" ]; then
+  echo "📥 Detected CSV files for import (nodes.csv and relations.csv)"
+  check_and_prepare_data_dir
+  echo "🛑 Stopping Neo4j before CSV import..."
+  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stopped"
+
+  echo "📂 Importing CSV into new database..."
+  docker run --rm \
+    -v "$NEO4J_BASE_DIR/data":/data \
+    -v "$DUMP_DEST_DIR":/import \
+	-e NEO4J_AUTH=$NEO4J_AUTH \
+    "$DOCKER_IMAGE" \
+    neo4j-admin database import full \
+      --verbose \
+	  --nodes=/import/nodes.csv \
+      --relationships=/import/relations.csv || {
+        echo "❌ Failed to import CSV files"
+        exit 1
+      }
+#  rm -f "$NEO4J_BASE_DIR/data/databases/neo4j/neostore.transaction.db*"
+#  rm -rf "$NEO4J_BASE_DIR/data/transactions/neo4j"
+#  echo "▶️ Restarting Neo4j..."
+#  docker start $CONTAINER_NAME
+fi
+
+echo "🚀 Starting Neo4j ($DOCKER_IMAGE) on HTTP port $HTTP_PORT and Bolt port $BOLT_PORT..."
+docker run -d \
+  --name $CONTAINER_NAME \
+  -e NEO4J_AUTH=$NEO4J_AUTH \
+  -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
+  -e NEO4J_apoc_export_file_enabled=true \
+  -e NEO4J_apoc_import_file_enabled=true \
+  -e NEO4J_apoc_import_file_use__neo4j__config=true \
+  -e NEO4J_PLUGINS=\[\"apoc\"\] \
+  -p "$HTTP_PORT:7474" \
+  -p "$BOLT_PORT:7687" \
+  -v "$NEO4J_BASE_DIR/data":/data \
+  -v "$NEO4J_BASE_DIR/logs":/logs \
+  -v "$NEO4J_BASE_DIR/conf":/conf \
+  -v "$NEO4J_BASE_DIR/import":/import \
+  -v "$NEO4J_BASE_DIR/plugins":/plugins \
+  "$DOCKER_IMAGE"
+
+echo "⏳ Waiting 10 seconds for Neo4j to start..."
+sleep 10
 
 # Creating JSON conf file
 cat <<EOF > $CONF_FILE
