@@ -913,6 +913,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(start_chromosome))
             for k in range(index_first_chromosme,len(chromosomes_list)) :
                 c = chromosomes_list[k]
+                relations_repeat_nodes = {}
                 nodes_set_chromosome = set(nodes_set_next_chromosome)
                 nodes_set_next_chromosome = set()
                 print("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
@@ -1252,6 +1253,7 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
     file = open(annotations_file_name, "r", encoding='utf-8')
     nodes_dic = {}
     file_format = "gtf"
+    file_name = os.path.basename(annotations_file_name)
     with file:
         n = 0
         for line in file :
@@ -1274,6 +1276,7 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
                         nodes_dic[name]["genome_ref"] = genome_ref
                         nodes_dic[name]["source"] = ligne_dec[1]
                         nodes_dic[name]["feature"] = feature
+                        nodes_dic[name]["filename"] = file_name
                         
                         start = int(ligne_dec[3])
                         end = int(ligne_dec[4])
