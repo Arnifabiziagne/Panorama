@@ -12,6 +12,8 @@ CONF_FILE="../db_conf.json"
 NEO4J_BASE_DIR="../data"
 DUMP_SOURCE_FILE_DEFAULT="../import/neo4j.dump"
 DUMP_SOURCE_FILE=""
+MAX_MEM="24g"
+MAX_SWAP="25g"
 
 echo "NEO4J_BASE_DIR $NEO4J_BASE_DIR"
 
@@ -27,6 +29,8 @@ Options:
   --http-port   HTTP port to expose (default: $HTTP_PORT)
   --bolt-port   Bolt port to expose (default: $BOLT_PORT)
   --container-name   Name of the docker container
+  --max-mem		Max memory in case of dump (ex : 4g - defaut : $MAX_MEM)
+  --max-swap	Max swap in case of dump (ex : 4g - defaut : $MAX_SWAP)
   -h, --help    Show this help message
 
 EOF
@@ -55,10 +59,19 @@ while [[ $# -gt 0 ]]; do
       BOLT_PORT="$2"
       shift 2
       ;;
+	--max-mem)
+      MAX_MEM="$2"
+      shift 2
+      ;;
+	--max-swap)
+      MAX_SWAP="$2"
+      shift 2
+      ;;
 	--container-name)
       CONTAINER_NAME="$2"
       shift 2
       ;;
+	  
     -h|--help)
       usage
       exit 0
@@ -163,7 +176,11 @@ if [ -f "$DUMP_DEST_FILE" ]; then
   docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stop"
 
   echo "📂 Importing dump..."
-  docker run --rm \
+  docker run \
+  --memory=$MAX_MEM \
+  --memory-swap=$MAX_SWAP \
+  --rm \
+  -e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
   -v "$DUMP_DEST_DIR":/import \
   -v "$NEO4J_BASE_DIR/data":/data \
   "$DOCKER_IMAGE" \
@@ -188,10 +205,14 @@ if [ -f "$CSV_NODES_FILE" ] && [ -f "$CSV_RELATIONSHIPS_FILE" ]; then
   docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stopped"
 
   echo "📂 Importing CSV into new database..."
-  docker run --rm \
+  docker run \
+  	--memory=$MAX_MEM \
+  	--memory-swap=$MAX_SWAP \
+  	--rm \
     -v "$NEO4J_BASE_DIR/data":/data \
     -v "$DUMP_DEST_DIR":/import \
 	-e NEO4J_AUTH=$NEO4J_AUTH \
+	-e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
     "$DOCKER_IMAGE" \
     neo4j-admin database import full \
       --verbose \

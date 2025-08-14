@@ -7,6 +7,8 @@ To setup neo4j, first download the neo4j_install directory. In the neo4j_install
 * --http-port $HTTP_PORT : optionnal. Default is 7474. It is necessary to launch multiple database.
 * --bolt-port $BOLT_PORT : optionnal. Default is 7687. It is necessary to launch multiple database.
 * --container-name $CONTAINER_NAME : required : name of the docker container, must be unique.
+* --max-mem : optionnal. Used when dump or import files are used to create DB. Defaut is 24G.
+* --max-swap : optionnal. Used when dump or import files are used to create DB. Defaut is 25G, must be reater than max-mem.
 
 Remarks :
 ---------
@@ -36,9 +38,11 @@ Usage exemple (non default configuration)
 * The version of neo4j is 2025.05-community-bullseye
 * The http port to use is 7474
 * The bolt port to use is 7687
+* max memory to use : 32g
+* max swap : 34g
 
 Command :
-bash ./setup_neo4j.sh --base-dir \~/work/project/neo4j --image neo4j:2025.05-community-bullseye --dump \~/work/project/neo4j/import/db.dump  --http-port 7474 --bolt-port 7687 --container-name neo4j_pangenome_test
+bash ./setup_neo4j.sh --base-dir \~/work/project/neo4j --image neo4j:2025.05-community-bullseye --dump \~/work/project/neo4j/import/db.dump  --http-port 7474 --bolt-port 7687 --container-name neo4j_pangenome_test --max-mem 32g --max-swap 34g
 
 Usage of neo4j container :
 ---------
