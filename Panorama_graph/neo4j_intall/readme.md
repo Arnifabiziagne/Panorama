@@ -38,7 +38,7 @@ Usage exemple (non default configuration)
 * The bolt port to use is 7687
 
 Command :
-bash ./setup_neo4j.sh --base-dir ~/work/project/neo4j --image neo4j:2025.05-community-bullseye --dump .~/work/project/neo4j/import/db.dump  --http-port 7474 --bolt-port 7687 --container-name neo4j_pangenome_test
+bash ./setup_neo4j.sh --base-dir \~/work/project/neo4j --image neo4j:2025.05-community-bullseye --dump \~/work/project/neo4j/import/db.dump  --http-port 7474 --bolt-port 7687 --container-name neo4j_pangenome_test
 
 Usage of neo4j container :
 ---------
