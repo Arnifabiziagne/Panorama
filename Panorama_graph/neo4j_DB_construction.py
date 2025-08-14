@@ -806,6 +806,7 @@ def update_csv_line(csv_fields_index, dic_node, csv_line):
 
 #Same function than load_gfa_data_to_neo4j but create a dump csv file to import with neo4j-admin import (only for new DB creation)
 #The dump is faster and adapted to big DB but require a manual step after csv generation
+#Important note : if start chromosome is not None and sequences csv file already exists, the sequences csv file won't be computed
 def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, haplotype = True):
     sep = ["[,;.*]", "(<|>)"]
     batch_nb = 0
@@ -832,8 +833,8 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     first_chromosome = None
     print_header_nodes = not os.path.isfile(import_dir+"/nodes.csv")
     print_header_relations = not os.path.isfile(import_dir+"/relations.csv")
-    print_header_sequences = not os.path.isfile(import_dir+"/sequence.csv")
-    last_node_id = -1
+    print_header_sequences = not os.path.isfile(import_dir+"/sequences.csv")
+    last_node_id = 0
     if os.path.isfile(import_dir+"/nodes.csv") :
         last_line = None
         with open(import_dir+"/nodes.csv", mode='r', newline='') as file_node:
@@ -847,7 +848,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                     break
         
         if last_line:
-            last_node_id = int(last_line[0])
+            last_node_id = int(last_line[0])+1
             
     csv_sequence_file = open(import_dir+"/sequences.csv", "a", newline="", encoding="utf-8") 
     sequences_writer = csv.writer(csv_sequence_file)
@@ -870,7 +871,9 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                     else :
                         node_name = ligne_dec[1]
                     nodes_size_dic[node_name]=int(len(ligne_dec[2]))
-                    sequences_writer.writerow([total_nodes, node_name, ligne_dec[2]])
+                    if start_chromosome is None or print_header_sequences :
+                        sequences_writer.writerow([last_node_id, node_name, ligne_dec[2]])
+                        last_node_id += 1
                     total_nodes += 1
             if ligne.startswith(('P',"W")):
                 print(ligne[0:40])
@@ -899,10 +902,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                 
             ligne = file.readline() 
         last_index = len(csv_fields_index)
-        if last_node_id > -1:
-            node_id = last_node_id
-        else:
-            node_id = total_nodes
+        node_id = last_node_id
         csv_header_node = [":ID", "name:STRING", "max:LONG","ref_node:STRING", "size:LONG", "chromosome:STRING", "position_min:LONG", "position_max:LONG", "genomes:STRING[]","strandP:STRING[]", "strandM:STRING[]", "position_mean:LONG", "node_mean:LONG", "flow:DOUBLE"]
         for g in set_all_genomes:
             csv_fields_index[g+"_position"] = last_index
@@ -1119,9 +1119,9 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                                                                 dic_node =  {"id":node_id,"name":node,"genomes":[genome], "max":1, "strandM":[genome], "strandP":[], "ref_node" : ref_node, genome+"_node":nodes_count[genome][chromosome],genome+"_position":position_count[genome][chromosome]["current_position"], "size" : size, "chromosome"  : chromosome, "position_min":position_count[genome][chromosome]["current_position"], "position_max":position_count[genome][chromosome]["current_position"]}
                                                             csv_nodes_lines.append(create_node_csv_line(csv_fields_index, dic_node))
                                                             dic_batch_nodes_index[node] = batch_node_id
+                                                            dic_nodes_id[node] = node_id
                                                             node_id += 1
                                                             batch_node_id += 1
-                                                            dic_nodes_id[node] = node_id
                                                             nodes_set.add(node) 
                                                             #Update max on the ref node
                                                             tmp_node_ref_id = dic_batch_nodes_index[prefix_ref_node]
