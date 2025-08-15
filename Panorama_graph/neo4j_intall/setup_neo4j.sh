@@ -10,10 +10,9 @@ BOLT_PORT="7687"
 CONF_SOURCE_FILE="./conf/neo4j.conf"
 CONF_FILE="../db_conf.json"
 NEO4J_BASE_DIR="../data"
-DUMP_SOURCE_FILE_DEFAULT="../import/neo4j.dump"
-DUMP_SOURCE_FILE=""
 MAX_MEM="24g"
 MAX_SWAP="25g"
+
 
 echo "NEO4J_BASE_DIR $NEO4J_BASE_DIR"
 
@@ -97,6 +96,7 @@ DUMP_DEST_DIR="../data/import"
 DUMP_DEST_FILE="$DUMP_DEST_DIR/neo4j.dump"
 PLUGINS_DIR="$NEO4J_BASE_DIR/plugins"
 CONF_DIR="$NEO4J_BASE_DIR/conf"
+data_db_dir="$NEO4J_BASE_DIR/data/databases/neo4j"
 
 # --- EXTRACT VERSION ---
 NEO4J_VERSION=$(echo "$DOCKER_IMAGE" | cut -d':' -f2)
@@ -135,30 +135,10 @@ for dir in data logs conf import plugins; do
   mkdir -p "$NEO4J_BASE_DIR/$dir"
 done
 
-if [ -d "$DUMP_DEST_DIR" ]; then
-    # If DUMP_SOURCE_FILE is set (not empty) and the file exists
-    if [ -n "$DUMP_SOURCE_FILE" ] && [ -f "$DUMP_SOURCE_FILE" ]; then
-        echo "Moving $DUMP_SOURCE_FILE to $DUMP_DEST_FILE"
-        mv "$DUMP_SOURCE_FILE" "$DUMP_DEST_FILE"
-    # Otherwise, if the default dump file exists
-    elif [ -f "$DUMP_SOURCE_FILE_DEFAULT" ]; then
-        echo "Moving $DUMP_SOURCE_FILE_DEFAULT to $DUMP_DEST_FILE"
-        mv "$DUMP_SOURCE_FILE_DEFAULT" "$DUMP_DEST_FILE"
-    elif [ ! -f "$DUMP_DEST_FILE" ]; then
-        echo "No dump file found. The database will start with no data."
-    fi
-else
-    echo "Destination directory '$DUMP_DEST_FILE' does not exist."
-    exit 
-fi
-
-
-
 if docker ps -a --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
   echo "🧹 Removing existing container ($CONTAINER_NAME)..."
   docker rm -f $CONTAINER_NAME > /dev/null
 fi
-
 
 if [ -f "$CONF_SOURCE_FILE" ]; then
   echo " Copying conf file to conf directory🔧"
@@ -167,28 +147,36 @@ else
   echo "⚠️ File $CONF_SOURCE_FILE doesn't exist"
 fi
 
-
-
 if [ -f "$DUMP_DEST_FILE" ]; then
-  echo "📥 Preparing to import dump..."
-  check_and_prepare_data_dir
-  echo "🛑 Stopping Neo4j before import..."
-  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stop"
+  echo "📥 Preparing to import dump, max memory : $MAX_MEM."
+  if [ -d "$data_db_dir" ] && [ "$(ls -A "$data_db_dir")" ]; then
+    echo "⚠️ Neo4j data already exists in $data_db_dir."
+    read -p "Do you want to delete existing data to import the dump? (yes/no) " answer
+    if [[ "$answer" =~ ^(yes|y|oui|o)$ ]]; then
+      echo "🧹 Deleting old data..."
+      rm -rf "$NEO4J_BASE_DIR/data"
+      rm -rf "$NEO4J_BASE_DIR/conf"
+	  rm -rf "$NEO4J_BASE_DIR/logs"
+	  rm -rf "$NEO4J_BASE_DIR/plugin"
+	  echo "🛑 Stopping Neo4j before import..."
+	  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stop"
 
-  echo "📂 Importing dump..."
-  docker run \
-  --memory=$MAX_MEM \
-  --memory-swap=$MAX_SWAP \
-  --rm \
-  -e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
-  -v "$DUMP_DEST_DIR":/import \
-  -v "$NEO4J_BASE_DIR/data":/data \
-  "$DOCKER_IMAGE" \
-  neo4j-admin database load neo4j --from-path=/import --overwrite-destination=true || {
-    echo "❌ Fail loading dump"
-    exit 1
-  }
-  
+	  echo "📂 Importing dump..."
+	  docker run \
+	  --rm \
+	  --memory=$MAX_MEM \
+	  --memory-swap=$MAX_SWAP \
+	  -e JAVA_OPTS="-Xmx$MAX_MEM -Xms1g" \
+	  -e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
+	  -v "$DUMP_DEST_DIR":/import \
+	  -v "$NEO4J_BASE_DIR/data":/data \
+	  "$DOCKER_IMAGE" \
+	  neo4j-admin database load neo4j --from-path=/import --overwrite-destination=true || {
+		echo "❌ Fail loading dump"
+		exit 1
+	}
+	fi
+  fi
   echo "▶️ Restarting Neo4j..."
   docker start $CONTAINER_NAME
 fi
@@ -200,32 +188,47 @@ CSV_RELATIONSHIPS_FILE="$DUMP_DEST_DIR/relations.csv"
 
 if [ -f "$CSV_NODES_FILE" ] && [ -f "$CSV_RELATIONSHIPS_FILE" ]; then
   echo "📥 Detected CSV files for import (nodes.csv and relations.csv)"
-  check_and_prepare_data_dir
-  echo "🛑 Stopping Neo4j before CSV import..."
-  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stopped"
+  if [ -d "$data_db_dir" ] && [ "$(ls -A "$data_db_dir")" ]; then
+    echo "⚠️ Neo4j data already exists in $data_db_dir."
+    read -p "Do you want to delete existing data to import the dump? (yes/no) " answer
+    if [[ "$answer" =~ ^(yes|y|oui|o)$ ]]; then
+      echo "🧹 Deleting old data..."
+      rm -rf "$NEO4J_BASE_DIR/data"
+      rm -rf "$NEO4J_BASE_DIR/conf"
+	  rm -rf "$NEO4J_BASE_DIR/logs"
+	  rm -rf "$NEO4J_BASE_DIR/plugin"
+	  echo "🛑 Stopping Neo4j before import..."
+	  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stop"
 
-  echo "📂 Importing CSV into new database..."
-  docker run \
-  	--memory=$MAX_MEM \
-  	--memory-swap=$MAX_SWAP \
-  	--rm \
-    -v "$NEO4J_BASE_DIR/data":/data \
-    -v "$DUMP_DEST_DIR":/import \
-	-e NEO4J_AUTH=$NEO4J_AUTH \
-	-e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
-    "$DOCKER_IMAGE" \
-    neo4j-admin database import full \
-      --verbose \
-	  --nodes=Node=/import/nodes.csv \
-	  --nodes=Sequence=/import/sequences.csv \
-      --relationships=/import/relations.csv || {
-        echo "❌ Failed to import CSV files"
-        exit 1
+	  echo "🛑 Stopping Neo4j before CSV import..."
+	  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stopped"
+
+	  echo "📂 Importing CSV into new database..."
+	  docker run \
+		--rm \
+		--memory=$MAX_MEM \
+		--memory-swap=$MAX_SWAP \
+		-e JAVA_OPTS="-Xmx$MAX_MEM -Xms1g" \
+		-v "$NEO4J_BASE_DIR/data":/data \
+		-v "$DUMP_DEST_DIR":/import \
+		-e NEO4J_AUTH=$NEO4J_AUTH \
+		-e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
+		"$DOCKER_IMAGE" \
+		neo4j-admin database import full \
+		  --verbose \
+		  --nodes=Node=/import/nodes.csv \
+		  --nodes=Sequence=/import/sequences.csv \
+		  --relationships=/import/relations.csv || {
+			echo "❌ Failed to import CSV files"
+			exit 1
       }
-#  rm -f "$NEO4J_BASE_DIR/data/databases/neo4j/neostore.transaction.db*"
-#  rm -rf "$NEO4J_BASE_DIR/data/transactions/neo4j"
-#  echo "▶️ Restarting Neo4j..."
-#  docker start $CONTAINER_NAME
+	  #  rm -f "$NEO4J_BASE_DIR/data/databases/neo4j/neostore.transaction.db*"
+	  #  rm -rf "$NEO4J_BASE_DIR/data/transactions/neo4j"
+	  #  echo "▶️ Restarting Neo4j..."
+	  #  docker start $CONTAINER_NAME
+	  fi
+  fi
+
 fi
 
 echo "🚀 Starting Neo4j ($DOCKER_IMAGE) on HTTP port $HTTP_PORT and Bolt port $BOLT_PORT..."
