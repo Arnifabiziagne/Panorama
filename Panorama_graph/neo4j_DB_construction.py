@@ -139,6 +139,48 @@ def creer_stats(set_genomes, set_chromosomes):
                 
     return
 
+
+def creer_stats():
+    with get_driver() as driver:
+        with driver.session() as session:
+            query_genomes = """
+                MATCH (n:Node)
+                where n.flow = 1
+                return n.genomes as all_genomes limit 1
+            """
+            all_genomes = []
+            result = session.run(query_genomes)
+            for record in result:
+                all_genomes = record["all_genomes"]
+                print("all_genomes : " + str(all_genomes))
+            query_chromosomes = """
+                MATCH (n:Node)
+                return distinct n.chromosome as all_chromosomes
+            """
+            all_genomes = []
+            result = session.run(query_chromosomes)
+            for record in result:
+                all_chromosomes = record["all_chromosomes"]
+                print("all_chromosomes : " + str(all_chromosomes))
+            with session.begin_transaction() as tx:
+                query ="""
+                MERGE (s:Stats)
+                WITH s, coalesce(s.genomes, []) + $genomes AS all_genomes, $chromosomes as liste_chromosome
+                UNWIND all_genomes AS g
+                WITH s, collect(DISTINCT g) AS new_genomes, liste_chromosome
+                SET s.genomes = new_genomes, s.version=$version
+                
+                // Mise à jour de s.chromosomes
+                WITH s, coalesce(s.chromosomes, []) + liste_chromosome AS all_chromosomes
+                UNWIND all_chromosomes AS c
+                WITH s, collect(DISTINCT c) AS new_chromosomes
+                SET s.chromosomes = new_chromosomes
+                """
+                tx.run(query, genomes=all_genomes, chromosomes =all_chromosomes, version=version)
+                
+    return
+
+
 #Function to create index in database
 #If base = True => create the base indexes = index on Node name and chromosome
 #If extend = True => create other indexes = index on Node flow, size, ref_node + indexes on Annotation name, chromosome, start, end, gene_id, gene_name + index on Sequence name
@@ -175,7 +217,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
             if genomes_index :
                 current_genome = 0
                 if extend :
-                    time.sleep(600)
+                    time.sleep(1800)
                 query_genomes = """
                 MATCH (s:Stats) 
                 RETURN s.genomes as all_genomes
@@ -185,6 +227,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                 for record in result:
                     all_genomes = record["all_genomes"]
                 nb_genomes = len(all_genomes)
+                print(all_genomes)
                 for g in all_genomes:
                     print("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
                     current_genome += 1
@@ -1260,9 +1303,8 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
         
                                                 
     file.close()
-
     print("Treatment completed\nTotal time : "+ str(time.time()-temps_depart))
-    return set_genome
+    return set_genome, chromosomes_list
 
 
 
