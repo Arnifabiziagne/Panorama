@@ -139,7 +139,10 @@ def creer_stats(set_genomes, set_chromosomes):
                 
     return
 
-
+#Function to create index in database
+#If base = True => create the base indexes = index on Node name and chromosome
+#If extend = True => create other indexes = index on Node flow, size, ref_node + indexes on Annotation name, chromosome, start, end, gene_id, gene_name + index on Sequence name
+#If genomes_index = True => create indexes on Node chromosome / $genome_position
 def create_indexes(base=True, extend=False, genomes_index=False):
     indexes_queries = []
     with get_driver() as driver:
@@ -160,6 +163,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                     "CREATE INDEX AnnotationIndexEnd IF NOT EXISTS FOR (a:Annotation) ON (a.end)",
                     "CREATE INDEX AnnotationIndexGeneId IF NOT EXISTS FOR (a:Annotation) ON (a.gene_id)",
                     "CREATE INDEX AnnotationIndexGeneName IF NOT EXISTS FOR (a:Annotation) ON (a.gene_name)",
+                    "CREATE INDEX SequenceIndexName IF NOT EXISTS FOR (s:Sequence) ON (s.name)",
                     "CREATE INDEX SequenceIndexSequence IF NOT EXISTS FOR (s:Sequence) ON (s.sequence)"
                     ]
             with session.begin_transaction() as tx:
@@ -919,6 +923,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     print_header_nodes = not os.path.isfile(import_dir+"/nodes.csv")
     print_header_relations = not os.path.isfile(import_dir+"/relations.csv")
     print_header_sequences = not os.path.isfile(import_dir+"/sequences.csv")
+    print_header_long_sequences = not os.path.isfile(import_dir+"/long_sequences.csv")
     last_node_id = 0
     if os.path.isfile(import_dir+"/nodes.csv") :
         last_line = None
@@ -939,7 +944,6 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     sequences_writer = csv.writer(csv_sequence_file)
     if print_header_sequences:
         sequences_writer.writerow([":ID", "name", "sequence:STRING"])
-    
     file = open(gfa_file_name, "r", encoding='utf-8')
     
     csv_fields_index = {"id":0,"name":1, "max":2, "ref_node":3, "size" : 4, "chromosome"  : 5, "position_min":6, "position_max":7, "genomes":8, "strandP":9, "strandM": 10, "position_mean" : 11, "flow" : 12}

@@ -12,6 +12,7 @@ CONF_FILE="../db_conf.json"
 NEO4J_BASE_DIR="../data"
 MAX_MEM="24g"
 MAX_SWAP="25g"
+MAX_CPU=8
 
 
 echo "NEO4J_BASE_DIR $NEO4J_BASE_DIR"
@@ -28,8 +29,9 @@ Options:
   --http-port   HTTP port to expose (default: $HTTP_PORT)
   --bolt-port   Bolt port to expose (default: $BOLT_PORT)
   --container-name   Name of the docker container
-  --max-mem		Max memory in case of dump (ex : 4g - defaut : $MAX_MEM)
-  --max-swap	Max swap in case of dump (ex : 4g - defaut : $MAX_SWAP)
+  --max-mem		Max memory in case of dump or import (ex : 4g - defaut : $MAX_MEM)
+  --max-swap	Max swap in case of dump or import (ex : 4g - defaut : $MAX_SWAP)
+  --max-cpu		Max cpu in case of dump or import (ex : 4g - defaut : $MAX_CPU)
   -h, --help    Show this help message
 
 EOF
@@ -64,6 +66,10 @@ while [[ $# -gt 0 ]]; do
       ;;
 	--max-swap)
       MAX_SWAP="$2"
+      shift 2
+      ;;
+	--max-cpu)
+      MAX_CPU="$2"
       shift 2
       ;;
 	--container-name)
@@ -112,22 +118,45 @@ APOC_JAR_PATH="$PLUGINS_DIR/$APOC_JAR_NAME"
 APOC_URL="https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/${APOC_VERSION}/${APOC_JAR_NAME}"
 
 # --- FUNCTION TO CHECK AND PREPARE data/databases/neo4j ---
-function check_and_prepare_data_dir() {
-  local data_db_dir="$NEO4J_BASE_DIR/data/databases/neo4j"
-  if [ -d "$data_db_dir" ] && [ "$(ls -A "$data_db_dir")" ]; then
-    echo "⚠️ Neo4j data already exists in $data_db_dir."
-    read -p "Do you want to delete existing data to import the dump? (yes/no) " answer
-    if [[ "$answer" =~ ^(yes|y|oui|o)$ ]]; then
-      echo "🧹 Deleting old data..."
-      rm -rf "$NEO4J_BASE_DIR/data"
-      rm -rf "$NEO4J_BASE_DIR/conf"
-	  rm -rf "$NEO4J_BASE_DIR/logs"
-	  rm -rf "$NEO4J_BASE_DIR/plugin"
-    else
-      echo "❌ Import cancelled. Existing data kept."
-      exit 1
-    fi
-  fi
+function import_dump() {
+	  echo "📂 Importing dump..."
+	  docker run \
+	  --rm \
+	  --cpus=$MAX_CPU
+	  --memory=$MAX_MEM \
+	  --memory-swap=$MAX_SWAP \
+	  -e JAVA_OPTS="-Xmx$MAX_MEM -Xms1g" \
+	  -e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
+	  -v "$DUMP_DEST_DIR":/import \
+	  -v "$NEO4J_BASE_DIR/data":/data \
+	  "$DOCKER_IMAGE" \
+	  neo4j-admin database load neo4j --from-path=/import --overwrite-destination=true || {
+		echo "❌ Fail loading dump"
+		exit 1
+	}
+}
+
+#Important note : NEO4J_dbms.import.csv.buffer_size parameter allow to load node of type Sequence with big sequence
+#By default neo4j limit row length to 4 x 1024 x 1024 and can be too limited for big nodes
+function import_csv(){
+	     echo "📂 Importing CSV into new database..."
+		  docker run \
+		--rm \
+		--cpus=$MAX_CPU
+		-v "$NEO4J_BASE_DIR/data":/data \
+		-v "$DUMP_DEST_DIR":/import \
+		-e NEO4J_AUTH=$NEO4J_AUTH \
+		"$DOCKER_IMAGE" \
+		neo4j-admin database import full \
+		  --verbose \
+		  --read-buffer-size=16777216\
+		  --max-off-heap-memory=$MAX_MEM \
+		  --nodes=Node=/import/nodes.csv \
+		  --nodes=Sequence=/import/sequences.csv \
+		  --relationships=/import/relations.csv || {
+			echo "❌ Failed to import CSV files"
+			exit 1
+      }
 }
 
 echo "📁 Creating Neo4j directories (data, logs, conf, import, plugins)..."
@@ -160,22 +189,10 @@ if [ -f "$DUMP_DEST_FILE" ]; then
 	  rm -rf "$NEO4J_BASE_DIR/plugin"
 	  echo "🛑 Stopping Neo4j before import..."
 	  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stop"
-
-	  echo "📂 Importing dump..."
-	  docker run \
-	  --rm \
-	  --memory=$MAX_MEM \
-	  --memory-swap=$MAX_SWAP \
-	  -e JAVA_OPTS="-Xmx$MAX_MEM -Xms1g" \
-	  -e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
-	  -v "$DUMP_DEST_DIR":/import \
-	  -v "$NEO4J_BASE_DIR/data":/data \
-	  "$DOCKER_IMAGE" \
-	  neo4j-admin database load neo4j --from-path=/import --overwrite-destination=true || {
-		echo "❌ Fail loading dump"
-		exit 1
-	}
+	  import_dump
 	fi
+  else
+  	import_dump
   fi
   echo "▶️ Restarting Neo4j..."
   docker start $CONTAINER_NAME
@@ -202,31 +219,16 @@ if [ -f "$CSV_NODES_FILE" ] && [ -f "$CSV_RELATIONSHIPS_FILE" ]; then
 
 	  echo "🛑 Stopping Neo4j before CSV import..."
 	  docker exec "$CONTAINER_NAME" neo4j stop || echo "ℹ️ Neo4j already stopped"
+	  import_csv
 
-	  echo "📂 Importing CSV into new database..."
-	  docker run \
-		--rm \
-		--memory=$MAX_MEM \
-		--memory-swap=$MAX_SWAP \
-		-e JAVA_OPTS="-Xmx$MAX_MEM -Xms1g" \
-		-v "$NEO4J_BASE_DIR/data":/data \
-		-v "$DUMP_DEST_DIR":/import \
-		-e NEO4J_AUTH=$NEO4J_AUTH \
-		-e NEO4J_dbms.memory.heap.max_size=$MAX_MEM \
-		"$DOCKER_IMAGE" \
-		neo4j-admin database import full \
-		  --verbose \
-		  --nodes=Node=/import/nodes.csv \
-		  --nodes=Sequence=/import/sequences.csv \
-		  --relationships=/import/relations.csv || {
-			echo "❌ Failed to import CSV files"
-			exit 1
-      }
+
 	  #  rm -f "$NEO4J_BASE_DIR/data/databases/neo4j/neostore.transaction.db*"
 	  #  rm -rf "$NEO4J_BASE_DIR/data/transactions/neo4j"
 	  #  echo "▶️ Restarting Neo4j..."
 	  #  docker start $CONTAINER_NAME
 	  fi
+  else
+  	import_csv
   fi
 
 fi
