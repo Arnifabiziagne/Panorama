@@ -181,6 +181,19 @@ def creer_stats():
     return
 
 
+#Check if there are index in state "POPULATING"
+def indexes_populating():
+    query = "SHOW indexes YIELD name, state RETURN name, state"
+    
+    with get_driver() as driver:
+        with driver.session() as session:
+            result = session.run(query)
+            for record in result:
+                if record["state"] == "POPULATING":
+                    return True
+            return False
+
+
 #Function to create index in database
 #If base = True => create the base indexes = index on Node name and chromosome
 #If extend = True => create other indexes = index on Node flow, size, ref_node + indexes on Annotation name, chromosome, start, end, gene_id, gene_name + index on Sequence name
@@ -205,8 +218,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                     "CREATE INDEX AnnotationIndexEnd IF NOT EXISTS FOR (a:Annotation) ON (a.end)",
                     "CREATE INDEX AnnotationIndexGeneId IF NOT EXISTS FOR (a:Annotation) ON (a.gene_id)",
                     "CREATE INDEX AnnotationIndexGeneName IF NOT EXISTS FOR (a:Annotation) ON (a.gene_name)",
-                    "CREATE INDEX SequenceIndexName IF NOT EXISTS FOR (s:Sequence) ON (s.name)",
-                    "CREATE INDEX SequenceIndexSequence IF NOT EXISTS FOR (s:Sequence) ON (s.sequence)"
+                    "CREATE INDEX SequenceIndexName IF NOT EXISTS FOR (s:Sequence) ON (s.name)"
                     ]
             with session.begin_transaction() as tx:
                 for query in indexes_queries :
@@ -216,8 +228,11 @@ def create_indexes(base=True, extend=False, genomes_index=False):
             
             if genomes_index :
                 current_genome = 0
-                if extend :
-                    time.sleep(1800)
+                #Uncomment the following lines if index creation takes too much ressources 
+                #if extend :
+                #    while indexes_populating():
+                        #wait 1 minute between 2 poll of indexes states
+                #        time.sleep(60)
                 query_genomes = """
                 MATCH (s:Stats) 
                 RETURN s.genomes as all_genomes
@@ -236,8 +251,6 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                     with session.begin_transaction() as tx:
                         for query in indexes_queries :
                             tx.run(query)
-                    if current_genome % 10 == 0:
-                        time.sleep(60*10)
             
 
 
@@ -1426,10 +1439,12 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
                                     nodes_dic[name]["exon_id"] = exon_id
                                     nodes_dic[name]["exon_number"] = exon_number 
                                 else :
+                                    if feature == None or feature == "":
+                                        feature = "unknown_feature"
                                     if current_attribute == "id":
-                                        nodes_dic[name]["id"] = attributes[i+1]
+                                        nodes_dic[name][feature+"_id"] = attributes[i+1]
                                     elif current_attribute == "name":
-                                        nodes_dic[name]["name"] = attributes[i+1]
+                                        nodes_dic[name][feature+"_name"] = attributes[i+1]
                                         
                             if current_gene_id != "" :
                                 nodes_dic[name]["gene_id"] = current_gene_id
@@ -1467,16 +1482,35 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
 def process_annotation_simple_batch(tx, annotations, genome_ref):
     #for a in annotations:
         #print(a)
-    tx.run("""
+
+    # query = """
+    #     UNWIND $annotations AS annot
+    #     MATCH (a:Annotation {name: annot.name})
+    #     MATCH (n:Node)
+    #     WHERE n.chromosome = annot.chromosome 
+    #     AND 
+    #     ((n.`"""+str(genome_ref)+"""_position` >= annot.start AND n.`"""+str(genome_ref)+"""_position` <= annot.end)
+    #     OR
+    #     (n.`"""+str(genome_ref)+"""_position` < annot.start AND n.`"""+str(genome_ref)+"""_position` +  n.size > annot.start))
+    #     MERGE (n)-[:A_POUR_ANNOTATION]->(a) """
+    query = f"""
         UNWIND $annotations AS annot
-        MATCH (a:Annotation {name: annot.name})
-        MATCH (n:Node)
-        WHERE n.chromosome = annot.chromosome 
-        AND 
-        (n.`"""+str(genome_ref)+"""_position` >= annot.start AND n.`"""+str(genome_ref)+"""_position` <= annot.end)
-        OR
-        (n.`"""+str(genome_ref)+"""_position` < annot.start AND n.`"""+str(genome_ref)+"""_position` +  n.size > annot.start)
-        MERGE (n)-[:A_POUR_ANNOTATION]->(a) """, annotations=annotations)
+        WITH annot.chromosome AS chr, annot.start AS start, annot.end AS end, collect(annot) AS group_annot
+        
+        MATCH (n1:Node)
+        WHERE n1.chromosome = chr
+          AND n1.`{genome_ref}_position` >= start
+          AND n1.`{genome_ref}_position` <= end
+        
+        WITH group_annot, n1, chr, start
+        UNWIND group_annot AS ann1
+        MATCH (a1:Annotation {{name: ann1.name}})
+        MERGE (n1)-[:A_POUR_ANNOTATION]->(a1)
+    """
+
+    tx.run(query, annotations=annotations)
+    
+
 
 def process_annotation_complexe_batch(tx, last_id, genome_ref, batch_size = 100000):
     
@@ -1509,7 +1543,7 @@ def creer_relations_annotations_neo4j(genome_ref, chromosome=None):
     with get_driver() as driver:
         last_id = -1
         batch_size = 10000
-        
+        total_annotations = 0
         
         with driver.session() as session:
             #Processing simple annotations: those for which the start is between the start and end of a node
@@ -1523,19 +1557,19 @@ def creer_relations_annotations_neo4j(genome_ref, chromosome=None):
             current_id = -1
             
 
-            query = """
-            MATCH (a:Annotation) return min(ID(a)) as min_id, max(ID(a)) as max_id
+            query = f"""
+            MATCH (a:Annotation) where a.genome_ref='{genome_ref}' return min(ID(a)) as min_id, max(ID(a)) as max_id
             """
-
             result = session.run(query)
             for record in result:
                 min_id = record["min_id"]
                 max_id = record["max_id"]
-            print("min id : " + str(min_id), "max_id : " + str(max_id))
+            batch_number = ceil((max_id-min_id)/batch_size)
+            print("min id : " + str(min_id), "max_id : " + str(max_id), "batch nb : " + str(batch_number))
             current_id = min_id
             while current_id < max_id:
                 i+=1
-                print("traitement du lot " + str(i) + " Current id : " + str(current_id) + " max id : " + str(max_id) )
+                print("Batch nb " + str(i) + " Current id : " + str(current_id) + " max id : " + str(max_id) )
                 if chromosome is None :
                     annotations = session.run(
                         """
@@ -1560,40 +1594,37 @@ def creer_relations_annotations_neo4j(genome_ref, chromosome=None):
                         ).data()
                 current_id += batch_size
                 current_id = min(max_id, current_id)
-                print("Nombre annotations : " + str(len(annotations)))
+                print("Annotations nb : " + str(len(annotations)) + " - Annotations already treated : " + str(total_annotations))
+                total_annotations += len(annotations)
                 if annotations :
                     with session.begin_transaction() as tx:
-                        print("creating annotation lot " + str(i))
+                        print("creating annotation lot " + str(i) + "/"+str(batch_number))
                         process_annotation_simple_batch(tx,annotations, genome_ref)
                         #process_annotation_complexe_batch(tx,annotations)
                         tx.commit()
 
 
-
-            #Complex annotations have been integrated to simple annotations
-            # print("Processing complex annotations")
-            # #Handling complex annotations: those for which the start and end of a node are before and after the annotation
-            # #the volume is much lower (less than 1%)
-            # total_created = 0
-            # last_id = -1
-            # batch_size = 100000
-            # result = session.run("MATCH (n:Node) RETURN max(id(n)) AS max_id")
-            # max_id = result.single()["max_id"]
-            # print("max id : " + str(max_id))
-            # while last_id is not None and last_id < max_id :
-
-            #     created = session.execute_write(process_annotation_complexe_batch, last_id, genome_ref, batch_size)
-                
-            #     result = session.run(
-            #         """
-            #         MATCH (n:Node)
-            #         WHERE id(n) > $last_id
-            #         WITH n ORDER BY id(n) ASC LIMIT $limit
-            #         return max(id(n)) as max_id
-            #         """,last_id=last_id, limit=batch_size)
-            #     last_id = result.single()["max_id"]
-            #     print(f"Traitement jusqu'à id {last_id} sur {max_id} → {created} relations créées.")
-            #     total_created += created
+            print("Processing complex annotations")
+            #Handling complex annotations: those for which the start and end of a node are before and after the annotation
+            #the volume is much lower (less than 1%)
+            total_created = 0
+            
+            batch_size = 100000
+            result = session.run("MATCH (n:Node) RETURN min(id(n)) AS min_id, max(id(n)) AS max_id")
+            for record in result:
+                 min_id = record["min_id"]
+                 max_id = record["max_id"]
+            batch_nb = ceil((max_id-min_id)/batch_size) 
+            last_id = min_id
+            current_batch = 0
+            print("min id : " + str(min_id) + " - max id : " + str(max_id))
+            while current_batch < batch_nb :
+                current_batch += 1
+                print("batch " + str(current_batch) + "/"+str(batch_nb))
+                created = session.execute_write(process_annotation_complexe_batch, last_id, genome_ref, batch_size)
+                last_id += batch_size
+                total_created += created
+                print(f"{created} relations créées.")
 
     print("End of relationships creation. Total time : " + str(time.time()-temps_depart))
     
