@@ -17,7 +17,7 @@ It allows the following functionalities :
 ## Quickstart
 - Installation (only the first time) :
   - Copy all the files / directories in the Panorama_graph project where do you want to store your data
-  - If there is a dump file available, move or copy it into ./import/neo4j.dump
+  - If there is a dump file available (file named neo4j.dump) or csv files to import (nodes.csv, sequences.csv and relations.csv), move or copy it into ./import directory
   - Go into neo4j_install directory and run the script (replace $container_name with the desired name) : bash ./setup_neo4j.sh --container-name $container_name
   - Create the conda environnement : conda env create -f panorama_graph.yaml 
   - Make launcher executable : chmod +x launcher.sh
@@ -25,7 +25,7 @@ It allows the following functionalities :
   - Easy way : just execute launcher : ./launcher.sh and go to http://localhost:8050
   - Manual way : 
       - Load conda environnement : conda activate panorama_graph
-        - Run index.py (python index.py) and go to http://localhost:8050
+      - Run index.py (python index.py) and go to http://localhost:8050
 
 ## Install neo4
     See the readme in neo4j_install directory
@@ -35,10 +35,11 @@ It allows the following functionalities :
 - Load conda env : conda activate panorama_graph
 
 ## Generate the database
-    There are 2 ways to generate database :
-    - From a dump file : this is the fastest way but the dump must be available.
+    There are 3 ways to generate database :
+    - From a dump file : this is the fastest way but the dump must be available. It uses the neo4j-admin load functionnality.
+    - From csv file : it is a fast way to create rthe database if the csv files are available. It uses the neo4j-admin import functionnality. The difference with the dump is that annotations and indexes won't be created.
     - From the GFA file (and gtf / gff if available) : use the construct_DB function of neoj4_DB_contruction.py script. 
-        If the pangenome is big this can take a long time. According to the memory available, it is necessary to limit the 
+        If the pangenome is big this can take a long time, in this case it is recommanded to use the load_gfa_data_to_csv function to generate csv files. According to the memory available, it is necessary to limit the 
         batch size. If a gtf / gff file is present, the genome_ref must be set in order to link annotations nodes with the main nodes of pangenome.
 
 ## Use the tool 
