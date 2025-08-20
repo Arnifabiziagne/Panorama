@@ -211,6 +211,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                 indexes_queries += [
                     "CREATE INDEX NodeIndexFlow IF NOT EXISTS FOR (n:Node) ON (n.flow)",
                     "CREATE INDEX NodeIndexSize IF NOT EXISTS FOR (n:Node) ON (n.size)",
+                    "CREATE INDEX NodeIndexGwas IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.flow, n.size)"
                     "CREATE INDEX NodeIndexRefNode IF NOT EXISTS FOR (n:Node) ON (n.ref_node)",
                     "CREATE INDEX AnnotationName IF NOT EXISTS FOR (a:Annotation) ON (a.name)",
                     "CREATE INDEX AnnotationIndexChromosome IF NOT EXISTS FOR (a:Annotation) ON (a.chromosome)",

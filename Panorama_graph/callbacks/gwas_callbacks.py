@@ -51,20 +51,20 @@ def update_dropdown(data):
 
 @app.callback(
     Output('shared-status', 'children'),
-    Output("gwas-page-store", "data"),
+    Output("gwas-page-store", "data", allow_duplicate=True),
     Output("load_spinner_zone", "children", allow_duplicate=True),
     Input('btn-find-shared', 'n_clicks'),
     State('genome-list', 'value'),
     State("gwas-page-store", "data"),
     State("gwas-min-node-size-int", 'value'),
     State("gwas-min-percent_selected", 'value'),
-    State("gwas-max-percent_selected", 'value'),
+    State("tolerance_percentage", 'value'),
     State("gwas-region-gap", 'value'),
     State('gwas-toggle-deletion', 'value'),
     State("gwas_chromosomes_dropdown", 'value'),
     prevent_initial_call=True
 )
-def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, min_percent_selected, max_percent_selected, region_gap, deletion_checkbox, chromosome):
+def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, min_percent_selected, tolerance_percentage, region_gap, deletion_checkbox, chromosome):
     if min_node_size is not None and min_node_size != "" and isinstance(min_node_size, int):
         min_size = min_node_size
     else:
@@ -81,7 +81,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         deletion = True
     
     try:       
-        dic_region, analyse = find_shared_regions(selected_genomes, chromosomes = c,node_min_size = min_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, max_percent_selected_genomes = max_percent_selected)
+        dic_region, analyse = find_shared_regions(selected_genomes, chromosomes = c,node_min_size = min_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, tolerance_percentage = tolerance_percentage)
 
         analyse_to_plot = analyse[list(analyse.keys())[0]]
         no_annotations = True
@@ -116,34 +116,40 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
     Output('selected-region-output', 'children', allow_duplicate=True),
     Output('shared_storage_nodes', 'data',allow_duplicate=True),
     Output("url", "pathname"),
+    Output("home-page-store", "data", allow_duplicate=True),
     Output("load_spinner_zone", "children", allow_duplicate=True),
     Input('shared-region-table', 'selected_rows'),
     State('shared-region-table', 'data'),
     State('shared_storage_nodes', 'data'),
+    State('home-page-store', 'data'),
     prevent_initial_call=True
 )
-def handle_row_selection(selected_rows, table_data, data):
+def handle_row_selection(selected_rows, table_data, data, home_page_data):
     redirect = "/gwas"
-
+    if home_page_data is None:
+        home_page_data = {}
     if not selected_rows:
-        return no_update, data, redirect, ""
+        return no_update, data, redirect, home_page_data, ""
     print(table_data[selected_rows[0]])
     row = table_data[selected_rows[0]]
-    print(row)
+    print("selected row to plot : " +str(row))
     start = int(row['start'])
     stop = int(row['stop'])
     chromosome = row['chromosome']
     genome = row['genome']
     print("search region genome " +str(genome) + " chromosome " + str(chromosome) + " start " + str(start) + " stop " + str(stop))
     try:
-        print("search region genome " +str(genome) + " chromosome " + str(chromosome) + " start " + str(start) + " stop " + str(stop))
         nodes = get_nodes_by_region(genome, str(chromosome), start, stop)
+        home_page_data["selected_genome"]=genome
+        home_page_data["selected_chromosome"]=chromosome
+        home_page_data["start"]=start
+        home_page_data["end"]=stop
         redirect = "/"
         return html.Div([
             html.P(f"Found nodes into the region : {len(nodes)}")
-        ]), nodes,redirect,""
+        ]), nodes,redirect,home_page_data,""
     except Exception as e:
-        return f"Erreur : {e}", data,redirect,""
+        return f"Erreur : {e}", data,redirect,home_page_data,""
     
 #Restore checklist
 @app.callback(
@@ -151,11 +157,20 @@ def handle_row_selection(selected_rows, table_data, data):
     Output("genome-list", "value"),
     Input("gwas-page-store", "modified_timestamp"),
     Input("gwas-page-store", "data"),
+    State('shared-region-table', 'data'),
     
     prevent_initial_call=True
 )
-def restore_checklist_state(ts, data):
-    return data["analyse"], data["checkboxes"]
+def restore_checklist_state(ts, data, table_data):
+    analyse = table_data
+    checkbox = []
+    if data is not None: 
+        if "analyse" in data:
+            analyse = data["analyse"]
+            
+        if "checkboxes" in data:
+            checkbox = data["checkboxes"]
+    return analyse, checkbox
 
 #Callback to save the gwas data table into csv file
 @app.callback(
@@ -165,11 +180,11 @@ def restore_checklist_state(ts, data):
     prevent_initial_call=True
 )
 def save_csv(n_clicks, table_data):
-    print(f"Callback triggered: n_clicks={n_clicks}, table_data={table_data}")
+    #print(f"Callback triggered: n_clicks={n_clicks}, table_data={table_data}")
     if not table_data:
         return "No data."
     df = pd.DataFrame(table_data)
-    save_path = os.path.join(os.getcwd(), "/gwas/shared_regions.csv")
+    save_path = os.path.join(os.getcwd(), "./gwas/shared_regions.csv")
     print("save path : " + str(save_path))
     df.to_csv(save_path, index=False)
     
@@ -178,22 +193,28 @@ def save_csv(n_clicks, table_data):
 #Callback to loads csv file into data table
 @app.callback(
     Output('shared-region-table', 'data',allow_duplicate=True),
+    Output("gwas-page-store", "data", allow_duplicate=True),
     Input('upload-csv', 'contents'),
     State('upload-csv', 'filename'),
+    State("gwas-page-store", "data"),
     prevent_initial_call=True
 )
-def load_csv(contents, filename):
+def load_csv(contents, filename, gwas_page_store):
+    print("load csv file")
     if contents is None:
-        return None
-
+        return None, gwas_page_store
+    if gwas_page_store is None:
+        gwas_page_store = {}
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
     try:
         df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        return df.to_dict('records')
+        analyse = df.to_dict('records')
+        gwas_page_store["analyse"] = analyse
+        return analyse, gwas_page_store
     except Exception as e:
         print(f"Error while loading file : {e}")
-        return None
+        return None, gwas_page_store
     
 
 @app.callback(

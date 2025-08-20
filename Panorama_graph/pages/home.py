@@ -18,6 +18,8 @@ from app import app
 
 cyto.load_extra_layouts()
 
+DEFAULT_SIZE_VALUE = 10
+
 def records_to_dataframe(nodes_data):
     rows = []
     for record in nodes_data:
@@ -87,21 +89,19 @@ def get_color_palette(n):
     return [f'rgb({int(r*255)}, {int(g*255)}, {int(b*255)})' for r, g, b, _ in cmap(np.linspace(0, 1, n))]
 
 
-def compute_graph_elements(data, selected_genomes, size_min, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True):
-    all_genomes = get_genomes()
-    all_chromosomes = get_chromosomes()
+def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True):
     if data != None and len(data) > 0:
         df = records_to_dataframe(data)
         df = df[df["size"] >= size_min].copy()
         df = df[df["genomes"].apply(lambda g: any(x in selected_genomes for x in g))].copy()
         
     
-        def moyenne_position(row):
+        def mean_position(row):
             positions = [row.get(f"{g}_node") for g in row["genomes"] if f"{g}_node" in row]
             positions = [p for p in positions if p is not None]
             return np.mean(positions) if positions else 0
     
-        df["mean_pos"] = df.apply(moyenne_position, axis=1)
+        df["mean_pos"] = df.apply(mean_position, axis=1)
         x_min, x_max_data = df["mean_pos"].min(), df["mean_pos"].max()
         df["x"] = ((df["mean_pos"] - x_min) / (x_max_data - x_min + 1e-6)) * x_max
         
@@ -118,16 +118,30 @@ def compute_graph_elements(data, selected_genomes, size_min, specifics_genomes=N
         size_max_noeud = 100
 
         for _, row in df.iterrows():
-            nodes.append({
-                'data': {'id': row['name'], 'size' : row['size'], 'flow':row['flow'], 'genomes':row['genomes'], 'chromosome':row['chromosome'], 'annotations':row['annotations']},
-                'position': {'x': row['x'], 'y': row['y']},
-                'style': {
-                    'background-color':flow_to_rgb(row['flow']),
-                    'shape':'circle',
-                    'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
-                    'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
-                }
-            })
+            main_style = {
+                'background-color':flow_to_rgb(row['flow']),
+                'shape':'circle',
+                'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+            }
+            degenerate_node_style = {
+                'background-color':flow_to_rgb(row['flow']),
+                'shape':'square',
+                'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+            }
+            if row['ref_node'] == row['name']:
+                nodes.append({
+                    'data': {'id': row['name'], 'ref_node':row['ref_node'], 'size' : row['size'], 'flow':row['flow'], 'genomes':row['genomes'], 'chromosome':row['chromosome'], 'annotations':row['annotations']},
+                    'position': {'x': row['x'], 'y': row['y']},
+                    'style': main_style
+                })
+            else:
+                nodes.append({
+                    'data': {'id': row['name'], 'ref_node':row['ref_node'], 'size' : row['size'], 'flow':row['flow'], 'genomes':row['genomes'], 'chromosome':row['chromosome'], 'annotations':row['annotations']},
+                    'position': {'x': row['x'], 'y': row['y']},
+                    'style': degenerate_node_style
+                })
         
         edges = []
         edges_dict = {}
@@ -230,16 +244,16 @@ def layout(data=None, initial_size_limit = 10):
     all_genomes = get_genomes()
     all_chromosomes = get_chromosomes()
     if data != None :
-        elements = compute_graph_elements(data,all_genomes, initial_size_limit, [], [])
+        elements = compute_graph_elements(data,all_genomes, initial_size_limit, all_genomes, all_chromosomes, [], [])
     else :
         elements = []
-    print("nombre d'élements : " + str(len(elements)))
     size_max = 500
     
     return html.Div([
 
         #Upper block : settings
         html.Div([
+            
             #Left block
             html.Div([
                 html.Div([
@@ -248,8 +262,8 @@ def layout(data=None, initial_size_limit = 10):
                         dcc.Dropdown(
                             id='genomes-dropdown',
                             options=[{'label': genome, 'value': genome} for genome in all_genomes],
-                            value=all_genomes[0],
-                            style={'width': '200px'}
+                            #value=all_genomes[0],
+                            style={'width': '300px'}
                         )
                     ], style={'marginRight': '30px'}),
                     html.Div([
@@ -258,7 +272,7 @@ def layout(data=None, initial_size_limit = 10):
                             id='chromosomes-dropdown',
                             options=[{'label': chrom, 'value': chrom} for chrom in all_chromosomes],
                             placeholder="Choisissez un chromosome",
-                            value="1",
+                            #value="1",
                             style={'width': '200px'}
                         )
                     ])
@@ -318,7 +332,7 @@ def layout(data=None, initial_size_limit = 10):
                         min=0,
                         max=size_max,
                         step=int(100/size_max),
-                        value=10,
+                        value=DEFAULT_SIZE_VALUE,
                         tooltip={"placement": "bottom", "always_visible": False},
                     ),
                     
@@ -445,15 +459,16 @@ def display_element_data(node_data, edge_data):
 
     if triggered_id == 'graph' and ctx.triggered[0]['prop_id'] == 'graph.tapEdgeData' and edge_data:
         return (
-            f"Lien sélectionné : {edge_data.get('source')} → {edge_data.get('target')}\n"
+            f"Selected link : {edge_data.get('source')} → {edge_data.get('target')}\n"
             f"• Flow : {edge_data.get('flow')}\n"
-            f"• Génomes : {', '.join(edge_data.get('genomes', []))}"
+            f"• Genomes : {', '.join(edge_data.get('genomes', []))}"
         )
     elif triggered_id == 'graph' and ctx.triggered[0]['prop_id'] == 'graph.tapNodeData' and node_data:
         return (
             f"Selected node : {node_data.get('label', node_data.get('id'))}\n"
             f"• Size : {node_data.get('size')}\n"
             f"• Flow : {node_data.get('flow')}\n"
+            f"• Ref node : {node_data.get('ref_node')}\n"
             f"• Genomes : {', '.join(node_data.get('genomes', []))}"
             f"• Annotations : {', '.join(node_data.get('annotations', []))}"
         )
@@ -463,18 +478,19 @@ def display_element_data(node_data, edge_data):
 @app.callback(
     Output("graph", "elements"),
     Output("nb-noeuds", 'children'),
-    Output("size-output", 'children'),
     Output('shared_storage_nodes', 'data', allow_duplicate=True),
     Output('output-zone', 'children'),
     Output('annotations-info', 'children'),
     Output('graph', 'stylesheet'),
-    Input('genome_selector', 'value'), 
+    Output('home-page-store', 'data', allow_duplicate=True),
+    State('genome_selector', 'value'), 
     State('shared-mode', 'value'), 
     State('specific-genome_selector', 'value'),
     State({'type':'color-picker', 'index': ALL}, 'value'),
     Input('show-labels', 'value'),
     Input('update-btn', 'n_clicks'), 
-    Input('size_slider', 'value'),
+    #Input('size_slider', 'value'),
+    State('home-page-store', 'data'),
     Input('search-button', 'n_clicks'),
     State('start-input', 'value'),
     State('end-input', 'value'),
@@ -486,8 +502,24 @@ def display_element_data(node_data, edge_data):
     State('shared_storage_nodes', 'data'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, size_slider_val, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes):
     ctx = dash.callback_context
+    if home_data_storage is not None and 'slider_value' in home_data_storage:
+        size_slider_val = home_data_storage['slider_value']
+    else:
+        size_slider_val = DEFAULT_SIZE_VALUE
+    
+    #save the parameters into store
+    if genome is not None :
+        home_data_storage["selected_genome"] = genome
+    if chromosome is not None :
+        home_data_storage["selected_chromosome"] =  chromosome
+    if start is not None:
+        home_data_storage["start"] =  start
+    if end is not None:
+        home_data_storage["end"] =  end
+    
+
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
     if shared_mode and 'shared' in shared_mode:
@@ -499,7 +531,8 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     labels = True
     if show_labels and 'hide' in show_labels:
         labels = False
-
+    all_genomes = data_storage["genomes"]
+    all_chromosomes = data_storage["chromosomes"]
     if ctx.triggered and len(ctx.triggered[0]['prop_id'].split('.')) > 0:
         input_id = ctx.triggered[0]['prop_id'].split('.')[0]
         if input_id == "search-button" and n_clicks > 0:
@@ -513,11 +546,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                     data_storage_nodes = new_data
                 else :
                     new_data = get_nodes_by_region(genome, chromosome=chromosome, start=0, end=end)
-            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
+            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels)
         else:
-            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
+            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels)
     else :
-        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, specifics_genomes_list, color_genomes_list, labels=labels)
+        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels)
 
     defined_color = 0
     for c in color_genomes:
@@ -535,7 +568,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     for a in set_annot:
         annotations += str(a) + "\n"
 
-    return elements, f"{count} displayed nodes", f"Min node size  : {size_slider_val}",data_storage_nodes,"",annotations, stylesheet
+    return elements, f"{count} displayed nodes",data_storage_nodes,"",annotations, stylesheet, home_data_storage
 
 
 #color picker
@@ -549,6 +582,52 @@ def toggle_inputs(shared_mode):
         return {'display':'none'},{'display':'block'}
     else:
         return {'display':'flex','flexWrap':'wrap'},{'display':'none'}
+
+@app.callback(
+    Output('home-page-store','data', allow_duplicate=True),
+    Output("size-output", 'children'),
+    Input('size_slider', 'value'),
+    State('home-page-store','data'),
+    prevent_initial_call=True
+)
+def save_slider_value(size_slider_val, data):
+    if data is None :
+        data = {}
+    data['slider_value']=size_slider_val
+    return data, f"Min node size  : {size_slider_val}"
+
+#Restore value after navigation
+@app.callback(
+    Output('size_slider', 'value'),
+    Output('chromosomes-dropdown', 'value'),
+    Output('genomes-dropdown', 'value'),
+    Output('start-input', 'value'),
+    Output('end-input', 'value'),
+    Input('url', 'pathname'),
+    Input('home-page-store', 'data'),
+)
+def update_parameters_on_page_load(pathname, data):
+    slider_value = DEFAULT_SIZE_VALUE
+    selected_genome = None
+    selected_chromosome = None
+    start_input=None
+    end_input=None
+    if data is not None:
+        if "slider_value" in data:
+            slider_value = data["slider_value"]
+        if "selected_genome" in data:
+            selected_genome = data["selected_genome"]
+        if "selected_chromosome" in data: 
+            selected_chromosome = data["selected_chromosome"]
+        if "start" in data:
+            start_input = data["start"]
+        if "end" in data:
+            end_input = data["end"]
+        
+        return slider_value, selected_chromosome,selected_genome, start_input, end_input
+    else :
+        
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
 
 #Algorithm cytoscape choice

@@ -11,7 +11,7 @@ from dash import html, dcc, dash_table
 
 def layout():
     return html.Div([
-        dcc.Store(id="gwas-page-store", data={'checkboxes':[],'analyse':[]},storage_type="session"),
+        dcc.Store(id="gwas-page-store",storage_type="session"),
         html.H2("GWAS - Shared Region Finder"),
 
         # Area of genomes selection
@@ -29,10 +29,10 @@ def layout():
             html.Div([
                 html.Label("Min node size to detect a shared region (integer) : ", style={"marginRight": "10px", "marginLeft":"10px"}),
                 dcc.Input(id='gwas-min-node-size-int', type='number', step=1, value=10, debounce=True),
-                html.Label("Min percentage of selected genomes to detect shared nodes (set to zéro for one genome min): ", style={"marginRight": "10px", "marginLeft":"10px"}),
-                dcc.Input(id='gwas-min-percent_selected', type='number', step=1, value=0, debounce=True),
-                html.Label("Max percentage of selected genomes to detect shared nodes : ", style={"marginRight": "10px", "marginLeft":"10px"}),
-                dcc.Input(id='gwas-max-percent_selected', type='number', step=1, value=110, debounce=True),
+                html.Label("Min (%) of selected genomes to detect shared nodes (set to zéro for one genome min): ", style={"marginRight": "10px", "marginLeft":"10px"}),
+                dcc.Input(id='gwas-min-percent_selected', type='number', step=1, value=80, debounce=True),
+                html.Label("Tolerance (%) for genomes not selected : ", style={"marginRight": "10px", "marginLeft":"10px"}),
+                dcc.Input(id='tolerance_percentage', type='number', step=1, value=10, debounce=True),
                 html.Label("Group detected nodes separate from less than this value into a same region : ", style={"marginRight": "10px", "marginLeft":"10px"}),
                 dcc.Input(id='gwas-region-gap', type='number', step=1, value=10000, debounce=True),
                 html.Label("Include deletion (takes more time to compute) : ", style={"marginRight": "10px", "marginLeft":"10px"}),
@@ -75,6 +75,10 @@ def layout():
                 {"name": "size", "id": "size"}
             ],
             data=[],
+            style_cell={
+                'whiteSpace':'normal',
+                'height':'auto',
+                'textAlign':'left'},
             style_table={'overflowX': 'auto'},
             row_selectable='single'
         ),

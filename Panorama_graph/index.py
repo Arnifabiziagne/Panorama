@@ -30,6 +30,8 @@ app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='shared_storage_nodes', data=[], storage_type='memory'),
     dcc.Store(id='shared_storage', data={'genomes':[], 'chromosomes':[]}, storage_type='session'),
+    dcc.Store(id="home-page-store", storage_type='session'),
+
 # Menu button
 html.Div([
     dcc.Store(id="sidebar-state", data={"visible":True}),
