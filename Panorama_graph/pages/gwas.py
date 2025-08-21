@@ -62,7 +62,7 @@ def layout():
         ),
     
         html.Div(id='shared-status', style={'marginBottom': '15px'}),
-    
+        html.Div(id='sequence-zone', style={"fontSize": "18px", "padding": "10px"}),
         # Analyse array
         dash_table.DataTable(
             id='shared-region-table',
@@ -80,7 +80,8 @@ def layout():
                 'height':'auto',
                 'textAlign':'left'},
             style_table={'overflowX': 'auto'},
-            row_selectable='single'
+            row_selectable='single',
+            markdown_options={"html": True},
         ),
         html.Div([
         html.Button("💾 Export to CSV", id='save-csv-button', n_clicks=0),

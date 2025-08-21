@@ -73,6 +73,8 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         c = None
     else:
         c = [chromosome]
+    if data is None:
+        data = {}
     data["checkboxes"]= selected_genomes
     if not selected_genomes:
         return "Choose at least one genome.",data, ""
@@ -153,6 +155,7 @@ def handle_row_selection(selected_rows, table_data, data, home_page_data):
     
 #Restore checklist
 @app.callback(
+    Output('shared-status', 'children',allow_duplicate=True),
     Output('shared-region-table', 'data',allow_duplicate=True),
     Output("genome-list", "value"),
     Input("gwas-page-store", "modified_timestamp"),
@@ -166,11 +169,10 @@ def restore_checklist_state(ts, data, table_data):
     checkbox = []
     if data is not None: 
         if "analyse" in data:
-            analyse = data["analyse"]
-            
+            analyse = data["analyse"]            
         if "checkboxes" in data:
             checkbox = data["checkboxes"]
-    return analyse, checkbox
+    return f"{len(analyse)} shared regions found.",analyse, checkbox
 
 #Callback to save the gwas data table into csv file
 @app.callback(
@@ -192,6 +194,7 @@ def save_csv(n_clicks, table_data):
 
 #Callback to loads csv file into data table
 @app.callback(
+    Output('shared-status', 'children',allow_duplicate=True),
     Output('shared-region-table', 'data',allow_duplicate=True),
     Output("gwas-page-store", "data", allow_duplicate=True),
     Input('upload-csv', 'contents'),
@@ -202,7 +205,7 @@ def save_csv(n_clicks, table_data):
 def load_csv(contents, filename, gwas_page_store):
     print("load csv file")
     if contents is None:
-        return None, gwas_page_store
+        return None, None, gwas_page_store
     if gwas_page_store is None:
         gwas_page_store = {}
     content_type, content_string = contents.split(',')
@@ -211,10 +214,10 @@ def load_csv(contents, filename, gwas_page_store):
         df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         analyse = df.to_dict('records')
         gwas_page_store["analyse"] = analyse
-        return analyse, gwas_page_store
+        return f"{len(analyse)} shared regions found.", analyse, gwas_page_store
     except Exception as e:
         print(f"Error while loading file : {e}")
-        return None, gwas_page_store
+        return None, None, gwas_page_store
     
 
 @app.callback(
@@ -230,5 +233,23 @@ def show_upload_area(n_clicks):
         'padding': '10px',
         'marginTop': '10px'
     }
+
+
+@app.callback(
+    Output('sequence-zone', 'children'),
+    Input("shared-region-table", "active_cell"),
+    State('shared-region-table', 'data'),
+    prevent_initial_call=True,
+)
+def display_sequence_on_button_click(active_cell, table_data):
+    if active_cell and active_cell['column_id'] == 'size':
+        row_index = active_cell["row"]
+        row = table_data[row_index]
+        sequence = get_sequence_from_position(row['genome'], row['chromosome'], row['start'], row['stop'])
+        return html.Div([
+            html.P(f"Sequence : {sequence}")
+        ])
+    return None
+
 
 

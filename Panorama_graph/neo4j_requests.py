@@ -28,6 +28,7 @@ from Bio.Phylo.TreeConstruction import DistanceTreeConstructor
 import pandas as pd
 import numpy as np
 from Bio import Phylo
+from Bio.Seq import Seq
 
 
 
@@ -45,36 +46,39 @@ logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 def get_anchor(genome, chromosome, position, before = True):
     genome_position = genome+"_position"
-    window_size=100000
-    max_attemps = 1000
+    window_size=1000
+    max_attemps = 500
     attempt = 0
     with get_driver() as driver:
         with driver.session() as session:
             while attempt < max_attemps :
                 attempt += 1
-                offset = window_size * (attempt + 1)
         
                 if before:
-                    lower_bound = position - offset
-                    upper_bound = position
+                    if attempt == 1:
+                        lower_bound = position
+                    upper_bound = lower_bound
+                    lower_bound = lower_bound - window_size
                     order = "DESC"
-                    
+
                 else:
-                    lower_bound = position
-                    upper_bound = position + offset
+                    if attempt == 1:
+                        upper_bound = position
+                    lower_bound = upper_bound
+                    upper_bound = upper_bound + window_size
                     order = "ASC"
         
                 query = f"""
                 MATCH (n:Node)
-                WHERE n.chromosome = $chromosome
+                WHERE n.chromosome = "{chromosome}"
                   AND n.`{genome_position}` >= $lower_bound
                   AND n.`{genome_position}` <= $upper_bound
-                  AND n.flow = 1
+                  AND n.flow >= 1.0
                 RETURN n
                 ORDER BY n.`{genome_position}` {order}
                 LIMIT 1
                 """
-        
+
                 result = session.run(
                         query,
                         chromosome=chromosome,
@@ -84,6 +88,22 @@ def get_anchor(genome, chromosome, position, before = True):
                 record = result.single()
                 if record:
                     return dict(record["n"])
+            #Anchor not found => the current node will be used
+            query = f"""
+            MATCH (n:Node)
+            WHERE n.chromosome = "{chromosome}"
+              AND n.`{genome_position}` = $position
+            RETURN n
+            """
+
+            result = session.run(
+                    query,
+                    chromosome=chromosome,
+                    position=position
+                )
+            record = result.single()
+            if record:
+                return dict(record["n"])
 
     return None
 
@@ -93,7 +113,7 @@ def get_anchor(genome, chromosome, position, before = True):
 #and it returns all the nodes in this region and the other related regions : 
 #for each haplotype the start and stop are given by the first anchor node before the start position and the first after the end position
 #Anchor node is a node with all haplotypes
-def get_nodes_by_region(search_genome, chromosome, start, end ):
+def get_nodes_by_region(genome, chromosome, start, end ):
 
     temps_depart = time.time()
     nodes_data = {}
@@ -109,20 +129,20 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
     
             # Step 1 : find the region
             if start is not None and end is not None :
-                genome_position = search_genome+"_position"
-                print("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome) + " - genome : " + str(search_genome))
-                anchor_start = get_anchor(search_genome, chromosome, start, before = True)
-                anchor_stop = get_anchor(search_genome, chromosome, end, before = False)
+                genome_position = genome+"_position"
+                print("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome) + " - genome : " + str(genome))
+                anchor_start = get_anchor(genome, chromosome, start, before = True)
+                anchor_stop = get_anchor(genome, chromosome, end, before = False)
                 print("Anchor start name : " + str(anchor_start["name"]))
                 print("Anchor stop name : " + str(anchor_stop["name"]))
                 print("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
-                if anchor_start is not None and anchor_stop is not None and len(anchor_stop["genomes"]) == len(anchor_start["genomes"]) and anchor_stop[genome_position] - anchor_start[genome_position] < max_bp_seeking and anchor_stop[genome_position] - anchor_start[genome_position] > 0 and len(anchor_start['genomes']) > 0 :
-                    
                 
+                if anchor_start is not None and anchor_stop is not None and len(anchor_stop["genomes"]) == len(anchor_start["genomes"]) and anchor_stop[genome_position] - anchor_start[genome_position] < max_bp_seeking and anchor_stop[genome_position] - anchor_start[genome_position] > 0 and len(anchor_start['genomes']) > 0 :
+
                     # Step 3 : Get the nodes and annotations for each genomes
                     query_genome = f"""
                     MATCH (m:Node)
-                    WHERE  m.chromosome = $chromosome 
+                    WHERE  m.chromosome = "{chromosome}" 
                     AND (
                     """
                     first = True
@@ -140,8 +160,8 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
                         RETURN m, collect(a.gene_name) as annotations
                             """
-                    print(query_genome)
-                    result = session.run(query_genome, chromosome=chromosome, start=start, end=end)
+                    #print(query_genome)
+                    result = session.run(query_genome, start=start, end=end)
                     for record in result :
                         nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
                 else:
@@ -156,11 +176,11 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
                     if total_nodes <= max_nodes_number : 
                         query_genome = f"""
                         MATCH (m:Node)
-                        WHERE  m.chromosome = $chromosome 
+                        WHERE  m.chromosome = "{chromosome}" 
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
                         RETURN m, collect(a.gene_name) as annotations
                             """
-                        result = session.run(query_genome, chromosome=chromosome)
+                        result = session.run(query_genome)
                         for record in result:
                             nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
                     else  :
@@ -175,112 +195,36 @@ def get_nodes_by_region(search_genome, chromosome, start, end ):
 
 
 
-def get_nodes_by_gene(genome_ref, gene_id=None, gene_name=None, chromosome = None):
+def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
     with get_driver() as driver:
 
         nodes_data = {}
         shared_genomes = []
     
         with driver.session() as session:
-    
+            genome_position = genome+"_position"
             # Step 1 : find nodes with gene annotation
             if gene_name is not None :
                 print("Looking for gene name : " + str(gene_name))
-                if chromosome is None or chromosome == "" :
-                    query_1 = """
-                    MATCH (a:Annotation {gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Node)
-                    RETURN DISTINCT n
-                    ORDER BY n.`"""+str(genome_ref)+"""_position`
-                    """
-                    result_1 = session.run(query_1, gene_name=gene_name)
-                else:
-                    query_1 = """
-                    MATCH (a:Annotation {chromosome:$chromosome, gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Node)
-                    RETURN DISTINCT n
-                    ORDER BY n.`"""+str(genome_ref)+"""_position`
-                    """
-                    result_1 = session.run(query_1, chromosome=chromosome, gene_name=gene_name)
+                query = f"""
+                MATCH (a:Annotation {chromosome:"{chromosome}", gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Node)
+                RETURN DISTINCT n
+                ORDER BY n.`genome_position`
+                """
+                result = session.run(query, gene_name=gene_name)
                 
             else:
-                print("Looking for gene id : " + str(gene_id))
-                if chromosome is None or chromosome == "" :
-                    query_1 = """
-                    MATCH (a:Annotation {gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Node)
-                    RETURN DISTINCT n
-                    ORDER BY n.`"""+str(genome_ref)+"""_position`
-                    """
-                    result_1 = session.run(query_1, gene_id=gene_id)
-                    
-                else:
-                    query_1 = """
-                    MATCH (a:Annotation {chromosome:$chromosome, gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Node)
-                    RETURN DISTINCT n
-                    ORDER BY n.`"""+str(genome_ref)+"""_position`
-                    """
-                    result_1 = session.run(query_1, chromosome=chromosome, gene_id=gene_id)
-            noeuds_annotes = [record["n"] for record in result_1]
-    
-            #Select first chromosome
-            if chromosome is None :
-                chromosome = str(noeuds_annotes[0]["chromosome"])
-                print("chromosome : " + str(chromosome))
-            if len(noeuds_annotes) == 0:
-                print("No nodes found")
-            else:
-                # Step 2 : construction of shared_genomes
-                for n in noeuds_annotes:
-                    for genome in n["genomes"]:
-                        champ_position = f"`{genome}_position`"
-                        position = n.get(f"{genome}_position")
-        
-                        if position is None:
-                            continue
-        
-                        # Search if this genome already exists in shared_genomes
-                        existe = False
-                        for g in shared_genomes:
-                            if g["genome"] == genome:
-                                g["end"] = max(g["end"], position)
-                                existe = True
-                                break
-                        if not existe:
-                            shared_genomes.append({
-                                "genome": genome,
-                                "start": position,
-                                "end": position
-                            })
-                # Step 3 : for each genome, get nodes of the found region
-                start = 0
-                end = 0
-                for g in shared_genomes:
-                    genome = g["genome"]
-                    champ_position = f"`{genome}_position`"
-                    start = g["start"]
-                    end = g["end"]
-                    if g["genome"] == genome_ref:
-                        start = start
-                        end = end
-                    print("Search for genome : " + str(g))
-                    if end - start < max_bp_seeking and end - start > 0:
-                        query_genome = f"""
-                        MATCH (m:Node)
-                        WHERE m.chromosome = $chromosome and m.{champ_position} >= $start AND m.{champ_position} <= $end
-                        OPTIONAL MATCH (m)-[]->(a:Annotation)
-                        RETURN m, collect(a.gene_name) as annotations
-                        ORDER BY m.{champ_position}
-                        """
-                        result_genome = session.run(query_genome, chromosome=chromosome, start=start, end=end)
-                        for record in result_genome:
-                            if record["m"]["name"] not in nodes_data :
-                                nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
-                            else:
-                                for a in range(len(record["annotations"])):
-                                    nodes_data[record["m"]["name"]]["annotations"].add(record["annotations"][a])
-                    else :
-                        if end - start >= max_bp_seeking:
-                            print("Region too wide for genome : " + str(g) + " start : " + str(start) + " end : " + str(end))
-            for elt in nodes_data:
-                nodes_data[elt]["annotations"] = list(nodes_data[elt]["annotations"])
+                query = f"""
+                MATCH (a:Annotation {chromosome:"{chromosome}" gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Node)
+                RETURN DISTINCT n
+                ORDER BY n.`genome_position`
+                """
+                result = session.run(query, gene_id=gene_id)
+            noeuds_annotes = [record["n"] for record in result]
+            start = noeuds_annotes[0][genome_position]
+            stop = noeuds_annotes[-1][genome_position]
+            nodes_data = get_nodes_by_region(genome, chromosome, start, stop)
+            
         return nodes_data
 
 
@@ -289,9 +233,9 @@ def get_nodes_by_gene(genome_ref, gene_id=None, gene_name=None, chromosome = Non
 def get_first_annotation_after_position(genome_ref, chromosome="1", position=0):
     with get_driver() as driver:
 
-        query = """
+        query = f"""
         MATCH (n:Node)-[:A_POUR_ANNOTATION]->(a:Annotation)
-        WHERE n.chromosome = $chromosome and n.`"""+str(genome_ref)+"""_position` > $position
+        WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` > $position
         WITH n, a
         ORDER BY n.HER_position ASC
         LIMIT 1
@@ -300,7 +244,7 @@ def get_first_annotation_after_position(genome_ref, chromosome="1", position=0):
         
         
         with driver.session() as session:
-            result = session.run(query, chromosome=chromosome, position=position)
+            result = session.run(query, position=position)
             record = result.single()
             return dict(record) if record else None
 
@@ -309,14 +253,14 @@ def get_first_annotation_after_position(genome_ref, chromosome="1", position=0):
 def get_annotations_in_position_range(genome_ref, chromosome="1", start_position=0, end_position=0):
     with get_driver() as driver:
 
-        query = """
+        query = f"""
         MATCH (n:Node)-[:A_POUR_ANNOTATION]->(a:Annotation)
-        WHERE n.chromosome = $chromosome and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end
+        WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end
         RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name
         """
         #print("Query : " + query)
         with driver.session() as session:
-            result = session.run(query, chromosome=chromosome, start=start_position, end=end_position)
+            result = session.run(query, start=start_position, end=end_position)
             annotations = [dict(record) for record in result]
     
     return annotations
@@ -348,9 +292,9 @@ def get_nodes_number(chromosome=None):
             RETURN count(n) as total
             """
         else:
-            query = """
+            query = f"""
             MATCH (n:Node) 
-            where n.chromosome=$chromosome
+            where n.chromosome="{chromosome}"
             RETURN count(n) as total
             """
         all_chromosomes = []
@@ -401,14 +345,33 @@ def get_sequence_from_position(genome, chromosome, start, end):
     if genome is None or genome == "" or chromosome is None or chromosome == "" or start is None or end is None :
         return None
     else:
-        nodes_data = get_nodes_by_region(genome, chromosome, start, end)
-        sorted_names = [node[1]["name"] for node in sorted(nodes_data.items(), key=lambda x :x[1][genome+"_position"])]
-        sequences = get_sequence_from_names(sorted_names)
-        for name in sorted_names:
-            if "strandM" in nodes_data[name] and genome in nodes_data[name]["strandM"]:
-                sequence += sequences[name].reverse_complement()
-            else:
-                sequence += sequences[name]
+        with get_driver() as driver:
+            position_key = genome+"_position"
+            query =  f"""MATCH (n:Node)
+             WHERE n.chromosome = "{chromosome}"
+               AND n.`{position_key}` >= {start}
+               AND n.`{position_key}` <= {end}
+               return n.ref_node AS name, 
+               coalesce(n.strandM, []) AS strandMList,
+               "{genome}" IN coalesce(n.strandM, []) AS strandM
+               order by n.`{position_key}` ASC
+            """
+            print(query)
+            with driver.session() as session:
+                result = session.run(query)
+                sorted_names = []
+                sorted_strandM = []
+                for record in result:
+                    sorted_names.append(record["name"])
+                    sorted_strandM.append(record["strandM"])
+            print("len sorted names : " + str(len(sorted_names)))
+            print("len sorted strandM : " + str(len(sorted_strandM)))
+            sequences = get_sequence_from_names(sorted_names)
+            for i in range(len(sorted_names)):
+                if sorted_strandM[i]:
+                    sequence += Seq(sequences[sorted_names[i]]).reverse_complement()
+                else:
+                    sequence += sequences[sorted_names[i]]
     return sequence
     
 
@@ -450,21 +413,21 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
     with get_driver() as driver:
         if type_search == "before" :
 
-            query = """
+            query = f"""
             MATCH (n:Node)
-            WHERE n.chromosome = $chromosome and n.`"""+str(genome)+"""_position` <= $genome_position AND $genome_ref in n.genomes
+            WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome)+"""_position` <= $genome_position AND $genome_ref in n.genomes
             return max(n.`"""+str(genome_ref)+"""_position`) as ref_position
             """
         else:
 
-            query = """
+            query = f"""
             MATCH (n:Node)
-            WHERE n.chromosome = $chromosome and n.`"""+str(genome)+"""_position` >= $genome_position AND $genome_ref in n.genomes
+            WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome)+"""_position` >= $genome_position AND $genome_ref in n.genomes
             return min(n.`"""+str(genome_ref)+"""_position`) as ref_position
             """
         #print("Query : " + query)
         with driver.session() as session:
-            result = session.run(query, chromosome=chromosome, genome_ref=genome_ref, genome_position=genome_position)
+            result = session.run(query, genome_ref=genome_ref, genome_position=genome_position)
             for record in result :
                 ref_position = record["ref_position"]
     
@@ -526,7 +489,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 for c in chromosome_list :
                     print("chromosome : " + str(c))
                     dic_regions[c] = {}
-                    
+                    #Looking for shared nodes
                     query = f"""
                         MATCH (n:Node)
                         WHERE n.chromosome = '{c}'
@@ -551,16 +514,22 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     result1 = list(session.run(query, genomes_list=genomes_list))
                     print("Nodes selected for chromosomes " + str(c) + " : " + str(len(result1)) + "\nTime : " + str(time.time()-time_0))
                     if deletion :
-                        query = "MATCH (n:Node)"
-                        query += ' USING INDEX n:Node(chromosome) where n.chromosome = "' + str(c) + '"'
-                        query += """ AND ALL(g IN $genomes_list WHERE g IN n.genomes)
-                            AND size(n.genomes) > size($genomes_list)
-                            WITH n, [g IN n.genomes WHERE NOT g IN $genomes_list] AS autres_genomes
+                        query = f"""
+                            MATCH (n:Node)
+                            where n.chromosome = "{c}"
+                            AND n.flow >= {min_flow}
+                            AND n.flow <= {max_flow}
+                            AND n.size >= {node_min_size}
+                            with n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
+                            WHERE size(matched_genomes) >= {min_associated_genomes}
+                            AND size(matched_genomes) < size(n.genomes)
+                            WITH n, [g IN n.genomes WHERE NOT g IN $genomes_list] AS other_genomes
                             MATCH (n)-[]->(m:Node)
-                            WHERE ALL(g IN autres_genomes WHERE g IN m.genomes)
-                              AND NONE(g IN $genomes_list WHERE g IN m.genomes)
-                              AND  m.size  >= """ + str(node_min_size)
-                        query += " RETURN n AS nodes order by n.`"+str(genome_position_ref)+"_position` ASC"
+                            WHERE ALL(g IN other_genomes WHERE g IN m.genomes)
+                            AND NONE(g IN $genomes_list WHERE g IN m.genomes)
+                            AND  m.size  >= {node_min_size}
+                            RETURN n AS nodes order by n.`{genome_position_ref}_position` ASC
+                        """
 
                         result = result1 + list(session.run(query, genomes_list=genomes_list))
                         print("Total Nodes selected for chromosome " + str(c) + " : " + str(len(result)) + "\nTime : " + str(time.time()-time_0))
@@ -636,7 +605,7 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
             print("Compute variability on chromosome " + str(chromosome))
             query = f"""
             MATCH (n:Node)
-            WHERE n.chromosome = $chromosome
+            WHERE n.chromosome = "{chromosome}"
             WITH FLOOR(n.{ref_position} / {window_size}) AS Window, n.{ref_position} AS position, n.flow AS flow
             WITH Window, 
                  collect(position) AS positions, 
@@ -652,7 +621,7 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
             """
         
             with driver.session() as session:
-                result = session.run(query, chromosome=chromosome)
+                result = session.run(query)
                 data = result.data()
         
             df = pd.DataFrame(data)

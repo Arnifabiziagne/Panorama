@@ -89,7 +89,7 @@ def get_color_palette(n):
     return [f'rgb({int(r*255)}, {int(g*255)}, {int(b*255)})' for r, g, b, _ in cmap(np.linspace(0, 1, n))]
 
 
-def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True):
+def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0):
     if data != None and len(data) > 0:
         df = records_to_dataframe(data)
         df = df[df["size"] >= size_min].copy()
@@ -180,13 +180,17 @@ def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_ch
         for (source, target), dic in edges_dict.items(): 
             link_color = 'gray'
             flow = dic["flow"]
+            virtual_flow = flow
             if specifics_genomes is not None and len(specifics_genomes) > 0:
-                #Uncomment to get the paths shared by the wholes selected genomes and only these genomes
-                #if all(g in specifics_genomes for g in dic["genomes"]) and all(g in dic["genomes"] for g in specifics_genomes):
-                #Path are colored in red if it contains at leat one of seleted genomes but no unselected genome
-                if all(g in specifics_genomes for g in dic["genomes"]):
+                min_required_shared = max(ceil(min_shared_genome * len(specifics_genomes) / 100),1)
+                max_allowed_extra = ceil(tolerance * len(dic["genomes"]) / 100)
+                set_specifics_genomes = set(specifics_genomes)
+                set_genomes = set(dic["genomes"])
+                
+                intersect = set_specifics_genomes.intersection(set_genomes)
+                if len(intersect) >= min_required_shared and len(dic["genomes"]) - len(intersect) <= max_allowed_extra :
                     link_color = 'red'
-                    flow = len(all_genomes)
+                    virtual_flow = len(all_genomes)
             label = ""
             if labels:
 
@@ -209,7 +213,7 @@ def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_ch
                     'line-color': link_color,
                     'label':label,
                     'text-rotation':'autorotate',
-                    'width': (flow+int(0.2*len(all_genomes)))/len(all_genomes)*10
+                    'width': (virtual_flow+int(0.2*len(all_genomes)))/len(all_genomes)*10
                     }
             })
 
@@ -271,6 +275,7 @@ def layout(data=None, initial_size_limit = 10):
                         dcc.Dropdown(
                             id='chromosomes-dropdown',
                             options=[{'label': chrom, 'value': chrom} for chrom in all_chromosomes],
+                            clearable=False,
                             placeholder="Choisissez un chromosome",
                             #value="1",
                             style={'width': '200px'}
@@ -374,7 +379,11 @@ def layout(data=None, initial_size_limit = 10):
                                 options=[{"label": g, "value": g} for g in all_genomes],
                                 value=[],
                                 inline=True
-                            )
+                            ),
+                            html.Label("Min (%) of shared genomes : "),
+                            dcc.Input(id='min_shared_genomes-input', type='number', value = 100, style={'width': '100px', 'marginRight': '10px'}),
+                            html.Label("Tolerance (%) : "),
+                            dcc.Input(id='tolerance-input', type='number', value =0, style={'width': '100px', 'marginRight': '20px'})
                             
                         ],id='shared-checklist-container'),
                     html.Div([
@@ -500,9 +509,11 @@ def display_element_data(node_data, edge_data):
     State('chromosomes-dropdown', 'value'),
     State('shared_storage', 'data'),
     State('shared_storage_nodes', 'data'),
+    State('min_shared_genomes-input', 'value'),
+    State('tolerance-input', 'value'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes, min_shared_genome, tolerance):
     ctx = dash.callback_context
     if home_data_storage is not None and 'slider_value' in home_data_storage:
         size_slider_val = home_data_storage['slider_value']
@@ -518,7 +529,10 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         home_data_storage["start"] =  start
     if end is not None:
         home_data_storage["end"] =  end
-    
+    if min_shared_genome is None:
+        min_shared_genome = 100
+    if tolerance is None :
+        tolerance = 0
 
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
@@ -541,16 +555,16 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 data_storage_nodes = new_data
                 print("len new_data : " + str(len(new_data)))
             else : 
-                if gene_name is not None :
-                    new_data = get_nodes_by_gene(genome, gene_name=gene_name,chromosome=chromosome)
+                if gene_name is not None and chromosome is not None :
+                    new_data = get_nodes_by_gene(genome, chromosome=chromosome, gene_name=gene_name)
                     data_storage_nodes = new_data
                 else :
                     new_data = get_nodes_by_region(genome, chromosome=chromosome, start=0, end=end)
-            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels)
+            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance)
         else:
-            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels)
+            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance)
     else :
-        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels)
+        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance)
 
     defined_color = 0
     for c in color_genomes:
@@ -605,29 +619,31 @@ def save_slider_value(size_slider_val, data):
     Output('end-input', 'value'),
     Input('url', 'pathname'),
     Input('home-page-store', 'data'),
+    State('chromosomes-dropdown', 'options')
 )
-def update_parameters_on_page_load(pathname, data):
+def update_parameters_on_page_load(pathname, data, options):
     slider_value = DEFAULT_SIZE_VALUE
     selected_genome = None
     selected_chromosome = None
     start_input=None
     end_input=None
-    if data is not None:
-        if "slider_value" in data:
-            slider_value = data["slider_value"]
-        if "selected_genome" in data:
-            selected_genome = data["selected_genome"]
-        if "selected_chromosome" in data: 
-            selected_chromosome = data["selected_chromosome"]
-        if "start" in data:
-            start_input = data["start"]
-        if "end" in data:
-            end_input = data["end"]
+    if data is None:
+        data = {}
+    if "slider_value" in data:
+        slider_value = data["slider_value"]
+    if "selected_genome" in data:
+        selected_genome = data["selected_genome"]
+    if "selected_chromosome" in data: 
+        selected_chromosome = data["selected_chromosome"]
+    else:
+        selected_chromosome = options[0]["value"]
+    if "start" in data:
+        start_input = data["start"]
+    if "end" in data:
+        end_input = data["end"]
         
-        return slider_value, selected_chromosome,selected_genome, start_input, end_input
-    else :
-        
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    return slider_value, selected_chromosome,selected_genome, start_input, end_input
+
 
 
 #Algorithm cytoscape choice
