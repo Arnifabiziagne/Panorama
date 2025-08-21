@@ -6,7 +6,7 @@ Created on Wed Jul  2 22:03:10 2025
 @author: fgraziani
 """
 
-from dash import html, Output, Input, State, no_update, dcc
+from dash import html, Output, Input, State, no_update, dcc, ctx
 
 
 import os
@@ -177,20 +177,31 @@ def restore_checklist_state(ts, data, table_data):
 #Callback to save the gwas data table into csv file
 @app.callback(
     Output('save-feedback', 'children'),
+    Output("load_spinner_zone", "children", allow_duplicate=True),
     Input('save-csv-button', 'n_clicks'),
+    Input('save-csv-with_seq-button', 'n_clicks'),
     State('shared-region-table', 'data'),
     prevent_initial_call=True
 )
-def save_csv(n_clicks, table_data):
+def save_csv(n_clicks, n_clicks_seq, table_data):
     #print(f"Callback triggered: n_clicks={n_clicks}, table_data={table_data}")
+    triggered_id = ctx.triggered_id
+    export_sequences = False
+    if triggered_id == 'save-csv-with_seq-button':
+        export_sequences = True
     if not table_data:
-        return "No data."
+        return "No data.",""
     df = pd.DataFrame(table_data)
+    if export_sequences :
+        sequences = []
+        for row in tqdm(table_data):
+            sequences.append(get_sequence_from_position(row['genome'], row['chromosome'], row['start'], row['stop']))
+        df["sequence"] = sequences
     save_path = os.path.join(os.getcwd(), "./gwas/shared_regions.csv")
     print("save path : " + str(save_path))
     df.to_csv(save_path, index=False)
     
-    return f"File saved : {save_path}"
+    return f"File saved : {save_path}",""
 
 #Callback to loads csv file into data table
 @app.callback(
@@ -212,8 +223,9 @@ def load_csv(contents, filename, gwas_page_store):
     decoded = base64.b64decode(content_string)
     try:
         df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        analyse = df.to_dict('records')
+        analyse = df[[c for c in df.columns if c!= "sequence"]].to_dict('records')
         gwas_page_store["analyse"] = analyse
+        print("csv file loaded")
         return f"{len(analyse)} shared regions found.", analyse, gwas_page_store
     except Exception as e:
         print(f"Error while loading file : {e}")

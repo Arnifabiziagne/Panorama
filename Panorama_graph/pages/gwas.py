@@ -63,6 +63,23 @@ def layout():
     
         html.Div(id='shared-status', style={'marginBottom': '15px'}),
         html.Div(id='sequence-zone', style={"fontSize": "18px", "padding": "10px"}),
+        html.Div([
+            html.Button("💾 Export to CSV", id='save-csv-button', n_clicks=0),
+            html.Button("💾 Export to CSV with sequences", id='save-csv-with_seq-button', n_clicks=0),
+            html.Button("📂 Load csv", id='load-csv-button', n_clicks=0),
+            html.Div(id='save-feedback'),
+            dcc.Upload(
+                id='upload-csv',
+                children=html.Div(['Glissez un fichier CSV ici ou cliquez pour sélectionner un fichier.']),
+                style={
+                    'display': 'none',
+                    'borderWidth': '1px',
+                    'borderStyle': 'dashed',
+                    'padding': '10px',
+                },
+                multiple=False
+            )
+        ]),
         # Analyse array
         dash_table.DataTable(
             id='shared-region-table',
@@ -83,22 +100,7 @@ def layout():
             row_selectable='single',
             markdown_options={"html": True},
         ),
-        html.Div([
-        html.Button("💾 Export to CSV", id='save-csv-button', n_clicks=0),
-        html.Button("📂 Load csv", id='load-csv-button', n_clicks=0),
-        html.Div(id='save-feedback'),
-        dcc.Upload(
-            id='upload-csv',
-            children=html.Div(['Glissez un fichier CSV ici ou cliquez pour sélectionner un fichier.']),
-            style={
-                'display': 'none',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'padding': '10px',
-            },
-            multiple=False
-        )
-    ]),
+        
 
     html.Div(id='selected-region-output')
     ], style={'padding': '20px'})
