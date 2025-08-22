@@ -29,7 +29,8 @@ release_graph:
   needs:
     - job: create_panorama_graph_archive
       artifacts: true
-  script: []
+  script:
+    - true
   only:
     - tags
   release:
