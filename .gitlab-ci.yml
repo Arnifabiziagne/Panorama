@@ -27,6 +27,8 @@ release_graph:
   image: curlimages/curl:latest
   dependencies:
     - create_panorama_graph_archive
+  before_script:
+    - apk update && apk add --no-cache jq
   script:
     - |
       echo "Uploading archive to GitLab release..."
