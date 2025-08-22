@@ -20,7 +20,7 @@ create_panorama_graph_archive:
   artifacts:
     paths:
       - dist/$ZIP_NAME
-    expire_in: never
+    expire_in: 1 week
 
 release_graph:
   stage: release
@@ -37,11 +37,10 @@ release_graph:
       UPLOAD_RESPONSE=$(curl --silent --header "JOB-TOKEN: $CI_JOB_TOKEN" \
         --upload-file "dist/$ZIP_NAME" \
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/uploads")
-
-      # Extract the URL from the response
+      
       ASSET_URL=$(echo "$UPLOAD_RESPONSE" | jq -r .url)
-
-      # Create the release and attach the archive
+      FULL_ASSET_URL="$CI_PROJECT_URL$ASSET_URL"
+      
       curl --request POST --header "JOB-TOKEN: $CI_JOB_TOKEN" \
         --header "Content-Type: application/json" \
         --data "{
@@ -52,7 +51,7 @@ release_graph:
             \"links\": [
               {
                 \"name\": \"$ZIP_NAME\",
-                \"url\": \"$CI_PROJECT_URL$ASSET_URL\"
+                \"url\": \"$FULL_ASSET_URL\"
               }
             ]
           }
