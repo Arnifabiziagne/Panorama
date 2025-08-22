@@ -30,7 +30,7 @@ release_graph:
     - job: create_panorama_graph_archive
       artifacts: true
   script:
-    - true
+    - echo "Creating GitLab release with linked artifact"
   only:
     - tags
   release:
@@ -40,4 +40,4 @@ release_graph:
     assets:
       links:
         - name: "$ZIP_NAME"
-          url: "$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/$ZIP_NAME"
+          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/dist/$ZIP_NAME?job=create_panorama_graph_archive"
