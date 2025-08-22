@@ -2,6 +2,7 @@ import re
 from tqdm import tqdm
 from math import *
 from neo4j import GraphDatabase
+from neo4j.exceptions import Neo4jError
 import time
 import hashlib
 import logging
@@ -117,9 +118,8 @@ def create_nodes_batch(session, nodes_dic, node_name="Node", create = False):
     return
 
 
-def creer_stats(set_genomes, set_chromosomes):
+def create_stats(set_genomes, set_chromosomes):
     with get_driver() as driver:
-        print("Connection established.")
         with driver.session() as session:
             with session.begin_transaction() as tx:
                 query ="""
@@ -140,44 +140,41 @@ def creer_stats(set_genomes, set_chromosomes):
     return
 
 
-def creer_stats():
+def create_stats_from_nodes():
     with get_driver() as driver:
         with driver.session() as session:
+            # Step 1: Get genomes
             query_genomes = """
                 MATCH (n:Node)
-                where n.flow = 1
-                return n.genomes as all_genomes limit 1
+                WHERE n.flow = 1
+                RETURN n.genomes AS all_genomes
+                LIMIT 1
             """
-            all_genomes = []
             result = session.run(query_genomes)
-            for record in result:
-                all_genomes = record["all_genomes"]
-                print("all_genomes : " + str(all_genomes))
+            all_genomes = result.single()["all_genomes"] if result.peek() else []
+
+            # Step 2: Get chromosomes
             query_chromosomes = """
                 MATCH (n:Node)
-                return distinct n.chromosome as all_chromosomes
+                RETURN DISTINCT n.chromosome AS all_chromosomes
             """
-            all_genomes = []
             result = session.run(query_chromosomes)
-            for record in result:
-                all_chromosomes = record["all_chromosomes"]
-                print("all_chromosomes : " + str(all_chromosomes))
-            with session.begin_transaction() as tx:
-                query ="""
-                MERGE (s:Stats)
-                WITH s, coalesce(s.genomes, []) + $genomes AS all_genomes, $chromosomes as liste_chromosome
-                UNWIND all_genomes AS g
-                WITH s, collect(DISTINCT g) AS new_genomes, liste_chromosome
-                SET s.genomes = new_genomes, s.version=$version
-                
-                // Mise à jour de s.chromosomes
-                WITH s, coalesce(s.chromosomes, []) + liste_chromosome AS all_chromosomes
-                UNWIND all_chromosomes AS c
-                WITH s, collect(DISTINCT c) AS new_chromosomes
-                SET s.chromosomes = new_chromosomes
-                """
-                tx.run(query, genomes=all_genomes, chromosomes =all_chromosomes, version=version)
-                
+            all_chromosomes = [record["all_chromosomes"] for record in result if record["all_chromosomes"] is not None]
+
+            # Step 3: Delete existing Stats node (if exists)
+            session.run("MATCH (s:Stats) DETACH DELETE s")
+
+            # Step 4: Create new Stats node
+            session.run("""
+                CREATE (s:Stats {
+                    genomes: $genomes,
+                    chromosomes: $chromosomes,
+                    version: $version
+                })
+            """, genomes=all_genomes, chromosomes=all_chromosomes, version=version)
+
+            print("✅ Stats node created with:", all_genomes, all_chromosomes)
+
     return
 
 
@@ -192,6 +189,30 @@ def indexes_populating():
                 if record["state"] == "POPULATING":
                     return True
             return False
+
+#This function return the state of creating index
+#if index has been created this return 100
+#else it returns the percentage of index creation
+def check_state_index(index_name: str):
+    
+    with get_driver() as driver:
+        with driver.session() as session:
+            query = """
+            SHOW INDEX YIELD name, state, populationPercent
+            WHERE name = $index_name
+            RETURN populationPercent
+            """
+
+            try:
+                result = session.run(query, index_name=index_name)
+                record = result.single()
+                if record:
+                    return record["populationPercent"]
+                else:
+                    return None
+            except Neo4jError as e:
+                print(f"❌ Error while checking index state: {e}")
+                return None
 
 
 #Function to create index in database
@@ -211,7 +232,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                 indexes_queries += [
                     "CREATE INDEX NodeIndexFlow IF NOT EXISTS FOR (n:Node) ON (n.flow)",
                     "CREATE INDEX NodeIndexSize IF NOT EXISTS FOR (n:Node) ON (n.size)",
-                    "CREATE INDEX NodeIndexGwas IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.flow, n.size)"
+                    "CREATE INDEX NodeIndexGwas IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.flow, n.size)",
                     "CREATE INDEX NodeIndexRefNode IF NOT EXISTS FOR (n:Node) ON (n.ref_node)",
                     "CREATE INDEX AnnotationName IF NOT EXISTS FOR (a:Annotation) ON (a.name)",
                     "CREATE INDEX AnnotationIndexChromosome IF NOT EXISTS FOR (a:Annotation) ON (a.chromosome)",
@@ -265,7 +286,6 @@ def creer_index_chromosome(chromosomes_list = []):
     all_genomes = []
     indexes_queries = []
     with get_driver() as driver:
-        print("Connection established.")
         with driver.session() as session:
             result = session.run(query_genomes)
             for record in result:
@@ -280,7 +300,6 @@ def creer_index_chromosome(chromosomes_list = []):
                 indexes_queries.append("CREATE INDEX Node_chr_" + str(c) +"Index"+str(g)+"_node IF NOT EXISTS FOR (n:Node_chr_" + str(c) +") ON (n."+str(g)+"_node)")
     
         with get_driver() as driver:
-            print("Connection established.")
             with driver.session() as session:
                 with session.begin_transaction() as tx:
                     for query in indexes_queries :
@@ -295,13 +314,11 @@ def creer_index_chromosome_genomes():
     indexes_queries = []
     all_genomes = []
     with get_driver() as driver:
-        print("Connection established.")
         with driver.session() as session:
             result = session.run(query_genomes)
             for record in result:
                 all_genomes = record["all_genomes"]
 
-            print("Connection established.")
             nb_genomes = len(all_genomes)
             current_genome = 0
             for g in all_genomes :
@@ -446,7 +463,7 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
 This function allows you to create nodes with the node sequence and its name.
 It also creates indexes (kmers and associated nodes).
 '''
-def charger_sequences_et_indexes(gfa_file_name, kmer_size=31):
+def load_sequences_and_indexes(gfa_file_name, kmer_size=31):
     nodes_dic = {}
     file = open(gfa_file_name, "r", encoding='utf-8')
     kmer_set = set()
@@ -480,12 +497,11 @@ def charger_sequences_et_indexes(gfa_file_name, kmer_size=31):
 This function allows you to create nodes with the node sequence and name.
 '''
 #TODO : découper en lot le chargement des noeuds
-def charger_sequences(gfa_file_name, chromosome_file = None, create=False, batch_size=20000000):
+def load_sequences(gfa_file_name, chromosome_file = None, create=False, batch_size=20000000):
     nodes_dic = {}
     start_time = time.time()
     file = open(gfa_file_name, "r", encoding='utf-8')
     with get_driver() as driver:
-        print("Connection established.")
         with file:
             total_nodes = sum(1 for line in file if line.startswith(('S')))
             file.seek(0,0)
@@ -507,12 +523,12 @@ def charger_sequences(gfa_file_name, chromosome_file = None, create=False, batch
                             create_nodes_batch(session, nodes_dic, node_name="Sequence", create = create)
                         nodes_dic = {}
                     ligne = file.readline()
-        print("Recuperation des noeud terminé en " + str(time.time()-start_time))
-        print("Creation des séquences en BDD : " + str(len(nodes_dic)) + " noeuds à créer")
+        print("Nodes computed in " + str(time.time()-start_time))
+        print("Creating nodes in DB : " + str(len(nodes_dic)) + " nodes to create")
         if len(nodes_dic) > 0 :
             with driver.session() as session:
                 create_nodes_batch(session, nodes_dic, node_name="Sequence", create = create)
-    print("Creation des séquences terminée en : " + str(time.time()-start_time) + " s")
+    print("Sequences created. Total time : " + str(time.time()-start_time) + " s")
     file.close()
     
 
@@ -838,14 +854,13 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                         #Create batch nodes in DB
                         print("Lot " + str(current_batch) + " : Creating nodes in DB")
                         with get_driver() as driver:
-                            print("Connection established.")
                             with driver.session() as session:
                                 create_nodes_batch(session, nodes_dic, create=create)
                         nodes_dic = None
                         ref_nodes_dic = None
                         
                         
-            creer_stats(set_genome, set_chromosome)
+            create_stats(set_genome, set_chromosome)
             nodes_size_dic = None
             print("Nodes creation is terminated\nTotal time : " + str(time.time()-temps_depart) + "\nGenomes analysed : " + str(set_genome) + "\nNodes number : "+str(total_nodes) )
         
@@ -922,7 +937,6 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
         
             print("Batch : " + str(current_batch) + " relationships creation, number to create : " + str(len(liste_relations)))
             with get_driver() as driver:
-                print("Connection established.")
                 with driver.session() as session:
                     creer_relations_batch(session, liste_relations)
             liste_relations = []
@@ -1016,7 +1030,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                         node_name = chromosome_file + "_" + ligne_dec[1]
                     else :
                         node_name = ligne_dec[1]
-                    nodes_size_dic[node_name]=int(len(ligne_dec[2]))
+                    nodes_size_dic[ligne_dec[1]]=int(len(ligne_dec[2]))
                     if start_chromosome is None or print_header_sequences :
                         sequences_writer.writerow([last_node_id, node_name, ligne_dec[2]])
                         last_node_id += 1
@@ -1197,10 +1211,11 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                                             if chromosome_prefix or (chromosome_file is not None and chromosome_file != ""):
                                                 node = chromosome + "_" + node
                                             prefix_ref_node = node
-                                            if chromosome_file is not None and chromosome_file != "":
-                                                ref_node = node
+                                            
                                             #Node is consider only if it is part of batch
                                             if ref_node in nodes_batch_set:
+                                                if chromosome_file is not None and chromosome_file != "":
+                                                    ref_node = node
                                                 strand = ""
                                                 if (i < len(liste_strand) and liste_strand[i] in ["-", "<"]):
                                                     strand = "M"
@@ -1468,7 +1483,6 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
 
 
             with get_driver() as driver:
-                print("Connection established.")
                 with driver.session() as session:
                     create_nodes_batch(session, nodes_dic, node_name=node_name)
 
@@ -1635,9 +1649,9 @@ def creer_relations_annotations_neo4j(genome_ref, chromosome=None):
 #If the gfa relate to a single chromosome, chromosome_file must contains the reference of this chromosome (1, 2, X, Y, etc.)
 #batch_size value is important to limit memory usage, according to the memory available it can be necessary to reduce this value for big pangenomes graphs.
 #genome_ref is required if an annotation_file_name is present : this name is used to link the annotations nodes with the main nodes of the graph.
-def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
+def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, chromosome_file = None, chromosome_prefix = False, batch_size = 2000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
     start_time = time.time()
-    charger_sequences(gfa_file_name, chromosome_file, create=create)
+    load_sequences(gfa_file_name, chromosome_file, create=create)
     sequence_time = time.time()
     print("Sequences loaded in " + str(sequence_time-start_time) + " s")
     load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = chromosome_file,  chromosome_prefix = chromosome_prefix, batch_size = batch_size, create = create, start_chromosome = start_chromosome, haplotype=haplotype, create_only_relations=create_only_relations)
@@ -1672,7 +1686,7 @@ def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None,
             chromosome = chromosome.lstrip("0")
             print("Loading chromosome : " + str(chromosome))
             if chromosome != "" :
-                charger_sequences(gfa_file_name, chromosome_file=chromosome, create=create)
+                load_sequences(gfa_file_name, chromosome_file=chromosome, create=create)
                 load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = chromosome_file, batch_size = batch_size, start_node = start_node, create = create)
     db_time = time.time()
     print("Sequences loaded in " + str(db_time-start_time) + " s")
@@ -1691,9 +1705,8 @@ def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None,
                  
             
 def contruire_sequences_et_indexes_bdd(gfa_file_name, kmer_size=31):
-    dic_kmer_relation, nodes_dic = charger_sequences_et_indexes(gfa_file_name, kmer_size=31)
+    dic_kmer_relation, nodes_dic = load_sequences(gfa_file_name, kmer_size=31)
     with get_driver() as driver:
-        print("Connection established.")
         with driver.session() as session:
             creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
         

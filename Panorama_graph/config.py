@@ -58,14 +58,34 @@ def start_neo4j_container(container_name, DB_URL, AUTH):
     # Waiting for neo4j up
     time.sleep(neo4j_start_delay)
     i = 0
-    while test_connection(DB_URL, AUTH) == False and i < max_iter_test_connexion :
+    while not test_connection(DB_URL, AUTH) and i < max_iter_test_connexion:
         i += 1
-        print("trying to connect to database - iteration " + str(i))
+        print(f"⏳ Trying to connect to database – attempt {i}")
         time.sleep(neo4j_start_delay)
-    if i < max_iter_test_connexion :
-        print("database up")
-    return True
 
+    if i < max_iter_test_connexion:
+        print("✅ Database is up.")
+        return True
+    else:
+        print("❌ Database did not start in time.")
+        return False
+
+def stop_container():
+    conf = load_config_from_json()
+    if not conf:
+        print("⚠️ db_conf.json not present, could not connect to neo4j DB.")
+        return None
+    container_name = conf.get("container_name")
+    try:
+        subprocess.run(["docker", "stop", container_name], check=True)
+        time.sleep(10)
+        print("container stopped")
+    except subprocess.CalledProcessError as e:
+        print(f"Fail to stop container : {e}")
+        return False
+
+        
+        
 def get_driver():
     global DB_URL, AUTH
 

@@ -13,6 +13,7 @@ import os
 from config import get_driver
 
 
+
 app = Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
 
