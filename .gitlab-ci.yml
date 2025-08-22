@@ -1,5 +1,3 @@
-image: debian:bullseye
-
 stages:
   - archive
   - release
@@ -25,6 +23,7 @@ release_graph:
   dependencies:
     - create_panorama_graph_archive
   script:
+    - ls -lh dist/
     - mkdir -p release
     - cp dist/Panorama_graph-$CI_COMMIT_TAG.zip release/
   only:
