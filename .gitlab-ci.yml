@@ -33,7 +33,7 @@ release_graph:
     echo "Archive name: $ZIP_NAME"
 
     ls -l dist/$ZIP_NAME
-
+    echo "Token length: ${#GITLAB_PRIVATE_TOKEN}"
     echo "Uploading archive to GitLab release..."
     UPLOAD_RESPONSE=$(curl --silent --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
       -F "file=@dist/$ZIP_NAME" \
