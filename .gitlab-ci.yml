@@ -4,28 +4,39 @@ stages:
   - archive
   - release
 
+variables:
+  ZIP_NAME: "Panorama_graph-$CI_COMMIT_TAG.zip"
+
 create_panorama_graph_archive:
   stage: archive
   script:
     - apt-get update && apt-get install -y zip
-    - ZIP_NAME="Panorama_graph-$CI_COMMIT_TAG.zip"
     - mkdir -p dist
     - cd Panorama_graph
     - zip -r "../dist/$ZIP_NAME" . -x "*.git*" "../dist/*"
     - cd ..
+    - ls -lh dist/
   only:
     - tags
   artifacts:
+    name: "$ZIP_NAME"
     paths:
-      - dist/Panorama_graph-$CI_COMMIT_TAG.zip
+      - dist/
     expire_in: 1 week
 
 release_graph:
   stage: release
-  dependencies:
-    - create_panorama_graph_archive
-  script:
-    - mkdir -p release
-    - cp dist/Panorama_graph-$CI_COMMIT_TAG.zip release/
+  needs:
+    - job: create_panorama_graph_archive
+      artifacts: true
+  script: []
   only:
     - tags
+  release:
+    tag_name: "$CI_COMMIT_TAG"
+    name: "Release $CI_COMMIT_TAG"
+    description: "Automated release for tag $CI_COMMIT_TAG"
+    assets:
+      links:
+        - name: "$ZIP_NAME"
+          url: "$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/dist/$ZIP_NAME"
