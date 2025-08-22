@@ -26,6 +26,20 @@ It allows the following functionalities :
   - Manual way : 
       - Load conda environnement : conda activate panorama_graph
       - Run index.py (python index.py) and go to http://localhost:8050
+  Prepare database
+  - Go to "DB management" page, give a name to your container (e.g. DB_my_species_PGGB) and click on "Create new DB"
+  - If no data (dump or csv) where in the ./data/import directory, load GFA data by selecting GFA file (if the file concerns only a single chromosome it is required to set the chromosome name)
+  - Load annotations by selecting the file and the genome related. Before to load annotations it is required that indexex are fully created (after creating data or loading GFA the indexes are automatically created but if data are big it requires some time)
+  Once data are loaded the tool can be ued (see quick pages description).
+
+## Quick pages description
+  The menu allow to navigate on differents pages :
+
+  - DB management : this page is used only on the start to create DB and load data.
+  - Home page : page to vizualise data (by defining the chromosome, start and stop or genome and gene_name / gene_id).
+  - GWAS : page to detect the nodes shared by a selection of haplotypes. It computes the list of identified regions that can be exported in csv. Sequence associated to a region can be seen by clicking on "size" column.
+  - Phylogenetic : on left it is possible to load a reference phylogenetic tree. On right, by clicking on the "Plot tree..." button it computes the tree of the region defined in the Home page.
+  - Sequences : by clicking on the button it computes the sequence for each haplotype of the region selected in the home page.
 
 ## Install neo4
     See the readme in neo4j_install directory
