@@ -5,11 +5,11 @@ create_graph_archive:
   stage: archive
   script:
     - mkdir -p dist
-    - cd panorama_graph
-    - zip -r "../dist/panorama_graph-$CI_COMMIT_TAG.zip" . -x "*.git*" "../dist/*"
+    - cd Panorama_graph
+    - zip -r "../dist/Panorama_graph-$CI_COMMIT_TAG.zip" . -x "*.git*" "../dist/*"
   only:
     - tags
   artifacts:
     paths:
-      - dist/panorama_graph-$CI_COMMIT_TAG.zip
-    expire_in: 1 week
+      - dist/Panorama_graph-$CI_COMMIT_TAG.zip
+    expire_in: never
