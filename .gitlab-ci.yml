@@ -31,16 +31,28 @@ release_graph:
     echo "Tag: $CI_COMMIT_TAG"
     ZIP_NAME="Panorama_graph-$CI_COMMIT_TAG.zip"
     echo "Archive name: $ZIP_NAME"
-  
+
+    ls -l dist/$ZIP_NAME
+
     echo "Uploading archive to GitLab release..."
-  
     UPLOAD_RESPONSE=$(curl --silent --header "JOB-TOKEN: $CI_JOB_TOKEN" \
       --upload-file "dist/$ZIP_NAME" \
       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/uploads")
-  
+
+    echo "Upload response: $UPLOAD_RESPONSE"
+
     ASSET_URL=$(echo "$UPLOAD_RESPONSE" | jq -r .url)
+    echo "Extracted ASSET_URL: $ASSET_URL"
+
+    if [ "$ASSET_URL" = "null" ] || [ -z "$ASSET_URL" ]; then
+      echo "Error: Upload failed or URL is null."
+      exit 1
+    fi
+
     FULL_ASSET_URL="$CI_PROJECT_URL$ASSET_URL"
-  
+    echo "Full asset URL: $FULL_ASSET_URL"
+
+    # Création de la release
     curl --request POST --header "JOB-TOKEN: $CI_JOB_TOKEN" \
       --header "Content-Type: application/json" \
       --data "{
@@ -57,9 +69,7 @@ release_graph:
         }
       }" \
       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases"
-  
-    echo "CI_PROJECT_URL: $CI_PROJECT_URL"
-    echo "ASSET_URL: $ASSET_URL"
-    echo "Full link: $FULL_ASSET_URL"
+
+    echo "Release created with asset."
   only:
     - tags
