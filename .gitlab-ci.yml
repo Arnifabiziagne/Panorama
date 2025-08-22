@@ -24,11 +24,11 @@ create_panorama_graph_archive:
 
 release_graph:
   stage: release
-  image: curlimages/curl:latest
+  image: debian:bullseye
   dependencies:
     - create_panorama_graph_archive
   before_script:
-    - apk update && apk add --no-cache jq
+    - apt-get update && apt-get install -y curl jq
   script:
     - |
       echo "Uploading archive to GitLab release..."
