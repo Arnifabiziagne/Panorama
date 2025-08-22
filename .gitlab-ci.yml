@@ -35,7 +35,8 @@ release_graph:
     ls -l dist/$ZIP_NAME
     echo "Token length: ${#GITLAB_PRIVATE_TOKEN}"
     echo "Uploading archive to GitLab release..."
-    UPLOAD_RESPONSE=$(curl --silent --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
+    echo "$CI_PROJECT_ID"
+    UPLOAD_RESPONSE=$(curl --silent --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
       -F "file=@dist/$ZIP_NAME" \
       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/uploads")
 
@@ -53,7 +54,7 @@ release_graph:
     echo "Full asset URL: $FULL_ASSET_URL"
 
     # Création de la release avec le bon token
-    curl --request POST --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
+    curl --request POST --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
       --header "Content-Type: application/json" \
       --data "{
         \"name\": \"$CI_COMMIT_TAG\",
