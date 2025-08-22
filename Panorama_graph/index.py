@@ -14,18 +14,20 @@ import pages.home as home
 import pages.phylogenetic as phylogenetic
 import pages.sequences as sequences
 import pages.gwas as gwas
+import pages.db_management as db_management
 import callbacks.phylogenetic_callbacks
 import callbacks.gwas_callbacks
 import callbacks.sequences_callbacks
+import callbacks.db_management_callbacks
 
 from neo4j_requests import *
+
 from config import get_driver
 
 version="1.0.0"
 
 
 
-driver = get_driver()
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dcc.Store(id='shared_storage_nodes', data=[], storage_type='memory'),
@@ -99,6 +101,8 @@ def display_page(pathname):
         return phylogenetic.layout()
     elif pathname == "/gwas":
         return gwas.layout()
+    elif pathname == "/db_management":
+        return db_management.layout()
     elif pathname == "/sequences":
         return sequences.layout()
     else:

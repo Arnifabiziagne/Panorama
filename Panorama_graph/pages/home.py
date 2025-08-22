@@ -636,7 +636,8 @@ def update_parameters_on_page_load(pathname, data, options):
     if "selected_chromosome" in data: 
         selected_chromosome = data["selected_chromosome"]
     else:
-        selected_chromosome = options[0]["value"]
+        if options:
+            selected_chromosome = options[0]["value"]
     if "start" in data:
         start_input = data["start"]
     if "end" in data:

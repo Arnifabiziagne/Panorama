@@ -45,6 +45,8 @@ logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 
 def get_anchor(genome, chromosome, position, before = True):
+    if get_driver() is None :
+        return None
     genome_position = genome+"_position"
     window_size=1000
     max_attemps = 500
@@ -114,7 +116,8 @@ def get_anchor(genome, chromosome, position, before = True):
 #for each haplotype the start and stop are given by the first anchor node before the start position and the first after the end position
 #Anchor node is a node with all haplotypes
 def get_nodes_by_region(genome, chromosome, start, end ):
-
+    if get_driver() is None :
+        return []
     temps_depart = time.time()
     nodes_data = {}
     if end is None:
@@ -196,6 +199,8 @@ def get_nodes_by_region(genome, chromosome, start, end ):
 
 
 def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
+    if get_driver() is None :
+        return []
     with get_driver() as driver:
 
         nodes_data = {}
@@ -231,6 +236,8 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
 
 #This function get first annotation on nodes of a reference_genome on a given chromosome after the given position
 def get_first_annotation_after_position(genome_ref, chromosome="1", position=0):
+    if get_driver() is None :
+        return {}
     with get_driver() as driver:
 
         query = f"""
@@ -251,6 +258,8 @@ def get_first_annotation_after_position(genome_ref, chromosome="1", position=0):
 
 #This function get all annotations on nodes of a reference_genome on a given chromosome between start_position and end_position
 def get_annotations_in_position_range(genome_ref, chromosome="1", start_position=0, end_position=0):
+    if get_driver() is None :
+        return []
     with get_driver() as driver:
 
         query = f"""
@@ -267,6 +276,8 @@ def get_annotations_in_position_range(genome_ref, chromosome="1", start_position
 
 #This function will get all chromosomes present in the pangenome graph
 def get_chromosomes():
+    if get_driver() is None :
+        return []
     with get_driver() as driver:
     
         query = """
@@ -284,6 +295,8 @@ def get_chromosomes():
 
 #This function will get the number of nodes in the graph
 def get_nodes_number(chromosome=None):
+    if get_driver() is None :
+        return 0
     total = 0
     with get_driver() as driver:
         if chromosome is None and chromosome != "":
@@ -307,6 +320,8 @@ def get_nodes_number(chromosome=None):
 
 #This function will get all genomes present in the pangenome graph
 def get_genomes():
+    if get_driver() is None :
+        return []
     with get_driver() as driver:
     
         query = """
@@ -323,6 +338,8 @@ def get_genomes():
 
 #This function get a sequence from a list of nodes names list
 def get_sequence_from_names(names):
+    if get_driver() is None :
+        return None
     if len(names) == 0 :
         return {}
     else:
@@ -341,6 +358,8 @@ def get_sequence_from_names(names):
 
 #This function get a sequence from a start - end / chromosome position for a given genome
 def get_sequence_from_position(genome, chromosome, start, end):
+    if get_driver() is None :
+        return None
     sequence = ""
     if genome is None or genome == "" or chromosome is None or chromosome == "" or start is None or end is None :
         return None
@@ -410,6 +429,8 @@ def get_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min
             
 
 def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = "before", chromosome="1"):
+    if get_driver() is None :
+        return None
     with get_driver() as driver:
         if type_search == "before" :
 
@@ -442,6 +463,8 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
 #node_min_size : the nodes smaller than this value will be ignored (to avoid to look for all snp, if the are required then set this value to 0)
 #nodes_max_gap : this gap i sused to gather find regions into a bigger regions if the initial find regions are separated by less than this value (in numer of nodes)
 def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=80, tolerance_percentage = 10):
+    if get_driver is None :
+        return {},{}
     dic_regions = {}
     time_0 = time.time()
     if min_percent_selected_genomes > 100:
@@ -679,6 +702,8 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
 #it computes the Jaccard distance on these nodes
 #and it returns the distance matrix and the distance matrix weighted by the nodes size
 def compute_phylo_tree_from_nodes(nodes_data,output_dir = "", weighted=False):
+    if get_driver() is None :
+        return None
     genomes = get_genomes()
     nodes_nb = len(nodes_data)
     genome_redondant_strand_matrix = np.zeros((len(genomes),2 * nodes_nb), dtype=np.int32)
@@ -765,6 +790,8 @@ def compute_phylo_tree_from_nodes(nodes_data,output_dir = "", weighted=False):
 
 #Computes the distance matrix on the whole GFA (could take a long time for big GFA)
 def compute_distance_matrix(distance_matrix_filename = "distances.csv", chromosome=None, ponderation=True, strand=False):
+    if get_driver() is None :
+        return None
     temps_depart = time.time()
     with get_driver() as driver:
         with driver.session() as session:
