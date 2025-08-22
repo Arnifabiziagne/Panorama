@@ -35,7 +35,7 @@ release_graph:
     ls -l dist/$ZIP_NAME
 
     echo "Uploading archive to GitLab release..."
-    UPLOAD_RESPONSE=$(curl --silent --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+    UPLOAD_RESPONSE=$(curl --silent --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
       -F "file=@dist/$ZIP_NAME" \
       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/uploads")
 
