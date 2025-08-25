@@ -26,12 +26,12 @@ It allows the following functionalities :
   - Manual way : 
       - Load conda environnement : conda activate panorama_graph
       - Run index.py (python index.py) and go to http://localhost:8050
-  Prepare database (IHM)
+- Prepare database (IHM)
   - Go to "DB management" page, give a name to your container (e.g. DB_my_species_PGGB) and click on "Create new DB"
   - If no data (dump or csv) where in the ./data/import directory, load GFA data by selecting GFA file (if the file concerns only a single chromosome it is required to set the chromosome name)
   - Load annotations by selecting the file and the genome related. Before to load annotations it is required that indexex are fully created (after creating data or loading GFA the indexes are automatically created but if data are big it requires some time)
   Once data are loaded the tool can be ued (see quick pages description).
-  Prepare database (command line):
+- Prepare database (command line):
   - It is possible to prepare database with command lines : go into neo4j_install directory and run the script (replace $container_name with the desired name) : bash ./setup_neo4j.sh --container-name $container_name
 
 ## Quick pages description
