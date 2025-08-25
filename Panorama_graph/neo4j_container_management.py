@@ -36,6 +36,7 @@ NEO4J_AUTH = "neo4j/Administrateur"
 NEO4J_LOGIN = "neo4j"
 NEO4J_PASSWORD = "Administrateur"
 
+MAX_TIME_INDEX = 7200
 
 def prepare_data_directories_in_container():
     """
@@ -231,11 +232,19 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
     start_container(container_name)
 
     if csv_import_mode:
-        print("creating stats")
-        create_stats_from_nodes()
-        print("creating indexes")
-        create_indexes(base=True, extend=True, genomes_index=True)
 
+        print("creating base indexes")
+        create_indexes(base=True, extend=False, genomes_index=False)
+        if check_state_index("NodeIndexChromosome") is not None:
+            t = 0
+            while int(check_state_index("NodeIndexChromosome")) < 100 and t < MAX_TIME_INDEX:
+                sleep(10)
+                t+=10
+            print("creating stats")
+            create_stats_from_nodes()
+        print("creating other indexes")    
+        create_indexes(base=False, extend=True, genomes_index=True)
+    
     
     
 def dump_db(container_name, docker_image=DOCKER_IMAGE):
