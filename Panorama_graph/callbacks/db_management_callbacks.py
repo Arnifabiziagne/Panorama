@@ -15,7 +15,7 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-from app import app
+from app import app, DB_VERSION
 from neo4j_requests import *
 from neo4j_DB_construction import *
 from neo4j_container_management import *
@@ -24,6 +24,8 @@ import base64
 import io
 import shutil
 
+
+PREFIX_CONTAINER_NAME = "DB_"+ DB_VERSION + "_"
 
 success_style = {"color": "green", "marginTop": "10px"}
 warning_style = {"color": "orange", "marginTop": "10px"}
@@ -36,6 +38,11 @@ DATA_FOLDER = os.path.join(PROJECT_ROOT, "data", "data")
 ANNOTATIONS_FOLDER = os.path.join(PROJECT_ROOT, "data", "annotations")
 
 BATCH_SIZE = 2000000
+
+
+def get_container_name_no_prefix(container_name):
+    return re.sub(r'^DB_.[^_]+_', '',container_name)
+
 
 ############# Data callbacks#################
 
@@ -182,6 +189,8 @@ def on_click_create_index(n_clicks):
     return html.Div(f"✅ Indexes creation command successfully done.", style=success_style)
 
 
+
+
 ############# Annotations callbacks#################
 
 
@@ -291,14 +300,14 @@ def update_label(data):
     if "container_name" not in data :
         conf = load_config_from_json()
         if not conf:
-            return f'No conf file found. Use "create new DB" procedure to generate it.', "BDD_container", data
+            return f'No conf file found. Use "create new DB" procedure to generate it.', "container_name", data
         else:
             container_name = conf.get("container_name")
-            data['container_name'] = container_name
-            return f'Nom du conteneur : {container_name}', container_name, data
+            data['container_name'] = get_container_name_no_prefix(container_name)
+            return f'Container name : {container_name}', get_container_name_no_prefix(container_name), data
     else:
-        container_name = data['container_name']
-        return f"Nom du conteneur : {container_name}", container_name, data
+        container_name = PREFIX_CONTAINER_NAME+data['container_name']
+        return f"Container name : {container_name}", get_container_name_no_prefix(container_name), data
     
     
 @app.callback(
@@ -328,6 +337,7 @@ def create_db_ask_confirmation(n_clicks):
     prevent_initial_call=True
 )
 def confirm_create_db(n_clicks,container_name, docker_image, data, options):
+    print("container name : " + container_name)
     if not n_clicks:
         raise exceptions.PreventUpdate
     if container_name is None or container_name == "":
@@ -337,6 +347,7 @@ def confirm_create_db(n_clicks,container_name, docker_image, data, options):
             return html.Div("❌ No container name", style=error_style), "", data, options
     else :
         data['container_name'] = container_name
+        container_name=PREFIX_CONTAINER_NAME+container_name
     try:
         create_db(container_name, docker_image)
         genomes = get_genomes()
@@ -351,23 +362,20 @@ def confirm_create_db(n_clicks,container_name, docker_image, data, options):
 @app.callback(
     Output("create-db-message", "children", allow_duplicate=True),
     Input("btn-dump-db", "n_clicks"),
-    State("container-name-input","value"),
     State("docker-image-dropdown","value"),
     State('db-management-page-store', 'data'),
     prevent_initial_call=True
 )
-def confirm_create_db(n_clicks,container_name, docker_image, data):
+def dump_db(n_clicks, docker_image, data):
     if not n_clicks:
         raise exceptions.PreventUpdate
         
-    
-    if container_name is None or container_name == "":
-        if 'container_name' in data and data["container_name"] is not None and data["container_name"] != "":
-            container_name = data["container_name"]
-        else:
-            return html.Div("❌ No container name", style=error_style)
-    else :
-        data['container_name'] = container_name
+
+    if 'container_name' in data and data["container_name"] is not None and data["container_name"] != "":
+        container_name = PREFIX_CONTAINER_NAME+data["container_name"]
+    else:
+        return html.Div("❌ No container name, you have to create the databse before", style=error_style)
+
     try:
         dump_db(container_name, docker_image=DOCKER_IMAGE)
         return html.Div("✅ DB successfully dumped.", style=success_style)

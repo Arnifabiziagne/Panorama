@@ -11,11 +11,11 @@ from dash import html, dcc, Input, Output, State, ctx
 import dash_cytoscape as cyto
 
 from neo4j_requests import *
-from app import app
+from app import app, DB_VERSION
 
 from neo4j_available_docker_images_conf import AVAILABLE_DOCKER_IMAGES
 
-
+PREFIX_CONTAINER_NAME = "DB_"+ DB_VERSION + "_"
 
 # Layout de la page
 def layout():
@@ -47,7 +47,12 @@ def layout():
             ),
         ], style={'margin-bottom': '20px'}),
         html.Div([
-        html.Label("📦 Neo4j container name :"),
+           
+        html.Label("📦 Neo4j container name :  "),
+        html.Span(PREFIX_CONTAINER_NAME, style={
+        'fontWeight': 'bold',
+        'paddingRight': '5px'
+    }),
             dcc.Input(
                 id='container-name-input',
                 type='text',

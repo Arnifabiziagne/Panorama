@@ -13,6 +13,9 @@ import os
 from config import get_driver
 
 
+#Database version. This version is associated with a database model; 
+#compatibility with other versions is not guaranteed.
+DB_VERSION="1.0.0"
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 server = app.server

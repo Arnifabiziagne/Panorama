@@ -17,7 +17,7 @@ from config import get_driver
 
 #Version of BDD
 #The version relate to the DB structure
-version="1.0.0"
+from app import DB_VERSION
 """DB structure for this version
 
 Nodes :

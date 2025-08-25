@@ -24,7 +24,7 @@ from neo4j_requests import *
 
 from config import get_driver
 
-version="1.0.0"
+
 
 
 
