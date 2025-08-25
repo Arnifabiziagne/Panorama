@@ -91,8 +91,14 @@ def layout():
             ])
         ]),
         html.Br(),
-        html.H4("If GFA concern only one chromosome, or if no chromosome, specify the chromosome value here (0 if no chromosome): "),
-        dcc.Input(id='db-chromosome-input', style={'width': '100px', 'marginRight': '10px'}),
+        html.Div([
+            html.H4("If GFA concern only one chromosome, or if no chromosome, specify the chromosome value here (0 if no chromosome):  "),
+            dcc.Input(id='db-chromosome-input', style={'width': '100px', 'marginRight': '10px'}),
+        ], style={'display': 'flex', 'alignItems': 'center'}),
+        html.Div([
+            html.H4("Batch size. According to your ram available : bigger batch size will go faster but will consume more memory. Recommended 2 000 000):  "),
+            dcc.Input(id='db-batch-size-input', type='number', value = 2000000, style={'width': '100px', 'marginRight': '10px'}),
+        ], style={'display': 'flex', 'alignItems': 'center'}),
         html.Br(),
         dcc.Upload(
             id="upload-gfa",
