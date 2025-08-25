@@ -95,10 +95,10 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFA
         else:
             list_chromosome_file = []
             for f in gfa_file_names:
-                if "_" in gfa_file_name:
-                    chromosome = gfa_file_name[:-4].split("_")[-1]
+                if "_" in f:
+                    chromosome = f[:-4].split("_")[-1]
                 else:
-                    chromosome = gfa_file_name[:-4]
+                    chromosome = f[:-4]
 
                 chromosome = chromosome.lower().removeprefix("chr")
                 chromosome = chromosome.lstrip("0")
