@@ -37,7 +37,8 @@ GFA_FOLDER = os.path.join(PROJECT_ROOT, "data", "gfa")
 DATA_FOLDER = os.path.join(PROJECT_ROOT, "data", "data")
 ANNOTATIONS_FOLDER = os.path.join(PROJECT_ROOT, "data", "annotations")
 
-BATCH_SIZE = 2000000
+DEFAULT_BATCH_SIZE = 2000000
+MIN_BATCH_SIZE = 1000
 
 
 def get_container_name_no_prefix(container_name):
@@ -66,14 +67,16 @@ def update_gfa_upload_text(filenames):
     Input("btn-load-gfa", "n_clicks"),
     State("upload-gfa", "filename"),
     State("db-chromosome-input", "value"),
+    State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
-def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file):
+def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFAULT_BATCH_SIZE):
     if not gfa_file_names:
         return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), [
             "Drag and Drop or ", html.A("Select one or more GFA Files")
         ]
-
+    if batch_size < MIN_BATCH_SIZE:
+        batch_size = MIN_BATCH_SIZE
     # Force to list
     if isinstance(gfa_file_names, str):
         gfa_file_names = [gfa_file_names]
@@ -110,10 +113,10 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file):
         if chromosome_file != "" :
             file_path = os.path.join(GFA_FOLDER, file_name)
             load_sequences(file_path, chromosome_file=chromosome_file, create=True)
-            load_gfa_data_to_neo4j(file_path, chromosome_file = chromosome_file, batch_size = BATCH_SIZE, start_chromosome = None, create = True, haplotype = True, create_only_relations = False)
+            load_gfa_data_to_neo4j(file_path, chromosome_file = chromosome_file, batch_size = batch_size, start_chromosome = None, create = True, haplotype = True, create_only_relations = False)
         print(f"Graph from {file_name} loaded in {time.time() - start_time:.2f} s")
 
-    create_indexes(base=False, extend=True, genomes_index=True)
+    create_indexes(base=True, extend=True, genomes_index=True)
     print("✅ All GFA files loaded.")
 
     return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style), [
@@ -126,15 +129,18 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file):
     Input("btn-csv-import", "n_clicks"),
     State("upload-gfa", "filename"),
     State("db-chromosome-input", "value"),
+    State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
-def on_click_csv_import(n_clicks, gfa_file_names, chromosome_file):
+def on_click_csv_import(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFAULT_BATCH_SIZE):
     print("generate import csv")
     if not gfa_file_names:
         return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), [
             "Drag and Drop or ", html.A("Select one or more GFA Files")
         ]
-
+    
+    if batch_size < MIN_BATCH_SIZE:
+        batch_size = MIN_BATCH_SIZE
     # Force to list
     if isinstance(gfa_file_names, str):
         gfa_file_names = [gfa_file_names]
@@ -168,9 +174,8 @@ def on_click_csv_import(n_clicks, gfa_file_names, chromosome_file):
         chromosome_file = list_chromosome_file[i]
         if chromosome_file != "" :
             file_path = os.path.join(GFA_FOLDER, file_name)
-            load_gfa_data_to_csv(file_path, import_dir="./data/import", chromosome_file = chromosome_file, chromosome_prefix = False, batch_size = 2000000, start_chromosome = None, haplotype = True)
+            load_gfa_data_to_csv(file_path, import_dir="./data/import", chromosome_file = chromosome_file, chromosome_prefix = False, batch_size = batch_size, start_chromosome = None, haplotype = True)
         print(f"CSV generation from {file_name} loaded in {time.time() - start_time:.2f} s")
-
     print("✅ All GFA files loaded.")
 
     return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style), [
