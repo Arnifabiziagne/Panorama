@@ -998,13 +998,18 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     print_header_sequences = not os.path.isfile(import_dir+"/sequences.csv")
     print_header_long_sequences = not os.path.isfile(import_dir+"/long_sequences.csv")
     last_node_id = 0
+    header_file = None
     if os.path.isfile(import_dir+"/nodes.csv") :
         last_line = None
+        cpt_lines = 0
         with open(import_dir+"/nodes.csv", mode='r', newline='') as file_node:
             reader = csv.reader(file_node)
             while True:
                 try:
                     line = next(reader)
+                    cpt_lines +=1
+                    if cpt_lines == 1:
+                        header_file = line
                     if line:
                         last_line = line
                 except StopIteration:
@@ -1019,7 +1024,19 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
         sequences_writer.writerow([":ID", "name", "sequence:STRING"])
     file = open(gfa_file_name, "r", encoding='utf-8')
     
-    csv_fields_index = {"id":0,"name":1, "max":2, "ref_node":3, "size" : 4, "chromosome"  : 5, "position_min":6, "position_max":7, "genomes":8, "strandP":9, "strandM": 10, "position_mean" : 11, "flow" : 12}
+    
+    if header_file is not None :
+        header_list = header_file.split(",")
+        pos = 0
+        for h in header_list:
+            header_name = h.split(":")[0]
+            if header_name != "" :
+                csv_fields_index["id"] = pos
+            else:
+                csv_fields_index[header_name] = pos
+            pos += 1
+    else:
+        csv_fields_index = {"id":0,"name":1, "max":2, "ref_node":3, "size" : 4, "chromosome"  : 5, "position_min":6, "position_max":7, "genomes":8, "strandP":9, "strandM": 10, "position_mean" : 11, "flow" : 12}
     with file:
         
         #First file browsing to get length, nodes and haplotypes
@@ -1065,13 +1082,14 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             ligne = file.readline() 
         last_index = len(csv_fields_index)
         node_id = last_node_id
-        csv_header_node = [":ID", "name:STRING", "max:LONG","ref_node:STRING", "size:LONG", "chromosome:STRING", "position_min:LONG", "position_max:LONG", "genomes:STRING[]","strandP:STRING[]", "strandM:STRING[]", "position_mean:LONG", "flow:DOUBLE"]
-        for g in set_all_genomes:
-            csv_fields_index[g+"_position"] = last_index
-            csv_header_node.append(g+"_position:LONG")
-            csv_fields_index[g+"_node"] = last_index + 1
-            csv_header_node.append(g+"_node:LONG")
-            last_index += 2
+        if print_header_nodes :
+            csv_header_node = [":ID", "name:STRING", "max:LONG","ref_node:STRING", "size:LONG", "chromosome:STRING", "position_min:LONG", "position_max:LONG", "genomes:STRING[]","strandP:STRING[]", "strandM:STRING[]", "position_mean:LONG", "flow:DOUBLE"]
+            for g in sorted(set_all_genomes):
+                csv_fields_index[g+"_position"] = last_index
+                csv_header_node.append(g+"_position:LONG")
+                csv_fields_index[g+"_node"] = last_index + 1
+                csv_header_node.append(g+"_node:LONG")
+                last_index += 2
         csv_nodes_file = open(import_dir+"/nodes.csv", "a", newline="", encoding="utf-8") 
         nodes_writer = csv.writer(csv_nodes_file)
         if print_header_nodes:
@@ -1201,6 +1219,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                                         prefix_ref_node = ""
                                         strand = ""
                                         ligne_dec=None
+                                        dic_node_update = {}
                                         #Graph linearization
                                         # Browse nodes list : if node already exist for the same sequence
                                         # then create a new node (For example, if it is the sixth iteration for node S1, we will create S1_6)
@@ -1290,6 +1309,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                                                             tmp_node_ref_id = dic_batch_nodes_index[prefix_ref_node]
                                                             tmp_max = csv_nodes_lines[tmp_node_ref_id][csv_fields_index["max"]]
                                                             csv_nodes_lines[tmp_node_ref_id]=update_csv_line(csv_fields_index, {"max":tmp_max+1}, csv_nodes_lines[tmp_node_ref_id])
+
                                             nodes_count[genome][chromosome] += 1
                                             position_count[genome][chromosome]["current_position"] += size
                                             #compute relations
