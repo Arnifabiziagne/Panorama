@@ -1037,7 +1037,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             pos += 1
     else:
         csv_fields_index = {"id":0,"name":1, "max":2, "ref_node":3, "size" : 4, "chromosome"  : 5, "position_min":6, "position_max":7, "genomes":8, "strandP":9, "strandM": 10, "position_mean" : 11, "flow" : 12}
-    print("csv field index : " + str(csv_fields_index))
+    #print("csv field index : " + str(csv_fields_index))
     with file:
         
         #First file browsing to get length, nodes and haplotypes
