@@ -26,7 +26,7 @@ IMPORT_DIR = os.path.abspath("./data/import")
 DUMP_FILE = os.path.join(IMPORT_DIR, "neo4j.dump")
 #Read buffer size is important in case of csv import : 
 # it limits the line's size (by default 4 * 1024 * 1024) : for long nodes sequences it could be necessary to improve this value
-READ_BUFFER_SIZE = 16777216
+READ_BUFFER_SIZE = 33554432
 
 MAX_MEM = "24g"
 MAX_SWAP = "25g"
@@ -87,8 +87,8 @@ def import_csv():
         "--verbose",
         f"--read-buffer-size={READ_BUFFER_SIZE}",
         f"--max-off-heap-memory={MAX_MEM}",
-        "--nodes=Node=/import/nodes.csv",
         "--nodes=Sequence=/import/sequences.csv",
+        "--nodes=Node=/import/nodes.csv",
         "--relationships=/import/relations.csv"
     ], check=True)
 
