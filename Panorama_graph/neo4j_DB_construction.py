@@ -135,7 +135,7 @@ def create_stats(set_genomes, set_chromosomes):
                 WITH s, collect(DISTINCT c) AS new_chromosomes
                 SET s.chromosomes = new_chromosomes
                 """
-                tx.run(query, genomes=list(set_genomes), chromosomes = list(set_chromosomes), version=version)
+                tx.run(query, genomes=list(set_genomes), chromosomes = list(set_chromosomes), version=DB_VERSION)
                 
     return
 
@@ -171,7 +171,7 @@ def create_stats_from_nodes():
                     chromosomes: $chromosomes,
                     version: $version
                 })
-            """, genomes=all_genomes, chromosomes=all_chromosomes, version=version)
+            """, genomes=all_genomes, chromosomes=all_chromosomes, version=DB_VERSION)
 
             print("✅ Stats node created with:", all_genomes, all_chromosomes)
 
