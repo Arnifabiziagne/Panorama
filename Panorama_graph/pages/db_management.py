@@ -125,9 +125,13 @@ def layout():
             html.Button("Create indexes", id="btn-create-index", n_clicks=0),
         ], style={'marginBottom': '10px'}),
         html.Br(),
-        html.Label("Create index in database (only after csv import procedure or if this step has failed"),
+        html.Label("Create index in database (only if this step has failed)."),
         html.Div([
             html.Button("Create indexes", id="btn-create-index", n_clicks=0)
+        ], style={'marginBottom': '10px'}),
+        html.Label("Create stats (only if this step has failed)."),
+        html.Div([
+            html.Button("Create stats", id="btn-create-stats", n_clicks=0)
         ], style={'marginBottom': '10px'}),
         dcc.Loading(
             id="loading-gfa-msg",

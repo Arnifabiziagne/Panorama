@@ -194,6 +194,17 @@ def on_click_create_index(n_clicks):
     return html.Div(f"✅ Indexes creation command successfully done.", style=success_style)
 
 
+@app.callback(
+    Output("gfa-message", "children", allow_duplicate=True),
+    Input("btn-create-stats", "n_clicks"),
+    prevent_initial_call=True
+)
+def on_click_create_index(n_clicks):
+    print("create stats")
+    create_stats_from_nodes()
+    print("Stats created")
+    return html.Div(f"✅ Stats creation command successfully done.", style=success_style)
+
 
 
 ############# Annotations callbacks#################

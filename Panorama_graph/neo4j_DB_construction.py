@@ -156,6 +156,8 @@ def create_stats_from_nodes():
             # Step 2: Get chromosomes
             query_chromosomes = """
                 MATCH (n:Node)
+                USING INDEX n:Node(chromosome)
+                WHERE n.chromosome IS NOT NULL
                 RETURN DISTINCT n.chromosome AS all_chromosomes
             """
             result = session.run(query_chromosomes)
