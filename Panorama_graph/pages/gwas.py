@@ -53,6 +53,13 @@ def layout():
         ], style={"display": "flex", "flexDirection": "row", "align-items": "center", "marginBottom": "20px"}),
         
         html.Br(), 
+
+        dcc.Dropdown(id='gwas_ref_genome_dropdown', placeholder="Reference genome : ", style={
+            "width": "250px",     
+            "minWidth": "150px",
+            "maxWidth": "100%",   
+            "flexShrink": 0
+        }),
     
         html.Button("Find shared regions", id='btn-find-shared', n_clicks=0, style={'margin': '15px 0'}),
         dcc.Loading(
@@ -88,7 +95,9 @@ def layout():
                 {"name": "chromosome", "id": "chromosome"},
                 {"name": "start", "id": "start"},
                 {"name": "stop", "id": "stop"},
+                {"name": "annotation before", "id": "annotation_before"},
                 {"name": "annotations", "id": "annotations"},
+                {"name": "annotation after", "id": "annotation_after"},
                 {"name": "size", "id": "size"}
             ],
             data=[],

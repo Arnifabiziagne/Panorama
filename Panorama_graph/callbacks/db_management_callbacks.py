@@ -382,7 +382,7 @@ def confirm_create_db(n_clicks,container_name, docker_image, data, options):
     State('db-management-page-store', 'data'),
     prevent_initial_call=True
 )
-def dump_db(n_clicks, docker_image, data):
+def dump_db_callback(n_clicks, docker_image, data):
     if not n_clicks:
         raise exceptions.PreventUpdate
         
@@ -391,7 +391,6 @@ def dump_db(n_clicks, docker_image, data):
         container_name = PREFIX_CONTAINER_NAME+data["container_name"]
     else:
         return html.Div("❌ No container name, you have to create the databse before", style=error_style)
-
     try:
         dump_db(container_name, docker_image=DOCKER_IMAGE)
         return html.Div("✅ DB successfully dumped.", style=success_style)
