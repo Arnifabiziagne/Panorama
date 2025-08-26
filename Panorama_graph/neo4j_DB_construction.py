@@ -525,8 +525,8 @@ def load_sequences(gfa_file_name, chromosome_file = None, create=False, batch_si
                             create_nodes_batch(session, nodes_dic, node_name="Sequence", create = create)
                         nodes_dic = {}
                     ligne = file.readline()
-        print("Nodes computed in " + str(time.time()-start_time))
-        print("Creating nodes in DB : " + str(len(nodes_dic)) + " nodes to create")
+        print("Sequences nodes computed in " + str(time.time()-start_time))
+        print("Creating sequences in DB : " + str(len(nodes_dic)) + " sequences to create")
         if len(nodes_dic) > 0 :
             with driver.session() as session:
                 create_nodes_batch(session, nodes_dic, node_name="Sequence", create = create)
@@ -667,7 +667,7 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
         print("Genomes number : " + str(len(set_all_genomes)) + " - chromosomes list : " + str(set_all_chromosomes))
         #If create_only_relations is set to True then the nodes are not processed
         if not create_only_relations :
-            print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(start_chromosome))
+            print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(first_chromosome))
             for k in range(index_first_chromosme,len(chromosomes_list)) :
                 c = chromosomes_list[k]
                 nodes_set_chromosome = set(nodes_set_next_chromosome)
@@ -779,11 +779,12 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                                                 size = nodes_size_dic[ref_node]
                                                 if chromosome_prefix or (chromosome_file is not None and chromosome_file != ""):
                                                     node = chromosome + "_" + node
-                                                if chromosome_file is not None and chromosome_file != "":
-                                                    ref_node = node
+
                                                 #Node is consider only if it is part of batch
 
                                                 if ref_node in nodes_batch_set:
+                                                    if chromosome_file is not None and chromosome_file != "":
+                                                        ref_node = node
                                                     strand = ""
                                                     if (i < len(liste_strand) and liste_strand[i] in ["-", "<"]):
                                                         strand = "M"
