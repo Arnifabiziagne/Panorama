@@ -122,7 +122,6 @@ def layout():
         html.Div([
             html.Button("Load", id="btn-load-gfa", n_clicks=0),
             html.Button("Generate CSV Import file", id="btn-csv-import", n_clicks=0),
-            html.Button("Create indexes", id="btn-create-index", n_clicks=0),
         ], style={'marginBottom': '10px'}),
         html.Br(),
         html.Label("Create index in database (only if this step has failed)."),
