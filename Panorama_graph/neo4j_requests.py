@@ -235,20 +235,26 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
 
 
 #This function get first annotation on nodes of a reference_genome on a given chromosome after the given position
-def get_first_annotation_after_position(genome_ref, chromosome="1", position=0):
+def get_annotation_before_or_after_position(genome_ref, chromosome="1", position=0, before=True):
     if get_driver() is None :
         return {}
     with get_driver() as driver:
-
-        query = f"""
-        MATCH (n:Node)-[:A_POUR_ANNOTATION]->(a:Annotation)
-        WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` > $position
-        WITH n, a
-        ORDER BY n.HER_position ASC
-        LIMIT 1
-        RETURN a.gene_id AS gene_id, a.gene_name AS gene_name, a.start AS start, a.end AS end
-        """  
-        
+        if before :
+            query = f"""
+            MATCH (a:Annotation)
+            WHERE a.genome_ref = "{genome_ref}" and a.chromosome = "{chromosome}" and a.end < $position and a.gene_name is not null
+            ORDER BY a.end DESC
+            LIMIT 1
+            RETURN a.gene_name AS gene_name, a.end as end, a.start as start
+            """  
+        else:
+            query = f"""
+            MATCH (a:Annotation)
+            WHERE a.genome_ref = "{genome_ref}" and a.chromosome = "{chromosome}" and a.start > $position and a.gene_name is not null
+            ORDER BY a.start ASC
+            LIMIT 1
+            RETURN a.gene_name AS gene_name, a.end as end, a.start as start
+            """  
         
         with driver.session() as session:
             result = session.run(query, position=position)
@@ -575,6 +581,8 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             else :
                                 if dic_regions[c][g]["nodes_position_list"][i] < dic_regions[c][g]["nodes_position_list"][i-1] + nodes_max_gap :
                                     region_stop = dic_regions[c][g]["nodes_position_list"][i]
+                                    if i == len(dic_regions[c][g]["nodes_position_list"])-1:
+                                        dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "size" : region_stop - region_start})
                                 else :
                                     dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "size" : region_stop - region_start})
                                     region_start = dic_regions[c][g]["nodes_position_list"][i]
@@ -595,9 +603,18 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     for r in dic_regions_2[g][c]['regions']:
                         r["chromosome"] = c
                         r["genome"] = g
-                        if genome_ref is None or g == genome_ref:
+                        if (genome_ref is not None and g == genome_ref) or genome_ref is None :
                             r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
-                            #r["first_annotation_after_region"] = get_first_annotation_after_position(genome_ref=g,chromosome=c, position=r["stop"])
+                            annot_before_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["start"], before=True)
+                            annot_tmp = {}
+                            annot_tmp["gene_name"] = annot_before_tmp["gene_name"]
+                            annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
+                            r["annotation_before"] = annot_tmp
+                            annot_after_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["stop"], before=False)
+                            annot_tmp = {}
+                            annot_tmp["gene_name"] = annot_after_tmp["gene_name"]
+                            annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
+                            r["annotation_after"] = annot_tmp
                         analyse[g].append(r)
                 analyse[g] = sorted(analyse[g], key=lambda d: d['size'], reverse=True)
             

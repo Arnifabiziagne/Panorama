@@ -381,7 +381,7 @@ def layout(data=None, initial_size_limit = 10):
                                 inline=True
                             ),
                             html.Label("Min (%) of shared genomes : "),
-                            dcc.Input(id='min_shared_genomes-input', type='number', value = 100, style={'width': '100px', 'marginRight': '10px'}),
+                            dcc.Input(id='min_shared_genomes-input', type='number', value = 0, style={'width': '100px', 'marginRight': '10px'}),
                             html.Label("Tolerance (%) : "),
                             dcc.Input(id='tolerance-input', type='number', value =0, style={'width': '100px', 'marginRight': '20px'})
                             

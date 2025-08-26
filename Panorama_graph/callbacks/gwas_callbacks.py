@@ -48,6 +48,19 @@ def update_dropdown(data):
     ]
     return options
 
+#Populate genome droplist
+@app.callback(
+    Output('gwas_ref_genome_dropdown', 'options'),
+    Input('shared_storage', 'data')
+)
+def update_dropdown(data):
+    if not data or "genomes" not in data:
+        return []
+    
+    genomes = data["genomes"]
+    options =  [{"label": str(g), "value": str(g)} for g in genomes]
+    return options
+
 
 @app.callback(
     Output('shared-status', 'children'),
@@ -62,9 +75,10 @@ def update_dropdown(data):
     State("gwas-region-gap", 'value'),
     State('gwas-toggle-deletion', 'value'),
     State("gwas_chromosomes_dropdown", 'value'),
+    State("gwas_ref_genome_dropdown", 'value'),
     prevent_initial_call=True
 )
-def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, min_percent_selected, tolerance_percentage, region_gap, deletion_checkbox, chromosome):
+def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, min_percent_selected, tolerance_percentage, region_gap, deletion_checkbox, chromosome, ref_genome):
     if min_node_size is not None and min_node_size != "" and isinstance(min_node_size, int):
         min_size = min_node_size
     else:
@@ -83,21 +97,24 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         deletion = True
     
     try:       
-        dic_region, analyse = find_shared_regions(selected_genomes, chromosomes = c,node_min_size = min_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, tolerance_percentage = tolerance_percentage)
-
-        analyse_to_plot = analyse[list(analyse.keys())[0]]
-        no_annotations = True
-        i = 0
-        keys = list(analyse.keys())
-        while no_annotations and i < len(keys):
-            current_key = keys[i]
-            r = 0
-            while r < len(analyse[current_key]) and no_annotations :
-                if len(analyse[current_key][r]["annotations"]) > 0:
-                    no_annotations = False
-                    analyse_to_plot = analyse[current_key]
-                r += 1
-            i += 1
+        dic_region, analyse = find_shared_regions(selected_genomes, genome_ref = ref_genome, chromosomes = c,node_min_size = min_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, tolerance_percentage = tolerance_percentage)
+           
+        #take an annotated genome if no reference genome selected
+        if ref_genome is None or ref_genome == "":
+            no_annotations = True
+            i = 0
+            keys = list(analyse.keys())
+            while no_annotations and i < len(keys):
+                current_key = keys[i]
+                r = 0
+                while r < len(analyse[current_key]) and no_annotations :
+                    if len(analyse[current_key][r]["annotations"]) > 0:
+                        no_annotations = False
+                        analyse_to_plot = analyse[current_key]
+                    r += 1
+                i += 1
+        else:
+            analyse_to_plot = analyse[ref_genome]
                 
         #print("analyse to plot : " + str(analyse_to_plot))
         
@@ -107,12 +124,22 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
                 for annot in analyse_to_plot[r]["annotations"]:
                     annotation += annot["gene_name"] + "\n"
             analyse_to_plot[r]["annotations"] = annotation
+            if "annotation_before" in analyse_to_plot[r]:
+                annot_before = "gene_name : " + analyse_to_plot[r]["annotation_before"]["gene_name"] \
+                                +"\nDistance : " + str(analyse_to_plot[r]["annotation_before"]["distance"])
+                analyse_to_plot[r]["annotation_before"] = annot_before
+            
+            if "annotation_after" in analyse_to_plot[r]:
+                annot_after = "gene_name : " + analyse_to_plot[r]["annotation_after"]["gene_name"] \
+                                +"\nDistance : " + str(analyse_to_plot[r]["annotation_after"]["distance"])
+                analyse_to_plot[r]["annotation_after"] = annot_after
 
         data["analyse"] = analyse_to_plot
         return f"{len(analyse_to_plot)} shared regions found.",data, ""
     
     except Exception as e:
-        return f"Erreur : {e}",data, ""
+        print(f"Error : {e}")
+        return f"Error : {e}",data, ""
     
 @app.callback(
     Output('selected-region-output', 'children', allow_duplicate=True),
