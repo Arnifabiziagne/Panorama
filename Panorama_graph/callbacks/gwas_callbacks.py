@@ -6,7 +6,7 @@ Created on Wed Jul  2 22:03:10 2025
 @author: fgraziani
 """
 
-from dash import html, Output, Input, State, no_update, dcc, ctx
+from dash import html, Output, Input, State, no_update, dcc, ctx, callback_context
 
 
 import os
@@ -288,6 +288,45 @@ def display_sequence_on_button_click(active_cell, table_data):
             html.P(f"Sequence : {sequence}")
         ])
     return None
+
+
+#Help callback
+@app.callback(
+    Output("help-modal", "is_open"),
+    Output("modal-help-text", "children"),
+    Input("help-select_genomes", "n_clicks"),
+    Input("help-min-node-size", "n_clicks"),
+    Input("help-min-selected", "n_clicks"),
+    Input("help-tolerance", "n_clicks"),
+    Input("help-region-gap", "n_clicks"),
+    Input("help-deletion", "n_clicks"),
+    Input("help-genome_ref-dropdown", "n_clicks"),
+    Input("close-help", "n_clicks"),
+    State("help-modal", "is_open"),
+)
+def toggle_help_modal(n1, n2, n3, n4, n5, n6, n7, n_close, is_open):
+    ctx = callback_context
+
+    if not ctx.triggered:
+        return is_open, ""
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    help_messages = {
+        "help-select_genomes": "Select all haplotypes for which you want to find the regions shared by these haplotypes in the pangenome.",
+        "help-min-node-size": "The nodes with a size below this value won't be detect by the process.",
+        "help-min-selected": "To detect a node as shared, the process requires that a node contains at least [this value * selected haplotypes number / 100] (rounded at tge bottom) haplotypes in the selected haplotypes list. If set to zéro, it will require at least one of the selected haplotypes.",
+        "help-tolerance": "Nodes that contains more than [this value * number of haplotypes sharing the node / 100] (rounded up) haplotypes not in the selected list won't be detected.",
+        "help-region-gap": "All the nodes detected will be grouped in larger regions. If two nodes are separated by less thant this value (in bp) they will be grouped in the same region.",
+        "help-deletion": "If checked, the process will look for deletion : it looks for nodes with minimal size and with the minimum haplotypes (defined by min percent) of the selected list. For these nodes it will look for a following node containing all the haplotypes of the previous node excepted the nodes selected and another following node with all the haplotypes of the previous node.",
+        "help-genome_ref-dropdown": "Select the genome for which you want to view the results and obtain annotations. If no genome is selected, the result will be the first genome found with annotations. If there are no annotations, it will be the first genome found."
+    }
+
+    if trigger_id == "close-help":
+        return False, ""
+
+    help_text = help_messages.get(trigger_id, "No help for this element.")
+    return True, help_text
 
 
 

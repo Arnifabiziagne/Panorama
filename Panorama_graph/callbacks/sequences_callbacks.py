@@ -70,7 +70,7 @@ def load_sequences_on_page_load(sequences_dic):
 )
 def display_sequences(n_clicks, nodes_data):
     if not nodes_data:
-        return html.Div("No sequences available.")
+        return {}
     else:
         sequences = []
         genomes_nodes_dic = {}

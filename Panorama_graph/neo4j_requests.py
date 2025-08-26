@@ -136,9 +136,10 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                 print("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome) + " - genome : " + str(genome))
                 anchor_start = get_anchor(genome, chromosome, start, before = True)
                 anchor_stop = get_anchor(genome, chromosome, end, before = False)
-                print("Anchor start name : " + str(anchor_start["name"]))
-                print("Anchor stop name : " + str(anchor_stop["name"]))
-                print("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
+                if anchor_start is not None and  anchor_stop is not None:
+                    print("Anchor start name : " + str(anchor_start["name"]))
+                    print("Anchor stop name : " + str(anchor_stop["name"]))
+                    print("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
                 
                 if anchor_start is not None and anchor_stop is not None and len(anchor_stop["genomes"]) == len(anchor_start["genomes"]) and anchor_stop[genome_position] - anchor_start[genome_position] < max_bp_seeking and anchor_stop[genome_position] - anchor_start[genome_position] > 0 and len(anchor_start['genomes']) > 0 :
 
@@ -168,7 +169,10 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                     for record in result :
                         nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
                 else:
-                    print("Region too wide")
+                    if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] >= max_bp_seeking :
+                        print("Region too wide")
+                    else:
+                        print("Region not found")
                     nodes_data = {}
 
             else:
