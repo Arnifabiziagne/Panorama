@@ -232,7 +232,6 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
     start_container(container_name)
 
     if csv_import_mode:
-
         print("creating base indexes")
         create_indexes(base=True, extend=True, genomes_index=False)
         if check_state_index("NodeIndexChromosome") is not None:
@@ -244,6 +243,7 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
             create_stats_from_nodes()
         print("creating other indexes")    
         create_indexes(base=False, extend=False, genomes_index=True)
+
     
     
     

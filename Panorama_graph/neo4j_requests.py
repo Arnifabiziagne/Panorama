@@ -561,7 +561,6 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         
                     nb_regions_total += len(result)
                     for r in result:
-                        if c =="6":
                         for g in genomes_list:
                             if (r["nodes"][g+"_position"] != None):
                                 dic_regions[c][g]["nodes_position_list"].append(r["nodes"][g+"_position"]) 

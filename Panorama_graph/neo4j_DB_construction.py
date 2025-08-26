@@ -1365,12 +1365,14 @@ def get_chromosome_annotation(annotation):
     tab = re.split(r'[_,.#]', annotation)
     for i in range(len(tab)):
         t = tab[i]
-        if t.lower().startswith(("chr")):
+        if t.upper().startswith(("CHR")):
             if len(t) > 3:
                 chromosome = t[3:].lstrip('0')
             else:
                 if i < len(tab)-1:
                     chromosome = tab[i+1].lstrip('0')
+        else:
+            chromosome = annotation.split()[0].upper().replace("CHR", "")        
     return chromosome
     
 
