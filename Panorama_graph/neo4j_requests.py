@@ -91,12 +91,20 @@ def get_anchor(genome, chromosome, position, before = True):
                 if record:
                     return dict(record["n"])
             #Anchor not found => the current node will be used
-            query = f"""
-            MATCH (n:Node)
-            WHERE n.chromosome = "{chromosome}"
-              AND n.`{genome_position}` = $position
-            RETURN n
-            """
+            if before:
+                query = f"""
+                MATCH (n:Node)
+                WHERE n.chromosome = "{chromosome}"
+                  AND n.`{genome_position}` >= $position
+                RETURN n order by n.`{genome_position}` ASC limit 1
+                """
+            else :
+                query = f"""
+                MATCH (n:Node)
+                WHERE n.chromosome = "{chromosome}"
+                  AND n.`{genome_position}` <= $position
+                RETURN n order by n.`{genome_position}` DESC limit 1
+                """
 
             result = session.run(
                     query,
@@ -141,7 +149,7 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                     print("Anchor stop name : " + str(anchor_stop["name"]))
                     print("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
                 
-                if anchor_start is not None and anchor_stop is not None and len(anchor_stop["genomes"]) == len(anchor_start["genomes"]) and anchor_stop[genome_position] - anchor_start[genome_position] < max_bp_seeking and anchor_stop[genome_position] - anchor_start[genome_position] > 0 and len(anchor_start['genomes']) > 0 :
+                if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] < max_bp_seeking and anchor_stop[genome_position] - anchor_start[genome_position] > 0 and len(anchor_start['genomes']) > 0 :
 
                     # Step 3 : Get the nodes and annotations for each genomes
                     query_genome = f"""

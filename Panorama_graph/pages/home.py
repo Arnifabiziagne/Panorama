@@ -267,6 +267,7 @@ def layout(data=None, initial_size_limit = 10):
                             id='genomes-dropdown',
                             options=[{'label': genome, 'value': genome} for genome in all_genomes],
                             #value=all_genomes[0],
+                            clearable=False,
                             style={'width': '300px'}
                         )
                     ], style={'marginRight': '30px'}),
@@ -276,7 +277,7 @@ def layout(data=None, initial_size_limit = 10):
                             id='chromosomes-dropdown',
                             options=[{'label': chrom, 'value': chrom} for chrom in all_chromosomes],
                             clearable=False,
-                            placeholder="Choisissez un chromosome",
+                            placeholder="Choose a chromosome",
                             #value="1",
                             style={'width': '200px'}
                         )
@@ -423,7 +424,6 @@ def layout(data=None, initial_size_limit = 10):
             #There are many algorithms : cose, cose-bilkent-fcose, euler, dagre, etc.
             #fcose seems to be the most performant
             #dagre is usefull to get a linear representation
-            #Le layout est super important pour une bonne visu du graphe, pour le moment fcose semble le plus adapté
             layout={
                 'name': 'fcose',
                 'maxIterations':100000, 
@@ -519,16 +519,15 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         size_slider_val = home_data_storage['slider_value']
     else:
         size_slider_val = DEFAULT_SIZE_VALUE
-    
     #save the parameters into store
     if genome is not None :
         home_data_storage["selected_genome"] = genome
     if chromosome is not None :
         home_data_storage["selected_chromosome"] =  chromosome
-    if start is not None:
-        home_data_storage["start"] =  start
-    if end is not None:
-        home_data_storage["end"] =  end
+    home_data_storage["start"] =  start
+    home_data_storage["end"] =  end
+    home_data_storage["gene_name"] =  gene_name
+    home_data_storage["gene_id"] =  gene_id
     if min_shared_genome is None:
         min_shared_genome = 100
     if tolerance is None :
@@ -555,8 +554,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 data_storage_nodes = new_data
                 print("len new_data : " + str(len(new_data)))
             else : 
-                if gene_name is not None and chromosome is not None :
-                    new_data = get_nodes_by_gene(genome, chromosome=chromosome, gene_name=gene_name)
+                if ((gene_name is not None and gene_name != "") or (gene_id is not None and gene_id != "")) and chromosome is not None :
+                    if gene_name is not None and gene_name != "" :
+                        new_data = get_nodes_by_gene(genome, chromosome=chromosome, gene_name=gene_name)
+                    else:
+                        new_data = get_nodes_by_gene(genome, chromosome=chromosome, gene_id=gene_id)
                     data_storage_nodes = new_data
                 else :
                     new_data = get_nodes_by_region(genome, chromosome=chromosome, start=0, end=end)
@@ -619,9 +621,10 @@ def save_slider_value(size_slider_val, data):
     Output('end-input', 'value'),
     Input('url', 'pathname'),
     Input('home-page-store', 'data'),
+    State('genomes-dropdown', 'options'),
     State('chromosomes-dropdown', 'options')
 )
-def update_parameters_on_page_load(pathname, data, options):
+def update_parameters_on_page_load(pathname, data, options_genomes, options_chromosomes):
     slider_value = DEFAULT_SIZE_VALUE
     selected_genome = None
     selected_chromosome = None
@@ -633,18 +636,20 @@ def update_parameters_on_page_load(pathname, data, options):
         slider_value = data["slider_value"]
     if "selected_genome" in data:
         selected_genome = data["selected_genome"]
+    else:
+        if options_genomes:
+            selected_genome = options_genomes[0]["value"]
     if "selected_chromosome" in data: 
         selected_chromosome = data["selected_chromosome"]
     else:
-        if options:
-            selected_chromosome = options[0]["value"]
+        if options_chromosomes:
+            selected_chromosome = options_chromosomes[0]["value"]
     if "start" in data:
         start_input = data["start"]
     if "end" in data:
         end_input = data["end"]
         
     return slider_value, selected_chromosome,selected_genome, start_input, end_input
-
 
 
 #Algorithm cytoscape choice
