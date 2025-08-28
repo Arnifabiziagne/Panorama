@@ -82,7 +82,7 @@ def display_sequences(n_clicks, nodes_data):
                 if g not in genomes_nodes_dic:
                     genomes_nodes_dic[g] = []
                 strand = "P"
-                if g in node["strandM"]:
+                if "strandM" in node and g in node["strandM"]:
                     strand = "M"
                 genomes_nodes_dic[g].append({"start":node[g+"_position"], "node_name":node["ref_node"], "strand":strand})
         
