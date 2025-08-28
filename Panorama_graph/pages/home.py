@@ -19,6 +19,7 @@ from app import app
 cyto.load_extra_layouts()
 
 DEFAULT_SIZE_VALUE = 10
+DEFAULT_SHARED_REGION_COLOR = "#008000"
 
 def records_to_dataframe(nodes_data):
     rows = []
@@ -89,7 +90,7 @@ def get_color_palette(n):
     return [f'rgb({int(r*255)}, {int(g*255)}, {int(b*255)})' for r, g, b, _ in cmap(np.linspace(0, 1, n))]
 
 
-def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0):
+def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes = [], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0, color_shared_regions=DEFAULT_SHARED_REGION_COLOR):
     if data != None and len(data) > 0:
         df = records_to_dataframe(data)
         df = df[df["size"] >= size_min].copy()
@@ -189,7 +190,7 @@ def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_ch
                 
                 intersect = set_specifics_genomes.intersection(set_genomes)
                 if len(intersect) >= min_required_shared and len(dic["genomes"]) - len(intersect) <= max_allowed_extra :
-                    link_color = 'red'
+                    link_color = color_shared_regions
                     virtual_flow = len(all_genomes)
             label = ""
             if labels:
@@ -384,7 +385,16 @@ def layout(data=None, initial_size_limit = 10):
                             html.Label("Min (%) of shared genomes : "),
                             dcc.Input(id='min_shared_genomes-input', type='number', value = 0, style={'width': '100px', 'marginRight': '10px'}),
                             html.Label("Tolerance (%) : "),
-                            dcc.Input(id='tolerance-input', type='number', value =0, style={'width': '100px', 'marginRight': '20px'})
+                            dcc.Input(id='tolerance-input', type='number', value =0, style={'width': '100px', 'marginRight': '20px'}),
+
+                                html.Label("Link color"),
+                                
+                                dbc.Input(
+                                    id='shared-region-color-picker',
+                                    type='color',
+                                    #value=DEFAULT_SHARED_REGION_COLOR,
+                                    style={'width': '25px','height': '25px', 'marginLeft': '10px'}
+                                ),
                             
                         ],id='shared-checklist-container'),
                     html.Div([
@@ -511,9 +521,10 @@ def display_element_data(node_data, edge_data):
     State('shared_storage_nodes', 'data'),
     State('min_shared_genomes-input', 'value'),
     State('tolerance-input', 'value'),
+    State('shared-region-color-picker', 'value'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes, min_shared_genome, tolerance):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color):
     ctx = dash.callback_context
     if home_data_storage is not None and 'slider_value' in home_data_storage:
         size_slider_val = home_data_storage['slider_value']
@@ -524,6 +535,8 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         home_data_storage["selected_genome"] = genome
     if chromosome is not None :
         home_data_storage["selected_chromosome"] =  chromosome
+    if shared_regions_link_color is not None:
+        home_data_storage["shared_regions_link_color"] = shared_regions_link_color
     home_data_storage["start"] =  start
     home_data_storage["end"] =  end
     home_data_storage["gene_name"] =  gene_name
@@ -562,11 +575,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                     data_storage_nodes = new_data
                 else :
                     new_data = get_nodes_by_region(genome, chromosome=chromosome, start=0, end=end)
-            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance)
+            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
         else:
-            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance)
+            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
     else :
-        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance)
+        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
 
     defined_color = 0
     for c in color_genomes:
@@ -619,6 +632,7 @@ def save_slider_value(size_slider_val, data):
     Output('genomes-dropdown', 'value'),
     Output('start-input', 'value'),
     Output('end-input', 'value'),
+    Output('shared-region-color-picker', 'value'),
     Input('url', 'pathname'),
     Input('home-page-store', 'data'),
     State('genomes-dropdown', 'options'),
@@ -630,6 +644,7 @@ def update_parameters_on_page_load(pathname, data, options_genomes, options_chro
     selected_chromosome = None
     start_input=None
     end_input=None
+    shared_regions_link_color = DEFAULT_SHARED_REGION_COLOR
     if data is None:
         data = {}
     if "slider_value" in data:
@@ -648,8 +663,10 @@ def update_parameters_on_page_load(pathname, data, options_genomes, options_chro
         start_input = data["start"]
     if "end" in data:
         end_input = data["end"]
+    if "shared_regions_link_color" in data:
+        shared_regions_link_color = data["shared_regions_link_color"]
         
-    return slider_value, selected_chromosome,selected_genome, start_input, end_input
+    return slider_value, selected_chromosome,selected_genome, start_input, end_input, shared_regions_link_color
 
 
 #Algorithm cytoscape choice
