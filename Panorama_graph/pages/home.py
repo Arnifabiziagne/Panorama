@@ -247,6 +247,7 @@ def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_ch
 
 def layout(data=None, initial_size_limit = 10):
     all_genomes = get_genomes()
+    all_genomes.sort()
     all_chromosomes = get_chromosomes()
     if data != None :
         elements = compute_graph_elements(data,all_genomes, initial_size_limit, all_genomes, all_chromosomes, [], [])
@@ -263,7 +264,7 @@ def layout(data=None, initial_size_limit = 10):
             html.Div([
                 html.Div([
                     html.Div([
-                        html.Label("Genome", style={'display': 'block', 'marginBottom': '5px'}),
+                        html.Label("Haplotypes", style={'display': 'block', 'marginBottom': '5px'}),
                         dcc.Dropdown(
                             id='genomes-dropdown',
                             options=[{'label': genome, 'value': genome} for genome in all_genomes],
@@ -313,7 +314,7 @@ def layout(data=None, initial_size_limit = 10):
                     ], style={'marginBottom':'20px'}),
                     html.Button('Search', id='search-button', n_clicks=0, style={'marginTop': '10px'}),
                     html.Div([
-                        html.Label("Genomes to visualize :", style={'marginBottom': '5px'}),
+                        html.Label("Haplotypes to visualize :", style={'marginBottom': '5px'}),
                         dcc.Checklist(
                             id="genome_selector",
                             options=[{"label": g, "value": g} for g in all_genomes],
@@ -379,10 +380,10 @@ def layout(data=None, initial_size_limit = 10):
                             dcc.Checklist(
                                 id="specific-genome_selector",
                                 options=[{"label": g, "value": g} for g in all_genomes],
-                                value=[],
+                                #value=[],
                                 inline=True
                             ),
-                            html.Label("Min (%) of shared genomes : "),
+                            html.Label("Min (%) of shared haplotypes : "),
                             dcc.Input(id='min_shared_genomes-input', type='number', value = 0, style={'width': '100px', 'marginRight': '10px'}),
                             html.Label("Tolerance (%) : "),
                             dcc.Input(id='tolerance-input', type='number', value =0, style={'width': '100px', 'marginRight': '20px'}),
@@ -480,7 +481,7 @@ def display_element_data(node_data, edge_data):
         return (
             f"Selected link : {edge_data.get('source')} → {edge_data.get('target')}\n"
             f"• Flow : {edge_data.get('flow')}\n"
-            f"• Genomes : {', '.join(edge_data.get('genomes', []))}"
+            f"• Haplotypes : {', '.join(edge_data.get('genomes', []))}"
         )
     elif triggered_id == 'graph' and ctx.triggered[0]['prop_id'] == 'graph.tapNodeData' and node_data:
         return (
@@ -488,7 +489,7 @@ def display_element_data(node_data, edge_data):
             f"• Size : {node_data.get('size')}\n"
             f"• Flow : {node_data.get('flow')}\n"
             f"• Ref node : {node_data.get('ref_node')}\n"
-            f"• Genomes : {', '.join(node_data.get('genomes', []))}"
+            f"• Haplotypes : {', '.join(node_data.get('genomes', []))}"
             f"• Annotations : {', '.join(node_data.get('annotations', []))}"
         )
     return "Click on a node or link to display data."
@@ -551,6 +552,10 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         min_shared_genome = 100
     if tolerance is None :
         tolerance = 0
+    if color_genomes is not None :
+        home_data_storage["color_genomes"] =color_genomes
+    if specifics_genomes is not None :
+        home_data_storage["specifics_genomes"] =specifics_genomes
 
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
@@ -639,18 +644,21 @@ def save_slider_value(size_slider_val, data):
     Output('start-input', 'value'),
     Output('end-input', 'value'),
     Output('shared-region-color-picker', 'value'),
+    Output('specific-genome_selector', 'value'),
     Input('url', 'pathname'),
     Input('home-page-store', 'data'),
     State('genomes-dropdown', 'options'),
-    State('chromosomes-dropdown', 'options')
+    State('chromosomes-dropdown', 'options'),
+    State('specific-genome_selector', 'value'),
 )
-def update_parameters_on_page_load(pathname, data, options_genomes, options_chromosomes):
+def update_parameters_on_page_load(pathname, data, options_genomes, options_chromosomes, specifics_genomes):
     slider_value = DEFAULT_SIZE_VALUE
     selected_genome = None
     selected_chromosome = None
     start_input=None
     end_input=None
     shared_regions_link_color = DEFAULT_SHARED_REGION_COLOR
+    selected_shared_genomes = specifics_genomes
     if data is None:
         data = {}
     if "slider_value" in data:
@@ -671,8 +679,10 @@ def update_parameters_on_page_load(pathname, data, options_genomes, options_chro
         end_input = data["end"]
     if "shared_regions_link_color" in data:
         shared_regions_link_color = data["shared_regions_link_color"]
+    if "specifics_genomes" in data:
+        selected_shared_genomes = data["specifics_genomes"]
         
-    return slider_value, selected_chromosome,selected_genome, start_input, end_input, shared_regions_link_color
+    return slider_value, selected_chromosome,selected_genome, start_input, end_input, shared_regions_link_color, selected_shared_genomes
 
 
 #Algorithm cytoscape choice

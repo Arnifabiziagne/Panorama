@@ -313,7 +313,7 @@ def toggle_help_modal(n1, n2, n3, n4, n5, n6, n7, n_close, is_open):
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     help_messages = {
-        "help-select_genomes": "Select all haplotypes for which you want to find the regions shared by these haplotypes in the pangenome.",
+        "help-select_genomes": "Select all haplotypes for which you want to find the regions shared in the pangenome.",
         "help-min-node-size": "The nodes with a size below this value won't be detect by the process.",
         "help-min-selected": "To detect a node as shared, the process requires that a node contains at least [this value * selected haplotypes number / 100] (rounded at tge bottom) haplotypes in the selected haplotypes list. If set to zéro, it will require at least one of the selected haplotypes.",
         "help-tolerance": "Nodes that contains more than [this value * number of haplotypes sharing the node / 100] (rounded up) haplotypes not in the selected list won't be detected.",
@@ -327,6 +327,7 @@ def toggle_help_modal(n1, n2, n3, n4, n5, n6, n7, n_close, is_open):
 
     help_text = help_messages.get(trigger_id, "No help for this element.")
     return True, help_text
+
 
 
 

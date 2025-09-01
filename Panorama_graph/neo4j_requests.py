@@ -393,7 +393,7 @@ def get_sequence_from_position(genome, chromosome, start, end):
                "{genome}" IN coalesce(n.strandM, []) AS strandM
                order by n.`{position_key}` ASC
             """
-            print(query)
+            #print(query)
             with driver.session() as session:
                 result = session.run(query)
                 sorted_names = []
@@ -401,8 +401,6 @@ def get_sequence_from_position(genome, chromosome, start, end):
                 for record in result:
                     sorted_names.append(record["name"])
                     sorted_strandM.append(record["strandM"])
-            print("len sorted names : " + str(len(sorted_names)))
-            print("len sorted strandM : " + str(len(sorted_strandM)))
             sequences = get_sequence_from_names(sorted_names)
             for i in range(len(sorted_names)):
                 if sorted_strandM[i]:

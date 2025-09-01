@@ -83,7 +83,10 @@ def toggle_sidebar(data):
 )
 def init_data(pathname):
     new_data = {}
-    new_data["genomes"] = get_genomes()
+    all_genomes = get_genomes()
+    all_genomes.sort()
+    print("all genomes : " + str(all_genomes))
+    new_data["genomes"] = all_genomes
     new_data["chromosomes"]  = get_chromosomes()
     return new_data
 

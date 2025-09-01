@@ -16,10 +16,57 @@ style_help = {
     "marginLeft": "5px"
 }
 
+
+
 def layout():
     return html.Div([
         dcc.Store(id="gwas-page-store",storage_type="session"),
         html.H2("Shared Region Finder"),
+
+        html.Details([
+            html.Summary("ℹ️ Click here to display help"),
+            html.Ul([
+                html.Li("Algorithm details : The principle is to determine the regions shared between a selection of haplotypes."
+                        " There are two types of detection :"),
+                    html.Ul([
+                        html.Li("Shared nodes : Here, the objective is to detect the nodes shared by the selected haplotypes."
+                                " Several parameters are involved:"),      
+                            html.Ul([
+                                html.Li("Min node size : a node will be detected only if it's size is superior to this value"),
+                                html.Li("Min (%) of selected haplotypes (= p): a node will be detected only if (p/100) * number of selected haplotypes are present on the node."
+                                        "If set to zero it wil require at least one of the selected haplotypes."),
+                                html.Li("Tolerance (%) (= t): a node with more than (t/100) * number of haplotypes present on this node will not be detected. If set to zero then nodes with a non selected haplotype will not be detected.")
+                                
+                            ]),
+                            
+                     html.Li("Deleted nodes : Here, the objective is to detect deletions shared by the selected haplotypes."
+                             " This mode is activated only if 'include deletion' is checked."
+                             " It detects nodes with the minimum of selected haplotypes and minimal size (see parameters) and at least one of the unselected haplotypes."
+                             " If this node is following by a node with all the unselected haplotypes and only these haplotypes, then a deletion node will be detected."
+                             " The following parameters are used :"),      
+                         html.Ul([
+                             html.Li("Min node size : a node will be detected only if it's size is superior to this value"),
+                             html.Li("Min (%) of selected haplotypes (= p): a node will be detected only if (p/100) * number of selected haplotypes are present on the node."
+                                     "If set to zero it wil require at least one of the selected haplotypes."),
+                             
+                         ])
+                            
+                    ]),
+                 html.Ul([
+                     html.Li("general settings :"),
+                         html.Ul([
+                             html.Li("Size of region : this size is used to group nodes separated by less than this value (in bp)."),
+                             html.Li("Limit search to chromosom : If a chromosom is selected, it will look for shared region only on this chromosom."),
+                             html.Li("Reference haplotype : results will be displayed only for this haplotype, including annotations. If no one is selected then the first annotated haplotype will be displayed."),
+                             html.Li("Export to csv / export to csv with sequences : it will save the result into a csv file (without or with the sequences associated to each region). The file is located in the '/gwas' directory."),
+                             html.Li("Load csv : it allows to load the saved csv (it must be located in the '/gwas' directory)."),
+                             html.Li("First column : by clicking on the first columns it will display the region in the home page."),
+                             html.Li("Size column : by clicking on the size columns it will display the sequence associated to the region."),
+                             ])
+                     ])
+            ])
+        ], style={"marginBottom": "20px"}),
+
 
         # Area of genomes selection
         html.Div(id='genome-checkboxes'),
@@ -40,12 +87,12 @@ def layout():
                 ]),
                 dcc.Input(id='gwas-min-node-size-int', type='number', step=1, value=10, debounce=True),
                 html.Label(
-                    ["Min (%) of selected genomes to detect shared nodes (set to zéro for one genome min): ",
+                    ["Min (%) of selected haplotypes to detect shared nodes (set to zéro for one genome min): ",
                      html.Span("?", id="help-min-selected", n_clicks=0, style=style_help)
                 ]),
                 dcc.Input(id='gwas-min-percent_selected', type='number', step=1, value=80, debounce=True),
                 html.Label(
-                    ["Tolerance (%) for genomes not selected :  ",
+                    ["Tolerance (%) for haplotypes not selected :  ",
                      html.Span("?", id="help-tolerance", n_clicks=0, style=style_help)
                 ]),
                 dcc.Input(id='tolerance_percentage', type='number', step=1, value=10, debounce=True),
@@ -80,7 +127,7 @@ def layout():
         
         html.Br(), 
         html.Div([
-                dcc.Dropdown(id='gwas_ref_genome_dropdown', placeholder="Reference genome : ", style={
+                dcc.Dropdown(id='gwas_ref_genome_dropdown', placeholder="Reference haplotype : ", style={
                     "width": "250px",     
                     "minWidth": "150px",
                     "maxWidth": "100%",   
