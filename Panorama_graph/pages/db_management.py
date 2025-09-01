@@ -104,7 +104,7 @@ def layout():
             id="upload-gfa",
             children=html.Div(id="upload-gfa-text", children=[
                 "Drag and Drop or ",
-                html.A("Select a GFA File")
+                html.A("Select GFA Files")
             ]),
             style={
                 'width': '100%',
@@ -147,10 +147,9 @@ def layout():
         html.Div([
             html.H4("Instructions for loading annotations:"),
             html.Ul([
-                html.Li("📄 Load annotation files – they must be located in the ./data/annotations directory."),
-                html.Li("✅ The database must already be loaded."),
-                html.Li("📌 Required indexes must be created and available in the database before loading annotations.")
-            ])
+                html.Li("Load annotation files – files must be located in the ./data/annotations directory."),
+                html.Li("The database must already be loaded."),
+                html.Li("Required indexes must be created and available in the database before loading annotations."),          ])
         ]),
         dcc.Dropdown(
             id="dropdown-genome",
@@ -161,7 +160,7 @@ def layout():
             id="upload-annotation",
             children=html.Div(id="upload-annotation-text", children=[
                 "Drag and Drop or ",
-                html.A("Select an Annotation File")
+                html.A("Select GFF / GTF Files")
             ]),
             style={
                 'width': '100%',
@@ -173,11 +172,13 @@ def layout():
                 'textAlign': 'center',
                 'margin': '10px 0'
             },
-            multiple=False
+            multiple=True
         ),
     
         html.Div([
-            html.Button("Load", id="btn-load-annotation", n_clicks=0),
+            html.Button("Load", id="btn-load-annotations-with-link", n_clicks=0),
+            #html.Button("Load only annotations", id="btn-load-only-annotations", n_clicks=0),
+            #html.Button("Link annotations", id="btn-link-annotations", n_clicks=0),
             dcc.Loading(
                 id="loading-annotation-msg",
                 type="circle",

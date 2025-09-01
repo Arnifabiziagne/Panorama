@@ -526,6 +526,8 @@ def display_element_data(node_data, edge_data):
 )
 def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color):
     ctx = dash.callback_context
+    if home_data_storage is None :
+        home_data_storage = {}
     if home_data_storage is not None and 'slider_value' in home_data_storage:
         size_slider_val = home_data_storage['slider_value']
     else:
@@ -537,10 +539,14 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         home_data_storage["selected_chromosome"] =  chromosome
     if shared_regions_link_color is not None:
         home_data_storage["shared_regions_link_color"] = shared_regions_link_color
-    home_data_storage["start"] =  start
-    home_data_storage["end"] =  end
-    home_data_storage["gene_name"] =  gene_name
-    home_data_storage["gene_id"] =  gene_id
+    if start is not None :
+        home_data_storage["start"] =  start
+    if end is not None :
+        home_data_storage["end"] =  end
+    if gene_name is not None :
+        home_data_storage["gene_name"] =  gene_name
+    if gene_id is not None :
+        home_data_storage["gene_id"] =  gene_id
     if min_shared_genome is None:
         min_shared_genome = 100
     if tolerance is None :

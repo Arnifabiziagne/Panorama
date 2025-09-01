@@ -233,31 +233,58 @@ def update_annotation_upload_text(filename):
 @app.callback(
     Output("annotation-message", "children"),
     Output("upload-annotation-text", "children", allow_duplicate=True),
-    Input("btn-load-annotation", "n_clicks"),
+    Input("btn-load-annotations-with-link", "n_clicks"),
+    #Input("btn-load-only-annotations", "n_clicks"),
+    #Input("btn-link-annotations", "n_clicks"),
     State("upload-annotation", "filename"),
     State("dropdown-genome", "value"),
     prevent_initial_call=True
 )
-def on_click_load_annotation(n_clicks, annotation_file_name, genome):
-    print("load annotations")
-    if not annotation_file_name:
-        return html.Div("❌ Please select an annotation file before loading.", style=error_style), ["Drag and Drop or ", html.A("Select a GFA File")]
-    if not genome or genome == "":
-        return html.Div("❌ Please select a reference genome.", style=error_style), no_update
-    state_index = check_state_index("NodeIndex"+genome+"_position")
-    if state_index is None:
-        return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
-    if int(state_index) != 100:
-        return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
-    file = os.path.join(ANNOTATIONS_FOLDER, annotation_file_name)
-    index_time = time.time()
-    load_annotations_neo4j(file, genome_ref = genome, single_chromosome = None)
+def on_click_load_annotation(n_clicks_load_all, annotation_file_names, genome):
+    triggered_id = ctx.triggered_id
     annotation_time = time.time()
-    print("Annotations loaded in " + str(annotation_time-index_time) + " s.")
-    creer_relations_annotations_neo4j(genome)
-    annotation_relation_time = time.time()
-    print("annotations loaded in " + str(annotation_relation_time-annotation_time) + " s.")
-    return html.Div(f"✅ Annotation '{annotation_file_name}' loaded for genome '{genome}'.", style=success_style), ["Drag and Drop or ", html.A("Select a GFA File")]
+    print("annotations file names : " + str(annotation_file_names))
+    print("triggered id : " + str(triggered_id))
+    if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
+        if not annotation_file_names:
+            return html.Div("❌ Please select an annotation file before loading.", style=error_style), ["Drag and Drop or ", html.A("Select GFF / GTF Files")]
+        if not genome or genome == "":
+            return html.Div("❌ Please select a reference genome.", style=error_style), no_update
+        state_index = check_state_index("NodeIndex"+genome+"_position")
+        if state_index is None:
+            return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
+        if int(state_index) != 100:
+            return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
+
+        # Force to list
+        if isinstance(annotation_file_names, str):
+            annotation_file_names = [annotation_file_names]
+
+        # ✅ Check all files have .gtf / .gff3 / .gff extension
+        invalid_files = [f for f in annotation_file_names if not f.lower().endswith(".gff") and not f.lower().endswith(".gff3") and not f.lower().endswith(".gtf")]
+        if invalid_files:
+            return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gff, .gff3 or gtf files.", style=error_style), ["Drag and Drop or ", html.A("Select a GFF / GTF File")]
+
+        for f in annotation_file_names:
+            print(f"Load annotations for file {f}")
+            state_index = check_state_index("NodeIndex"+genome+"_position")
+            if state_index is None:
+                return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
+            if int(state_index) != 100:
+                return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
+            file = os.path.join(ANNOTATIONS_FOLDER, f)
+            annotation_time = time.time()
+            load_annotations_neo4j(file, genome_ref = genome, single_chromosome = None)
+        print("Annotations loaded in " + str(time.time()-annotation_time) + " s.")
+    if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-link-annotations" :
+        print("Link annotations")
+        annotation_relation_time = time.time()
+        creer_relations_annotations_neo4j(genome)
+        print("Link annotations in " + str(time.time()-annotation_relation_time) + " s.")
+    if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
+        return html.Div(f"✅ Annotation '{annotation_file_names}' loaded for genome '{genome}'.", style=success_style), ["Drag and Drop or ", html.A("Select a GFF / GTF File")]
+    else:
+        return html.Div(f"✅ Annotation linked.", style=success_style), ["Drag and Drop or ", html.A("Select a GFA File")]
 
 ############# Delete data callbacks#################
 
