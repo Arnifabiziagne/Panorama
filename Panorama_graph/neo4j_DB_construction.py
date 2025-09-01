@@ -1624,7 +1624,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
         with driver.session() as session:
             #Processing simple annotations: those for which the start is between the start and end of a node
             #this is the largest volume of annotations
-            print("Processing simple annotations")
+            print("Processing annotations")
             i = 0
             last_name = None
             last_id = -1
@@ -1645,11 +1645,13 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
             else :
                 liste_genomes = [genome_ref]
 
+            print("Haplotypes list : " + str(liste_genomes))
 
             for g in liste_genomes :
                 query = f"""
-                MATCH (a:Annotation) return min(ID(a)) as min_id, max(ID(a)) as max_id
+                MATCH (a:Annotation) where a.genome_ref = "{g}" return min(ID(a)) as min_id, max(ID(a)) as max_id
                 """
+                #print(query)
                 result = session.run(query)
                 for record in result:
                     min_id = record["min_id"]
@@ -1657,12 +1659,11 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                 if min_id is None or max_id is None or min_id == max_id :
                     continue
                 batch_number = ceil((max_id-min_id)/batch_size)
-                print("Genome : " + str(g) + " min id : " + str(min_id), "max_id : " + str(max_id), "batch nb : " + str(batch_number))
                 current_id = min_id
                 all_genomes.add(g)
                 while current_id < max_id:
                     i+=1
-                    print("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotypes : " + str(liste_genomes))
+                    print("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
                     annotations_nb = 0
                     if chromosome is None :
                         annotations = session.run(
@@ -1672,7 +1673,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                             RETURN a.name AS name, a.chromosome AS chromosome, a.start AS start, a.end AS end
                             """,
                             min_id=current_id,
-                            max_id=current_id+batch_size,
+                            max_id=min(max_id,current_id+batch_size),
                             genome=g
                             ).data()                    
                     else:
@@ -1683,32 +1684,30 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                             RETURN a.name AS name, a.chromosome AS chromosome, a.start AS start, a.end AS end
                             """,
                             min_id=current_id,
-                            max_id=current_id+batch_size,
+                            max_id=min(max_id,current_id+batch_size),
                             chromosome=chromosome,
                             genome=g
                             ).data()
-
                     annotations_nb += len(annotations)
                     total_annotations += len(annotations)
                     if annotations and len(annotations) > 0:
                         with session.begin_transaction() as tx:
-                            #print("creating annotation lot " + str(i) + "/"+str(batch_number))
+                            #print("creating annotations batch " + str(i) + "/"+str(batch_number))
                             process_annotation_simple_batch(tx,annotations, g)
                             #print("creating complexe annotations")
                             #Handling complex annotations: those for which the start and end of a node are before and after the annotation
                             #the volume is much lower (less than 1%)
-                            process_annotation_complex_batch(tx, annotations, g, annotation_search_limit=100000)
+                            process_annotation_complex_batch(tx, annotations, g, annotation_search_limit=10000)
                             tx.commit()
                     
                     print("Annotations nb : " + str(annotations_nb) + " - Annotations already treated : " + str(total_annotations))
                     current_id += batch_size
-                    current_id = min(max_id, current_id)
             
             
             for g in all_genomes:
                 with session.begin_transaction() as tx:
                     print(f"processing complex annotations for genome {g}")
-                    process_annotation_last_complex_batch(tx, g, annotation_search_limit=100000)
+                    process_annotation_last_complex_batch(tx, g, annotation_search_limit=10000)
                     tx.commit()
     
     
