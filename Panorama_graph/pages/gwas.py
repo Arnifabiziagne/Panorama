@@ -19,7 +19,7 @@ style_help = {
 def layout():
     return html.Div([
         dcc.Store(id="gwas-page-store",storage_type="session"),
-        html.H2("GWAS - Shared Region Finder"),
+        html.H2("Shared Region Finder"),
 
         # Area of genomes selection
         html.Div(id='genome-checkboxes'),

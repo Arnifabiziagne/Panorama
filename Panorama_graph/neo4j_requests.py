@@ -559,7 +559,6 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             MATCH (n:Node)
                             where n.chromosome = "{c}"
                             AND n.flow >= {min_flow}
-                            AND n.flow <= {max_flow}
                             AND n.size >= {node_min_size}
                             with n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
                             WHERE size(matched_genomes) >= {min_associated_genomes}

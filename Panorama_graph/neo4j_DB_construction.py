@@ -1542,7 +1542,7 @@ def process_annotation_simple_batch(tx, annotations, genome_ref):
 
     tx.run(query, annotations=annotations)
     
-def process_annotation_complex_batch(tx, annotations, genome_ref, annotation_search_limit=100000):
+def process_annotation_complex_batch(tx, annotations, genome_ref, annotation_search_limit=10000):
     
     query = f"""
         UNWIND $annotations AS annot
@@ -1573,7 +1573,7 @@ def process_annotation_complex_batch(tx, annotations, genome_ref, annotation_sea
     tx.run(query, annotations=annotations)
     
     
-def process_annotation_last_complex_batch(tx, genome_ref, annotation_search_limit=100000, batch_limit=100000):
+def process_annotation_last_complex_batch(tx, genome_ref, annotation_search_limit=10000, batch_limit=10000):
 
     query="""
         MATCH (n:Node)
