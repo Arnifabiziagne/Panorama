@@ -25,6 +25,36 @@ def layout():
     return html.Div([
         dcc.Store(id='db-management-page-store'),
         html.H2("DB Management"),
+        #Help section
+        html.Details([
+            html.Summary("ℹ️ Click here to display help"),
+            html.Ul([
+                html.Li("This page allows to manage database. Once the data have been created, this page is normally only used to reset the database. The creation of the database depends on the data :"),
+                    html.Ul([
+                        html.Li("Procedure for an intermediate data volume (graph with less than 10 millions nodes): "),  
+                        html.Ul([
+                            html.Li("First create the database : select the neo4j docker image and give a name to the database. Then click on 'create a new DB' button."),
+                            html.Li("Load the GFA : select the GFA files. If the GFA files concern a unique chromosome, enter the name of the chromosome in the appropriate field. Then click on 'Load' button."),                            
+                        ]),
+                        html.Li("Procedure recommended for big data (gfa with more than 10 millions nodes): "),  
+                        html.Ul([
+                            html.Li("First convert the GFA into csv file : select GFA files. If the GFA files concern a unique chromosome, enter the name of the chromosome in the appropriate field. Then click on 'Generate CSV import file' button."),
+                            html.Li("Then create the database : select the neo4j docker image and give a name to the database. Then click on 'create a new DB' button. The csv will automatically be used to generate databse."),
+                            
+                        ]),
+                        html.Li("Dump procedure (for intermediate data volume): "),  
+                        html.Ul([
+                            html.Li("If a dump file has been generated (neo4j.dump file) just check if this file is into the /data/import directory, enter the database name, select the neo4j image associated to this dump and click on 'create new db' button."),
+                        ]),
+                        html.Li("Load annotations files : "),  
+                        html.Ul([
+                            html.Li("For this step it is necessary that indexes are created. It can take a few time after the GFA loading."),
+                            html.Li("For each reference genome : select the reference genome and the drag and drop or select annotations file associated to this genome. Then click on 'Load' button. Depending on the volume of data, this operation may take some time."),
+                            
+                        ]),
+                    ])
+            ])
+            ], style={"marginBottom": "20px"}),
     
         html.H3(id='container-name-label'), 
         html.Hr(),

@@ -16,9 +16,25 @@ from dash import Dash, html,callback, dcc
 def layout():
     return html.Div([
         dcc.Store(id="sequences-page-store", data={'sequences':[]},storage_type="session"),
-        html.H1("Sequences"),
-        html.Label("click to get the sequences of selected region"),
-        html.Button("Get sequences", id='get-sequences-btn', n_clicks=0),
+        html.H2("Sequences"),
+        #Help section
+        html.Details([
+            html.Summary("ℹ️ Click here to display help"),
+            html.Ul([
+                html.Li("This page allows to display the sequences of the current visualized region. "
+                        " It is therefore necessary to select a region to view beforehand (on the home or gwas pages)."
+                        " By clicking on the Get sequences button it will get the sequences for each haplotype."),
+            ])
+        ], style={"marginBottom": "20px"}),
+        html.Label("Click to get the sequences of selected region"),
+        html.Div([
+            html.Button("Get sequences", id='get-sequences-btn', n_clicks=0),
+            dcc.Loading(
+                id="loading-sequences-msg",
+                type="circle",
+                children=html.Div(id="sequences-message")
+            )
+        ],style={'padding':'20px'}),
         html.Div(id='sequences-output', style={'marginTop': '20px'})
 
         ],style={'padding':'20px'})

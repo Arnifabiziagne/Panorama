@@ -70,7 +70,12 @@ def layout():
 
         # Area of genomes selection
         html.Div(id='genome-checkboxes'),
-        html.H5(["Select genomes : ", html.Span("?", id="help-select_genomes", n_clicks=0, style=style_help)]),
+        html.Div(html.H4("Select genomes : ", title="Select haplotypes for which you want to find shared regions."),
+        style={
+            'padding': '10px',
+            'display': 'inline-block',
+            'cursor': 'help'
+        }),
         dcc.Checklist(
             id='genome-list',
             options=[],

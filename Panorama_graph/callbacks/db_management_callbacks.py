@@ -15,7 +15,7 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-from app import app, DB_VERSION
+from app import *
 from neo4j_requests import *
 from neo4j_DB_construction import *
 from neo4j_container_management import *
@@ -27,9 +27,7 @@ import shutil
 
 PREFIX_CONTAINER_NAME = "DB_"+ DB_VERSION + "_"
 
-success_style = {"color": "green", "marginTop": "10px"}
-warning_style = {"color": "orange", "marginTop": "10px"}
-error_style = {"color": "red", "marginTop": "10px"}
+
 
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

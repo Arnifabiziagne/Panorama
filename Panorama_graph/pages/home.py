@@ -257,8 +257,62 @@ def layout(data=None, initial_size_limit = 10):
     
     return html.Div([
 
+        html.Div([
+            html.H2("PANORAMA"),
+            
+            html.Details([
+                html.Summary("ℹ️ Click here to display help"),
+                html.P("Panorama is an application that allows you to view and manipulate pan-genomic data. "
+           "This page allows you to view portions of the pan-genome:"),
+            html.Ul([
+                html.Li("Haplotype selection: coose the haplotype that will be used for annotations and coordinates."),
+                html.Li("Select a chromosome: searches will only be performed on this chromosome."),
+                html.Li("Choose from the following options:"),
+                html.Ul([
+                    html.Li("Select the start and end of the region on the selected chromosome."),
+                    html.Li("Search by annotation with a gene name or ID.")
+                ]),
+                html.Li("Select the haplotypes to be viewed: it is possible to exclude some haplotypes. "
+                        "In this case, nodes containing only these haplotypes will not be displayed.")
+            ]),
+            html.P("Display settings:"),
+            html.Ul([
+                html.Li("The “minimum node size” slider allows you to hide nodes smaller than this value."),
+                html.Li("“Hide labels”: allows you to hide labels (they can take up too much space)."),
+                html.Li("Select layout: allows you to change the representation algorithm if it is not suitable."),
+                html.Li("Search shared paths : allows you to change the representation algorithm if it is not suitable."),
+                html.Li("Search shared paths : if the box is checked, the display is modified to allow the selection of haplotypes for which you want to view shared links. This display can be configured:"),
+                html.Ul([
+                    html.Li("Selection of haplotypes for which common links are sought"),
+                    html.Li("Selection of the minimum percentage of selected haplotypes that must be present on the link "
+                            "(for example, if the value is set to 50 and 10 haplotypes are selected, at least 5 of the haplotypes must be on the link). "
+                            "If the value is zero, then at least one of the selected haplotypes will be required."),
+                    html.Li("Tolerance: links containing fewer than [(tolerance / 100) × number of haplotypes passing through this node] "
+                            "unselected haplotypes will be reported."),
+                    html.Li("Link color: choice of color for reported links")
+                ]),
+                html.Li("Search shared paths : if the box is unchecked, then it is possible to select a specific color for a each haplotype."),
+                html.Li("If one of this option is modified, click on the Update graph button."),
+            ]),
+            html.P("Display description :"),
+            html.Ul([
+                html.Li("By clicking on a node or a link, data of this node will be displayed under the 'update graph' button."),
+                html.Li("If annotations exists in the visualized region they will be concatenated under the node / link description area."),
+                html.Li("Graph description :"),
+                html.Ul([
+                    html.Li("Node shape : a node is drawn as a circle, unless if it's a repeated node in which case it will be displayed as a square."),
+                    html.Li("Node color : The color of the nodes ranges from blue to red. The bluer the color, the less common the node (node associated with only one or a small number of haplotypes). Conversely, red nodes are those of the core genome shared by all haplotypes."),
+                    html.Li("Node size : the size of a node is proportionnal to the size of the sequence associated."),
+                    html.Li("Link size : the size of a link is proportional to the number of haplotypes passing through that link."),
+                ]),
+            ]),
+        ], style={"marginBottom": "20px"})
+        
+                
+        ]),
         #Upper block : settings
         html.Div([
+            
             
             #Left block
             html.Div([
@@ -368,7 +422,7 @@ def layout(data=None, initial_size_limit = 10):
                 html.Div(id='nb-noeuds', style={'margin':'10px'}),
                 
                 dcc.Checklist(
-                    options=[{'label': 'Search shared path', 'value': 'shared'}],
+                    options=[{'label': 'Search shared paths', 'value': 'shared'}],
                     id='shared-mode',
                     style={'marginBottom': '20px'}
                 ),

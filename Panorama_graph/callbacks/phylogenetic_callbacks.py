@@ -20,7 +20,7 @@ from Bio import Phylo
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
-from app import app
+from app import *
 from neo4j_requests import *
 
 def generate_elements(newick_str, xlen=30, ylen=30, grabbable=False):
@@ -217,13 +217,19 @@ def color_children(edgeData):
 
 @app.callback(
     Output('cytoscape-phylo-region', 'elements'),
+    Output("phylogenetic-message", "children"),
     Input('btn-plot-region', 'n_clicks'),
     State('shared_storage_nodes', 'data'),
     prevent_initial_call=True
 )
 def plot_region(n_clicks, stored_data):
     if not stored_data:
-        return []
+        return [], html.Div(html.P([
+        "❌ No data to compute tree. Select a region to visualise on the ",
+        dcc.Link("home page", href="/", style={'color': 'blue', 'textDecoration': 'underline'}),
+        " or on the ",
+        dcc.Link("gwas page", href="/gwas", style={'color': 'blue', 'textDecoration': 'underline'})
+        ], style=error_style))
 
     try:
         # Step 1 : compute tree of the region
@@ -231,8 +237,8 @@ def plot_region(n_clicks, stored_data):
     
         # Step2 : draw tree
         elements = generate_elements(newick_str)
-        return elements
+        return elements, ""
     
     except Exception as e:
         print(f"Error while computing tree : {e}")
-        return []
+        return [], html.Div(f"❌ Error while computing tree : {e}", style=error_style)

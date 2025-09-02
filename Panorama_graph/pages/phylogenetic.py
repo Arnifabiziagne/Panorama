@@ -57,7 +57,24 @@ stylesheet = [
 
 def layout():
     return html.Div([
-        html.H3("Phylogenetics tree"),
+        html.H2("Phylogenetics tree"),
+        
+        #Help section
+        html.Details([
+            html.Summary("ℹ️ Click here to display help"),
+            html.Ul([
+                html.Li("This page allows to display 2 phylogenetic trees :"),
+                    html.Ul([
+                        html.Li("Load a newick file : this allows you to load a file and display a reference tree, for example."
+                                " For that, juste drag / drop or select the newick file."),   
+                        html.Li("Plot tree of selected region : This allows you to calculate a tree for the region currently being viewed on the home page."
+                                " It is therefore necessary to select a region to view beforehand (on the home or gwas pages)."
+                                " The tree is constructed based on a distance matrix. This matrix is calculated using the Jaccard index, taking into account the strand and repetition of each node."
+                                " The tree is then calculated using the neighbor joining algorithm."), 
+                    ])
+            ])
+            ], style={"marginBottom": "20px"}),
+        
         #First column for reference tree
         html.Div([
             dcc.Upload(
@@ -92,6 +109,11 @@ def layout():
         #Second column for specific region tree
         html.Div([
             html.Button("Plot tree of selected region", id="btn-plot-region"),
+            dcc.Loading(
+                id="loading-phylogenetic-msg",
+                type="circle",
+                children=html.Div(id="phylogenetic-message")
+            ),
             html.Div(id='region-status', style={'margin': '10px 0'}),
             html.H4("Phylogenetic tree for selected region"),
             cyto.Cytoscape(

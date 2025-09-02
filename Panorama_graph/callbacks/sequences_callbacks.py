@@ -7,7 +7,7 @@ Created on Sun Jul 13 12:36:54 2025
 """
 from dash import html, Input, Output, callback, State, dcc
 from Bio.Seq import Seq
-from app import app
+from app import *
 from neo4j_requests import *
 
 
@@ -64,13 +64,20 @@ def load_sequences_on_page_load(sequences_dic):
 
 @app.callback(
     Output('sequences-page-store', 'data'),
+    Output("sequences-message", "children"),
     Input('get-sequences-btn', 'n_clicks'),
     State('shared_storage_nodes', 'data'),
     prevent_initial_call=True
 )
 def display_sequences(n_clicks, nodes_data):
+    
     if not nodes_data:
-        return {}
+        return {}, html.Div(html.P([
+        "❌ No data to compute sequences. Select a region to visualise on the ",
+        dcc.Link("home page", href="/", style={'color': 'blue', 'textDecoration': 'underline'}),
+        " or on the ",
+        dcc.Link("gwas page", href="/gwas", style={'color': 'blue', 'textDecoration': 'underline'})
+        ], style=error_style))
     else:
         sequences = []
         genomes_nodes_dic = {}
@@ -104,4 +111,4 @@ def display_sequences(n_clicks, nodes_data):
                     sequence += sequences_list[sorted_names_by_genome[g]["names"][i]]
             sequences_dic[g] = sequence
 
-        return sequences_dic
+        return sequences_dic, ""

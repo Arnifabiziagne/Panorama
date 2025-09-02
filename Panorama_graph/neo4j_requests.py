@@ -809,7 +809,7 @@ def compute_phylo_tree_from_nodes(nodes_data,output_dir = "", weighted=False):
     
     
     newick_tree = tree.format('newick')
-    print(newick_tree)
+    #print(newick_tree)
     return newick_tree
             
 
