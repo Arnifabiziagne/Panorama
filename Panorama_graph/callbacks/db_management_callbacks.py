@@ -247,7 +247,7 @@ def on_click_load_annotation(n_clicks_load_all, annotation_file_names, genome):
         if not annotation_file_names:
             return html.Div("❌ Please select an annotation file before loading.", style=error_style), ["Drag and Drop or ", html.A("Select GFF / GTF Files")]
         if not genome or genome == "":
-            return html.Div("❌ Please select a reference genome.", style=error_style), no_update
+            return html.Div("❌ Please select a reference haplotype.", style=error_style), no_update
         state_index = check_state_index("NodeIndex"+genome+"_position")
         if state_index is None:
             return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update

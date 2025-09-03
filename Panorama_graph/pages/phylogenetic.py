@@ -108,7 +108,7 @@ def layout():
     
         #Second column for specific region tree
         html.Div([
-            html.Button("Plot tree of selected region", id="btn-plot-region"),
+            html.Button("Plot tree of selected region", title="Before using this button, data must be displayed on home page. If data are displayed, then this will computes the phylogenetic tree of displayed haplotypes (see help for details).", id="btn-plot-region"),
             dcc.Loading(
                 id="loading-phylogenetic-msg",
                 type="circle",

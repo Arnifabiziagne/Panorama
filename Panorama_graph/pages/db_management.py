@@ -78,7 +78,7 @@ def layout():
         ], style={'margin-bottom': '20px'}),
         html.Div([
            
-        html.Label("📦 Neo4j container name :  "),
+        html.Label("📦 Neo4j container name :  ", title='Set a name for your docker container.',),
         html.Span(PREFIX_CONTAINER_NAME, style={
         'fontWeight': 'bold',
         'paddingRight': '5px'
@@ -90,7 +90,7 @@ def layout():
                 style={'width': '400px'}
             )
         ], style={'margin-bottom': '20px'}),
-        html.Button("Create new DB", id="btn-create-db", n_clicks=0),
+        html.Button("Create new DB", title="This will create a new database. If data already exists they will be deleted.", id="btn-create-db", n_clicks=0),
         html.Div(id="create-db-confirmation", style={"marginTop": "10px"}),
         html.H3("Dumping DB"),
         html.Div([
@@ -122,11 +122,11 @@ def layout():
         ]),
         html.Br(),
         html.Div([
-            html.H4("If GFA concern only one chromosome, or if no chromosome, specify the chromosome value here (0 if no chromosome):  "),
+            html.H4("If GFA concern only one chromosome, or if no chromosome, specify the chromosome value here (0 if no chromosome):  ", style={'margin-right': '20px'}),
             dcc.Input(id='db-chromosome-input', style={'width': '100px', 'marginRight': '10px'}),
         ], style={'display': 'flex', 'alignItems': 'center'}),
         html.Div([
-            html.H4("Batch size. According to your ram available : bigger batch size will go faster but will consume more memory. Recommended 2 000 000):  "),
+            html.H4("Batch size. According to your ram available : bigger batch size will go faster but will consume more memory. Recommended 2 000 000):  ", style={'margin-right': '20px'}),
             dcc.Input(id='db-batch-size-input', type='number', value = 2000000, style={'width': '100px', 'marginRight': '10px'}),
         ], style={'display': 'flex', 'alignItems': 'center'}),
         html.Br(),
@@ -150,17 +150,17 @@ def layout():
         ),
     
         html.Div([
-            html.Button("Load", id="btn-load-gfa", n_clicks=0),
-            html.Button("Generate CSV Import file", id="btn-csv-import", n_clicks=0),
+            html.Button("Load", title="This will load directly data into database. For big data (> 10 Millions nodes) use 'Generate CSV Import file' button and then create a new database instead.",id="btn-load-gfa", n_clicks=0),
+            html.Button("Generate CSV Import file", title="Recommended procedure for big data : This will generates data into csv files. This files will then be used when creating a new databse.", id="btn-csv-import", n_clicks=0),
         ], style={'marginBottom': '10px'}),
         html.Br(),
         html.Label("Create index in database (only if this step has failed)."),
         html.Div([
-            html.Button("Create indexes", id="btn-create-index", n_clicks=0)
+            html.Button("Create indexes", title= "This will generate / regenerate indexes. If the already exists there will be no action.", id="btn-create-index", n_clicks=0)
         ], style={'marginBottom': '10px'}),
         html.Label("Create stats (only if this step has failed)."),
         html.Div([
-            html.Button("Create stats", id="btn-create-stats", n_clicks=0)
+            html.Button("Create stats", title= "Recuperation procedure for stats node if not exist after loading data.", id="btn-create-stats", n_clicks=0)
         ], style={'marginBottom': '10px'}),
         dcc.Loading(
             id="loading-gfa-msg",
@@ -184,7 +184,7 @@ def layout():
         dcc.Dropdown(
             id="dropdown-genome",
             options=[{"label": genome, "value": genome} for genome in genomes],
-            placeholder="Select a reference genome"
+            placeholder="Select the reference haplotype associated to the annotations files."
         ),
         dcc.Upload(
             id="upload-annotation",
@@ -206,7 +206,7 @@ def layout():
         ),
     
         html.Div([
-            html.Button("Load", id="btn-load-annotations-with-link", n_clicks=0),
+            html.Button("Load", title="This will load annotations into database. Indexes must be created before (can take some time for big data).", id="btn-load-annotations-with-link", n_clicks=0),
             #html.Button("Load only annotations", id="btn-load-only-annotations", n_clicks=0),
             #html.Button("Link annotations", id="btn-link-annotations", n_clicks=0),
             dcc.Loading(
@@ -224,7 +224,7 @@ def layout():
         html.Label("This operation is possible only if data are stored in the ./data directory. Databse will be stopped before."),
         html.Br(),
         # Delete data button
-        html.Button("Delete", id="btn-delete", n_clicks=0),
+        html.Button("Delete", title="This will delete all data and indexes in the database.", id="btn-delete", n_clicks=0),
         # Confirm deletion
         html.Div(id="delete-confirmation", style={"marginTop": "10px"}),
         dcc.Loading(

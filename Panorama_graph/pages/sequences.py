@@ -28,7 +28,7 @@ def layout():
         ], style={"marginBottom": "20px"}),
         html.Label("Click to get the sequences of selected region"),
         html.Div([
-            html.Button("Get sequences", id='get-sequences-btn', n_clicks=0),
+            html.Button("Get sequences", title='Before using this button, data must be displayed on home page. If data are displayed, then this will computes the sequence of each displayed haplotypes.', id='get-sequences-btn', n_clicks=0),
             dcc.Loading(
                 id="loading-sequences-msg",
                 type="circle",

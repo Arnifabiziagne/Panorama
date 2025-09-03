@@ -51,8 +51,14 @@ def compute_stylesheet(color_number):
             'target-arrow-shape': 'none',
             'control-point-distances':[1],
             'opacity': 1
-            }
-            }]
+            },
+            },
+            {'selector': ':selected', 'style': {
+                'background-color': '#FF4136',
+                'line-color': '#FF4136',
+                'border-width': 3,
+                'border-color': 'black'
+            }}]
         for i in range(1, color_number+1):
             sign = 1 if i % 2 == 0 else -1
             distance = sign * (20 + 10 * (i //2))
@@ -77,7 +83,13 @@ def compute_stylesheet(color_number):
                 'style': {
                     'line-color': '#A3C4BC'
                 }
-            }
+            },
+            {'selector': ':selected', 'style': {
+                'background-color': '#FF4136',
+                'line-color': '#FF4136',
+                'border-width': 3,
+                'border-color': 'black'
+            }}
             ]
     return stylesheet
 
@@ -261,7 +273,7 @@ def layout(data=None, initial_size_limit = 10):
     size_max = 500
     
     return html.Div([
-
+        dcc.Store(id='zoom_shared_storage_nodes', storage_type='memory'),
         html.Div([
             html.H2("PANORAMA"),
             
@@ -312,6 +324,12 @@ def layout(data=None, initial_size_limit = 10):
                     html.Li("Node size : the size of a node is proportionnal to the size of the sequence associated."),
                     html.Li("Link size : the size of a link is proportional to the number of haplotypes passing through that link."),
                 ]),
+                html.Li("Zoom :"),
+                html.Ul([
+                    html.Li("To zoom in : first select the nodes you want to zoom in by holding down the left mouse button and Shift key. Then push the 'zoom on selection' button."),
+                    html.Li("To retrieve the initial region just push the 'Reset zoom' button."),
+                    html.Li("Important : only the selected nodes will be used to display the new graph, this may hide areas displayed before zooming because nodes are linked by position ascending.")
+                ]),
             ]),
         ], style={"marginBottom": "20px"})
         
@@ -325,7 +343,7 @@ def layout(data=None, initial_size_limit = 10):
             html.Div([
                 html.Div([
                     html.Div([
-                        html.Label("Haplotypes", style={'display': 'block', 'marginBottom': '5px'}),
+                        html.Label("Reference haplotype", title="Select an haplotype to search / display annotation and to define genomic coordinates to search region." , style={'display': 'block', 'marginBottom': '5px'}),
                         dcc.Dropdown(
                             id='genomes-dropdown',
                             options=[{'label': genome, 'value': genome} for genome in all_genomes],
@@ -335,7 +353,7 @@ def layout(data=None, initial_size_limit = 10):
                         )
                     ], style={'marginRight': '30px'}),
                     html.Div([
-                        html.Label("Chromosome", style={'display': 'block', 'marginBottom': '5px'}),
+                        html.Label("Chromosome", title="The regions / annotations will be related only to this chromosome.", style={'display': 'block', 'marginBottom': '5px'}),
                         dcc.Dropdown(
                             id='chromosomes-dropdown',
                             options=[{'label': chrom, 'value': chrom} for chrom in all_chromosomes],
@@ -351,13 +369,13 @@ def layout(data=None, initial_size_limit = 10):
                 html.Div([
                     html.H5("Search region", style={'textAlign': 'left', 'marginBottom':'15px'}),
                     html.Div([
-                        html.Label("Start : "),
+                        html.Label("Start : ", title="Start on the selected haplotype / chromosome."),
                         dcc.Input(id='start-input', type='number', style={'width': '100px', 'marginRight': '10px'}),
-                        html.Label("End : "),
+                        html.Label("End : ", title="End on the selected haplotype / chromosome."),
                         dcc.Input(id='end-input', type='number', style={'width': '100px', 'marginRight': '20px'})
                     ], style={'marginBottom': '10px'}),
                     html.Div([
-                        html.Label("Gene name : "),
+                        html.Label("Gene name : ", title="Will be searched on annotation of the selected haplotype / chromosome."),
                         dcc.Input(
                             id='genename-input',
                             type='text',
@@ -365,7 +383,7 @@ def layout(data=None, initial_size_limit = 10):
                             debounce=True,  
                             style={'marginRight':"10px"}
                         ),
-                        html.Label("Gene id : "),
+                        html.Label("Gene id : ", title="Will be searched on annotation of the selected haplotype / chromosome."),
                         dcc.Input(
                             id='geneid-input',
                             type='text',
@@ -375,7 +393,7 @@ def layout(data=None, initial_size_limit = 10):
                     ], style={'marginBottom':'20px'}),
                     html.Button('Search', id='search-button', n_clicks=0, style={'marginTop': '10px'}),
                     html.Div([
-                        html.Label("Haplotypes to visualize :", style={'marginBottom': '5px'}),
+                        html.Label("Haplotypes to visualize :", title="Nodes containing only unselected haplotypes won't be displayed.", style={'marginBottom': '5px'}),
                         dcc.Checklist(
                             id="genome_selector",
                             options=[{"label": g, "value": g} for g in all_genomes],
@@ -387,7 +405,7 @@ def layout(data=None, initial_size_limit = 10):
                     style={'marginBottom': '20px'}),
                     #Download graph div
                     html.Div([
-                        html.Label('Download graph:', style={"marginLeft":"10px"}),
+                        html.Label('Download graph:', title="This will download the displayed graph into ./export/graphs directory in jpg or png format.", style={"marginLeft":"10px"}),
                         html.Button("as jpg", id="btn-save-jpg", style={"marginLeft":"10px"}),
                         html.Button("as png", id="btn-save-png", style={"marginLeft":"10px"}),
                         #html.Button("as svg", id="btn-save-svg", style={"marginLeft":"10px"}),
@@ -403,7 +421,7 @@ def layout(data=None, initial_size_limit = 10):
             html.Div([
                 
                 html.Div([
-                    html.Label("Minimal size of nodes :"),
+                    html.Label("Minimal size of nodes :", title="Nodes with size under this value won't be displayed."),
            
                     dcc.Slider(
                         id='size_slider',
@@ -419,7 +437,7 @@ def layout(data=None, initial_size_limit = 10):
                     ]),
                 html.Div([
                     html.Div(id='size-output', children='Min node size : 10', style={'margin':'10px'}),
-                    html.H4("Layout", style={'marginLeft':'50px'}),
+                    html.H4("Layout", title="The layout computes the graph. If the graph is not readable, it is possible to modify the algorithm. Dagre layout will display more linear graphs and fcose will display more compact graphs.",style={'marginLeft':'50px'}),
                     dcc.Dropdown(
                         id='layout-dropdown',
                         options=[
@@ -431,14 +449,14 @@ def layout(data=None, initial_size_limit = 10):
                         style={'width': '120px', 'display': 'inline-block','marginRight':'50px'}
                     ),
                     dcc.Checklist(
-                        options=[{'label': 'Hide labels', 'value': 'hide'}],
+                        options=[{'label': 'Hide labels', 'title':'Uncheck if labels takes too much space on the graph.', 'value': 'hide'}],
                         id='show-labels'
                     ),
                 ], style={'display': 'flex', 'alignItems': 'center', 'gap': '8px'}),
                 html.Div(id='nb-noeuds', style={'margin':'10px'}),
                 
                 dcc.Checklist(
-                    options=[{'label': 'Search shared paths', 'value': 'shared'}],
+                    options=[{'label': 'Search shared paths', 'title':'Check to switch to shared path search options.','value': 'shared'}],
                     id='shared-mode',
                     style={'marginBottom': '20px'}
                 ),
@@ -446,19 +464,19 @@ def layout(data=None, initial_size_limit = 10):
 
                     
                         html.Div([
-                            html.Label("Vizualize shared paths :", style={'marginBottom': '20px'}),
+                            html.Label("Vizualize shared paths :", title="Detect the links through which the selected haplotypes pass - the following input fields allow you to refine the search. ", style={'marginBottom': '20px'}),
                             dcc.Checklist(
                                 id="specific-genome_selector",
                                 options=[{"label": g, "value": g} for g in all_genomes],
                                 #value=[],
                                 inline=True
                             ),
-                            html.Label("Min (%) of shared haplotypes : "),
+                            html.Label("Min (%) of shared haplotypes : ", title="Min (%) of shared haplotypes = M. Number of selected haplotypes = N. To detect a shared node it must contains almost (M/100) x N of the selected haplotypes. If M = 0 then the minimum number of selected haplotypes will be 1."),
                             dcc.Input(id='min_shared_genomes-input', type='number', value = 0, style={'width': '100px', 'marginRight': '10px'}),
-                            html.Label("Tolerance (%) : "),
+                            html.Label("Tolerance (%) : ", title="Tolerance = T. Number of haplotypes on a node = n. To detect a shared node it must contains less than (T/100) x n of the non selected haplotypes. If T = 0 then detected nodes should contain only selected haplotypes."),
                             dcc.Input(id='tolerance-input', type='number', value =0, style={'width': '100px', 'marginRight': '20px'}),
 
-                                html.Label("Link color"),
+                                html.Label("Link color", title="This color will be used to color links between detected shared nodes."),
                                 
                                 dbc.Input(
                                     id='shared-region-color-picker',
@@ -487,7 +505,7 @@ def layout(data=None, initial_size_limit = 10):
                 html.Button("Update graph", id="update-btn", n_clicks=0, style={'marginTop' : '10px'}),
                 
                 html.Div(html.H4(id='node-info', style={'margin':'10px'})),
-                html.Div(html.Label("Annotations :", style={'marginBottom': '5px'})),
+                html.Div(html.Label("Annotations :", title="Compiles all annotations for the displayed nodes.", style={'marginBottom': '5px'})),
                 html.Div(html.H4(id='annotations-info', style={'margin':'10px'}))
             ], style={'flex': '1','padding': '20px','border': '1px solid #ccc','marginLeft': '20px','minWidth': '300px',
             'boxSizing': 'border-box','display': 'flex', 'flex-direction': 'column'})
@@ -497,7 +515,19 @@ def layout(data=None, initial_size_limit = 10):
         'flexWrap': 'wrap',
         'justify-content': 'space-between'
         }),   
-        
+        html.Div([
+            # Button on top of the graph
+            html.Button(
+                "🔍 Zoom on selection",
+                id='btn-zoom',
+                title='Before using this button, nodes must be selected by holding left mouse button and Shift key.'
+            ),
+            html.Button(
+                "🔄 Reset Zoom",
+                id='btn-reset-zoom',
+            )
+        ]),
+
         #Graph block
         cyto.Cytoscape(
             id='graph',
@@ -536,6 +566,7 @@ def layout(data=None, initial_size_limit = 10):
         )
         
     ])
+             
     
 #Callback to get nodes or link info when clicking on it
 @app.callback(
@@ -573,12 +604,18 @@ def display_element_data(node_data, edge_data):
     Output('annotations-info', 'children'),
     Output('graph', 'stylesheet'),
     Output('home-page-store', 'data', allow_duplicate=True),
+    Output('graph', 'selectedNodeData'),
+    Output('graph', 'selectedEdgeData'),
+    Output('zoom_shared_storage_nodes', 'data', allow_duplicate=True),
     State('genome_selector', 'value'), 
     State('shared-mode', 'value'), 
     State('specific-genome_selector', 'value'),
     State({'type':'color-picker', 'index': ALL}, 'value'),
     Input('show-labels', 'value'),
     Input('update-btn', 'n_clicks'), 
+    Input('btn-zoom', 'n_clicks'),
+    Input('btn-reset-zoom', 'n_clicks'),
+    State('graph', 'selectedNodeData'),
     #Input('size_slider', 'value'),
     State('home-page-store', 'data'),
     Input('search-button', 'n_clicks'),
@@ -593,10 +630,12 @@ def display_element_data(node_data, edge_data):
     State('min_shared_genomes-input', 'value'),
     State('tolerance-input', 'value'),
     State('shared-region-color-picker', 'value'),
+    State('zoom_shared_storage_nodes', 'data'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, zoom_clicks, reset_zoom_bouton_clicks, selected_nodes_data, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome,data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage):
     ctx = dash.callback_context
+    triggered_id = ctx.triggered_id
     if home_data_storage is None :
         home_data_storage = {}
     if home_data_storage is not None and 'slider_value' in home_data_storage:
@@ -626,7 +665,21 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         home_data_storage["color_genomes"] =color_genomes
     if specifics_genomes is not None :
         home_data_storage["specifics_genomes"] =specifics_genomes
-
+    #zoom on selected nodes
+    zoom_shared_storage_out = zoom_shared_storage or {}
+    if triggered_id == "btn-zoom":
+        if selected_nodes_data is not None and len(selected_nodes_data) > 0:
+            data_to_plot = {}
+            selected_ids = set([node['id'] for node in selected_nodes_data if 'id' in node])
+            data_to_plot = {k: v for k, v in data_storage_nodes.items() if k in selected_ids}
+            zoom_shared_storage_out = data_to_plot
+            print("Zoom : datat to plot length : " + str(len(data_to_plot)))
+    if triggered_id == "btn-reset-zoom":
+        zoom_shared_storage_out = {}
+    if len(zoom_shared_storage_out) > 0:
+        data_to_plot = zoom_shared_storage_out
+    else:
+        data_to_plot = data_storage_nodes
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
     if shared_mode and 'shared' in shared_mode:
@@ -657,15 +710,17 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 else :
                     new_data = get_nodes_by_region(genome, chromosome=chromosome, start=0, end=end)
             elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
+            zoom_shared_storage_out = {}
         else:
-            elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
+            elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
     else :
-        elements = compute_graph_elements(data_storage_nodes, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
+        elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list, color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
 
     defined_color = 0
-    for c in color_genomes:
-        if c != "#000000":
-            defined_color += 1
+    if color_genomes is not None : 
+        for c in color_genomes:
+            if c != "#000000":
+                defined_color += 1
     stylesheet = compute_stylesheet(defined_color)
     count = len(elements)
     annotations = ""
@@ -677,8 +732,9 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                     set_annot.add(a)
     for a in set_annot:
         annotations += str(a) + "\n"
+    print("zoom shared storage 4 : " + str(zoom_shared_storage_out))
 
-    return elements, f"{count} displayed nodes",data_storage_nodes,"",annotations, stylesheet, home_data_storage
+    return elements, f"{count} displayed nodes",data_storage_nodes,"",annotations, stylesheet, home_data_storage, [], [], zoom_shared_storage_out
 
 
 #color picker
@@ -784,7 +840,9 @@ def toggle_layout(layout_choice):
             'quality': "proof",
             'fit': True
             }
-        
+ 
+
+######## download graph callbacks ###############
 @app.callback(
     Output('dummy-output', 'children'),
     Input('graph', 'imageData'),
@@ -796,7 +854,6 @@ def toggle_layout(layout_choice):
 def save_image_to_file(image_data, chromosome, genome, start, end):
     if not image_data:
         raise PreventUpdate
-
     # S'assurer que le dossier existe
     os.makedirs(EXPORT_DIR, exist_ok=True)
 
@@ -842,3 +899,17 @@ def trigger_image_save(n_clicks_jpg, n_clicks_png):
         return {'type': fmt, 'action': 'download'}
     else:
         return {'type': fmt, 'action': 'store'}
+    
+    
+######## zoom on selection callbacks ###############   
+    
+# @app.callback(
+#     Output('selected-nodes', 'children'),
+#     Input('graph', 'selectedNodeData')
+# )
+# def display_selected_nodes(data):
+#     if not data:
+#         return "No nodes selected."
+    
+#     # Affiche les infos utiles des nœuds sélectionnés
+#     return "\n".join(f"- {node.get('label')} (id: {node.get('id')})" for node in data)

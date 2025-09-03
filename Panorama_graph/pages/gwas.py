@@ -70,12 +70,8 @@ def layout():
 
         # Area of genomes selection
         html.Div(id='genome-checkboxes'),
-        html.Div(html.H4("Select genomes : ", title="Select haplotypes for which you want to find shared regions."),
-        style={
-            'padding': '10px',
-            'display': 'inline-block',
-            'cursor': 'help'
-        }),
+       html.H3("Select genomes : ", title="Select haplotypes for which you want to find shared regions."),
+
         dcc.Checklist(
             id='genome-list',
             options=[],
@@ -84,37 +80,37 @@ def layout():
         ),
         
         html.Br(), 
+        html.H3("Parameters : "),
         html.Div([
             html.Div([
-                html.Label([
+                html.Label(
                     "Min node size to detect a shared region (integer) : ",
-                    html.Span("?", id="help-min-node-size", n_clicks=0, style=style_help)
-                ]),
-                dcc.Input(id='gwas-min-node-size-int', type='number', step=1, value=10, debounce=True),
+                    title="The nodes with a size below this value won't be detected by the process.",
+                    style={'margin-right': '15px'}
+                ),
+                dcc.Input(id='gwas-min-node-size-int',style={'width': '80px', 'margin-right': '15px'},  type='number', step=1, value=10, debounce=True),
                 html.Label(
-                    ["Min (%) of selected haplotypes to detect shared nodes (set to zéro for one genome min): ",
-                     html.Span("?", id="help-min-selected", n_clicks=0, style=style_help)
-                ]),
-                dcc.Input(id='gwas-min-percent_selected', type='number', step=1, value=80, debounce=True),
+                    "Min (%) of selected haplotypes : ",
+                     title="Min (%) of shared haplotypes = M. Number of selected haplotypes = N. To detect a shared node it must contains almost (M/100) x N of the selected haplotypes. If M = 0 then the minimum number of selected haplotypes will be 1.",
+                     style={'margin-right': '15px'}),
+                dcc.Input(id='gwas-min-percent_selected',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=80, debounce=True),
                 html.Label(
-                    ["Tolerance (%) for haplotypes not selected :  ",
-                     html.Span("?", id="help-tolerance", n_clicks=0, style=style_help)
-                ]),
-                dcc.Input(id='tolerance_percentage', type='number', step=1, value=10, debounce=True),
+                    "Tolerance (%) :  ",
+                    title="Tolerance = T. Number of haplotypes on a node = n. To detect a shared node it must contains less than (T/100) x n of the non selected haplotypes. If T = 0 then detected nodes should contain only selected haplotypes.",
+                    style={'margin-right': '15px'}
+                ),
+                dcc.Input(id='tolerance_percentage',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=10, debounce=True),
                 html.Label(
-                    ["Group detected nodes separate from less than this value into a same region : ",
-                     html.Span("?", id="help-region-gap", n_clicks=0, style=style_help)
-                ]),
-                dcc.Input(id='gwas-region-gap', type='number', step=1, value=10000, debounce=True),
-                html.Label(
-                    ["Include deletion (takes more time to compute) : ",
-                     html.Span("?", id="help-deletion", n_clicks=0, style=style_help)
-                ]),
+                    "Max gap : ",
+                    title="All the nodes detected will be grouped in larger regions. If two nodes are separated by less thant this value (in bp) they will be grouped in the same region.",
+                     style={'margin-right': '15px'}
+                ),
+                dcc.Input(id='gwas-region-gap',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=10000, debounce=True),
+
                 dcc.Checklist(
                     id='gwas-toggle-deletion',
-                    options=[{'label': 'Deletion', 'value': 'show'}],
-                    value=['show'],  # Valeur cochée par défaut
-                    style={'margin-bottom': '20px'}
+                    options=[{'label': 'Include deletion (takes more time to compute) :','title':"If checked, the process will look for deletion : it looks for nodes with minimal size and with the minimum haplotypes (defined by min percent) of the selected list. For these nodes it will look for a following node containing all the haplotypes of the previous node excepted the nodes selected and another following node with all the haplotypes of the previous node.", 'value': 'show'}],
+                    value=['show']
                 ),
             ], style={"display": "flex", "align-items": "center", "marginRight": "20px"}
             ),
@@ -131,15 +127,19 @@ def layout():
         ], style={"display": "flex", "flexDirection": "row", "align-items": "center", "marginBottom": "20px"}),
         
         html.Br(), 
-        html.Div([
+        html.Label(
+            "Choose a refrence haplotype :  ",
+            title="Select the genome for which you want to view the results and obtain annotations. If no genome is selected, the result will be the first genome found with annotations. If there are no annotations, it will be the first genome found."
+            ),
+        html.Div(
                 dcc.Dropdown(id='gwas_ref_genome_dropdown', placeholder="Reference haplotype : ", style={
                     "width": "250px",     
                     "minWidth": "150px",
                     "maxWidth": "100%",   
                     "flexShrink": 0
-                }),
-                html.Span("?", id="help-genome_ref-dropdown", n_clicks=0, style=style_help)
-            ], style={"display": "flex", "alignItems": "center", "gap": "8px"}),
+                })
+
+        ),
 
     
         html.Button("Find shared regions", id='btn-find-shared', n_clicks=0, style={'margin': '15px 0'}),

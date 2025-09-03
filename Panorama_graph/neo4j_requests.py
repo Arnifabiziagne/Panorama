@@ -158,7 +158,7 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                     AND (
                     """
                     first = True
-                    for g in anchor_stop["genomes"]:
+                    for g in set(anchor_start["genomes"]+anchor_stop["genomes"]):
                         champ_position = g+"_position"
                         start = min(anchor_start[champ_position],anchor_stop[champ_position])
                         stop = max(anchor_start[champ_position],anchor_stop[champ_position])
