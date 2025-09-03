@@ -15,6 +15,7 @@ import pages.phylogenetic as phylogenetic
 import pages.sequences as sequences
 import pages.gwas as gwas
 import pages.db_management as db_management
+import pages.about as about
 import callbacks.phylogenetic_callbacks
 import callbacks.gwas_callbacks
 import callbacks.sequences_callbacks
@@ -85,7 +86,7 @@ def init_data(pathname):
     new_data = {}
     all_genomes = get_genomes()
     all_genomes.sort()
-    print("all genomes : " + str(all_genomes))
+    #print("all genomes : " + str(all_genomes))
     new_data["genomes"] = all_genomes
     new_data["chromosomes"]  = get_chromosomes()
     return new_data
@@ -108,6 +109,8 @@ def display_page(pathname):
         return db_management.layout()
     elif pathname == "/sequences":
         return sequences.layout()
+    elif pathname == "/about":
+        return about.layout()
     else:
         return html.H1("Page non trouvée")
 

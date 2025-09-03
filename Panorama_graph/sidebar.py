@@ -21,6 +21,8 @@ sidebar = html.Div([
         dcc.Link('Sequences', href='/sequences', className='nav-link'),
         html.Br(),
         dcc.Link('DB management', href='/db_management', className='nav-link'),
+        html.Br(),
+        dcc.Link('About', href='/about', className='nav-link'),
         html.Hr()
     ], className='navbar'),
 ])
