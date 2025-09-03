@@ -20,6 +20,8 @@ from neo4j_requests import *
 import base64
 import io
 
+EXPORT_DIR = "./export/gwas/"
+
 #populates genomes checkboxes
 @app.callback(
     Output('genome-list', 'options'),
@@ -223,7 +225,7 @@ def save_csv(n_clicks, n_clicks_seq, table_data):
         for row in tqdm(table_data):
             sequences.append(get_sequence_from_position(row['genome'], row['chromosome'], row['start'], row['stop']))
         df["sequence"] = sequences
-    save_path = os.path.join(os.getcwd(), "./gwas/shared_regions.csv")
+    save_path = os.path.join(os.getcwd(), EXPORT_DIR, "shared_regions.csv")
     print("save path : " + str(save_path))
     df.to_csv(save_path, index=False)
     

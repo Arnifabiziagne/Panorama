@@ -5,6 +5,7 @@ from neo4j_requests import *
 
 import dash
 from dash import Dash, dcc, html, Input, Output, State, callback_context, ctx, MATCH, ALL
+from dash.exceptions import PreventUpdate
 import dash_cytoscape as cyto
 import dash_bootstrap_components as dbc
 import matplotlib.colors as mcolors
@@ -16,10 +17,14 @@ import json
 
 from app import app
 
+import os
+import base64
+
 cyto.load_extra_layouts()
 
 DEFAULT_SIZE_VALUE = 10
 DEFAULT_SHARED_REGION_COLOR = "#008000"
+EXPORT_DIR = './export/graphs'
 
 def records_to_dataframe(nodes_data):
     rows = []
@@ -269,11 +274,13 @@ def layout(data=None, initial_size_limit = 10):
                 html.Li("Select a chromosome: searches will only be performed on this chromosome."),
                 html.Li("Choose from the following options:"),
                 html.Ul([
-                    html.Li("Select the start and end of the region on the selected chromosome."),
+                    html.Li("Select the start and end of the region on the selected chromosome. If there is no defined end, then the searched region will be from the defined start to the end of the pangenome. The region should not be too large, otherwise the display will take too long or will not be possible."),
                     html.Li("Search by annotation with a gene name or ID.")
                 ]),
                 html.Li("Select the haplotypes to be viewed: it is possible to exclude some haplotypes. "
-                        "In this case, nodes containing only these haplotypes will not be displayed.")
+                        "In this case, nodes containing only these haplotypes will not be displayed."),
+                html.Li("You can download the current graph by clicking on 'as jpg' or 'as png' button. "
+                        "Graphs are saved into ./export/graphs directory.")
             ]),
             html.P("Display settings:"),
             html.Ul([
@@ -376,6 +383,15 @@ def layout(data=None, initial_size_limit = 10):
                             inline=True
                         )
                         
+                    ], 
+                    style={'marginBottom': '20px'}),
+                    #Download graph div
+                    html.Div([
+                        html.Label('Download graph:', style={"marginLeft":"10px"}),
+                        html.Button("as jpg", id="btn-save-jpg", style={"marginLeft":"10px"}),
+                        html.Button("as png", id="btn-save-png", style={"marginLeft":"10px"}),
+                        #html.Button("as svg", id="btn-save-svg", style={"marginLeft":"10px"}),
+                        html.Div(id="dummy-output")
                     ]),
                     dcc.Loading(id="loading-spinner", type="circle", children=html.Div(id="output-zone"))
                 ], 
@@ -769,5 +785,60 @@ def toggle_layout(layout_choice):
             'fit': True
             }
         
+@app.callback(
+    Output('dummy-output', 'children'),
+    Input('graph', 'imageData'),
+    State('chromosomes-dropdown', 'value'),
+    State('genomes-dropdown', 'value'),
+    State('start-input', 'value'),
+    State('end-input', 'value')
+)
+def save_image_to_file(image_data, chromosome, genome, start, end):
+    if not image_data:
+        raise PreventUpdate
+
+    # S'assurer que le dossier existe
+    os.makedirs(EXPORT_DIR, exist_ok=True)
+
+    
+    # imageData est typiquement sous la forme : 'data:image/jpeg;base64,...'
+    header, base64_data = image_data.split(',', 1)
+    
+    # Get image formaty from header
+    if 'image/png' in header:
+        ext = 'png'
+    elif 'image/jpeg' in header:
+        ext = 'jpg'
+    elif 'image/svg+xml' in header:
+        ext = 'svg'
+    else:
+        raise ValueError("Unrecognized format in imageData")
+      
+    file_name = "graph_"+str(genome)+"_chr_"+str(chromosome)+"_start_"+str(start)+"_end_"+str(end)+"."+ext
+    save_path = os.path.join(os.getcwd(), EXPORT_DIR, file_name)
+    # Décode les données base64 en bytes
+    image_bytes = base64.b64decode(base64_data)
+
+    # Enregistre dans un fichier
+    with open(save_path, 'wb') as f:
+        f.write(image_bytes)
+
+    return f"Image downloaded in {save_path}"
 
 
+@app.callback(
+    Output("graph", "generateImage"),
+    Input("btn-save-jpg", "n_clicks"),
+    Input("btn-save-png", "n_clicks"),
+    #Input("btn-save-svg", "n_clicks")
+)
+def trigger_image_save(n_clicks_jpg, n_clicks_png):
+    if not ctx.triggered_id:
+        raise PreventUpdate
+
+    # Get image format
+    fmt = ctx.triggered_id.split('-')[-1] 
+    if fmt == 'svg':
+        return {'type': fmt, 'action': 'download'}
+    else:
+        return {'type': fmt, 'action': 'store'}
