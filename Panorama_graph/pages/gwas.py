@@ -9,6 +9,8 @@ Created on Wed Jul  2 21:55:56 2025
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 
+EXPORT_DIR = "./export/gwas/"
+
 style_help = {
     "cursor": "pointer",
     "color": "black",
@@ -153,9 +155,9 @@ def layout():
         html.Div(id='sequence-zone', style={"fontSize": "18px", "padding": "10px"}),
         html.Label("Tip : Click on the size value to print the region sequence"), 
         html.Div([
-            html.Button("💾 Export to CSV", id='save-csv-button', n_clicks=0),
-            html.Button("💾 Export to CSV with sequences", id='save-csv-with_seq-button', n_clicks=0),
-            html.Button("📂 Load csv", id='load-csv-button', n_clicks=0),
+            html.Button("💾 Export to CSV", title=f"Export the results in the table into a csv file in the {EXPORT_DIR} directory. Sequences won't be present.",id='save-csv-button', n_clicks=0),
+            html.Button("💾 Export to CSV with sequences", title=f"Export the results in the table into a csv file in the {EXPORT_DIR} directory. Sequences will be present.", id='save-csv-with_seq-button', n_clicks=0),
+            html.Button("📂 Load csv", title="Load a csv file generated from this page.", id='load-csv-button', n_clicks=0),
             html.Div(id='save-feedback'),
             dcc.Upload(
                 id='upload-csv',
