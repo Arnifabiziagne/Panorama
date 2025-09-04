@@ -116,6 +116,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
                     r += 1
                 i += 1
         else:
+            #print(f"Genome ref : {ref_genome}")
             analyse_to_plot = analyse[ref_genome]
                 
         #print("analyse to plot : " + str(analyse_to_plot))
@@ -124,14 +125,15 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
             annotation = ""
             if len(analyse_to_plot[r]["annotations"]) > 0:
                 for annot in analyse_to_plot[r]["annotations"]:
-                    annotation += annot["gene_name"] + "\n"
+                    if "gene_name" in annot:
+                        annotation += annot["gene_name"] + "\n"
             analyse_to_plot[r]["annotations"] = annotation
-            if "annotation_before" in analyse_to_plot[r]:
+            if "annotation_before" in analyse_to_plot[r] and "gene_name" in analyse_to_plot[r]["annotation_before"]:
                 annot_before = "gene_name : " + analyse_to_plot[r]["annotation_before"]["gene_name"] \
                                 +"\nDistance : " + str(analyse_to_plot[r]["annotation_before"]["distance"])
                 analyse_to_plot[r]["annotation_before"] = annot_before
             
-            if "annotation_after" in analyse_to_plot[r]:
+            if "annotation_after" in analyse_to_plot[r] and "gene_name" in analyse_to_plot[r]["annotation_after"]:
                 annot_after = "gene_name : " + analyse_to_plot[r]["annotation_after"]["gene_name"] \
                                 +"\nDistance : " + str(analyse_to_plot[r]["annotation_after"]["distance"])
                 analyse_to_plot[r]["annotation_after"] = annot_after

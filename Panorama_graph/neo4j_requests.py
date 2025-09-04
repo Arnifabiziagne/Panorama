@@ -282,7 +282,7 @@ def get_annotations_in_position_range(genome_ref, chromosome="1", start_position
 
         query = f"""
         MATCH (n:Node)-[:A_POUR_ANNOTATION]->(a:Annotation)
-        WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end
+        WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end and a.gene_name is not null
         RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name
         """
         #print("Query : " + query)
@@ -609,7 +609,9 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
             for g in tqdm(genomes):
                 analyse[g] = []
                 for c in dic_regions_2[g]:
+                    print(f"Haplotype {g} chromosome {c} regions number {len(dic_regions_2[g][c])}")
                     for r in dic_regions_2[g][c]['regions']:
+                        print("region " + str(r))
                         r["chromosome"] = c
                         r["genome"] = g
                         if (genome_ref is not None and g == genome_ref) or genome_ref is None :
