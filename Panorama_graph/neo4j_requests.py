@@ -616,13 +616,16 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
                             annot_before_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["start"], before=True)
                             annot_tmp = {}
-                            annot_tmp["gene_name"] = annot_before_tmp["gene_name"]
-                            annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
+                            if annot_before_tmp is not None and "gene_name" in annot_before_tmp :
+                                annot_tmp["gene_name"] = annot_before_tmp["gene_name"]
+                                annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
                             r["annotation_before"] = annot_tmp
+                            
                             annot_after_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["stop"], before=False)
                             annot_tmp = {}
-                            annot_tmp["gene_name"] = annot_after_tmp["gene_name"]
-                            annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
+                            if annot_after_tmp is not None and "gene_name" in annot_after_tmp :
+                                annot_tmp["gene_name"] = annot_after_tmp["gene_name"]
+                                annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
                             r["annotation_after"] = annot_tmp
                         analyse[g].append(r)
                 analyse[g] = sorted(analyse[g], key=lambda d: d['size'], reverse=True)
