@@ -125,7 +125,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
             annotation = ""
             if len(analyse_to_plot[r]["annotations"]) > 0:
                 for annot in analyse_to_plot[r]["annotations"]:
-                    if "gene_name" in annot:
+                    if "gene_name" in annot and annot["gene_name"] is not None:
                         annotation += annot["gene_name"] + "\n"
             analyse_to_plot[r]["annotations"] = annotation
             if "annotation_before" in analyse_to_plot[r] and "gene_name" in analyse_to_plot[r]["annotation_before"]:
