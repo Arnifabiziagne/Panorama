@@ -125,18 +125,21 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
             annotation = ""
             if len(analyse_to_plot[r]["annotations"]) > 0:
                 for annot in analyse_to_plot[r]["annotations"]:
-                    if "gene_name" in annot:
+                    if "gene_name" in annot and annot["gene_name"] is not None:
                         annotation += annot["gene_name"] + "\n"
             analyse_to_plot[r]["annotations"] = annotation
+            annot_before = ""
             if "annotation_before" in analyse_to_plot[r] and "gene_name" in analyse_to_plot[r]["annotation_before"]:
                 annot_before = "gene_name : " + analyse_to_plot[r]["annotation_before"]["gene_name"] \
                                 +"\nDistance : " + str(analyse_to_plot[r]["annotation_before"]["distance"])
-                analyse_to_plot[r]["annotation_before"] = annot_before
-            
+
+            analyse_to_plot[r]["annotation_before"] = annot_before
+            annot_after = ""
             if "annotation_after" in analyse_to_plot[r] and "gene_name" in analyse_to_plot[r]["annotation_after"]:
                 annot_after = "gene_name : " + analyse_to_plot[r]["annotation_after"]["gene_name"] \
                                 +"\nDistance : " + str(analyse_to_plot[r]["annotation_after"]["distance"])
-                analyse_to_plot[r]["annotation_after"] = annot_after
+            
+            analyse_to_plot[r]["annotation_after"] = annot_after
 
         data["analyse"] = analyse_to_plot
         return f"{len(analyse_to_plot)} shared regions found.",data, ""
