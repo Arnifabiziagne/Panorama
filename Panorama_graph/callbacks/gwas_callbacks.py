@@ -106,6 +106,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
             no_annotations = True
             i = 0
             keys = list(analyse.keys())
+            analyse_to_plot = analyse[keys[0]]
             while no_annotations and i < len(keys):
                 current_key = keys[i]
                 r = 0
