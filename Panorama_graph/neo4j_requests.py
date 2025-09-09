@@ -637,12 +637,12 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     n_start = get_anchor(genomes_list[0], a["chromosome"], a["start"], before = True)
                     n_stop = get_anchor(genomes_list[0], a["chromosome"], a["stop"], before = False)
                     position_field = genome_ref+"_position"
-                    if position_field in n_start and position_field in n_stop:
+                    r["start"] = 0
+                    r["stop"] = 0
+                    if position_field in n_start :
                         r["start"] = n_start[position_field]
+                    if position_field in n_stop:
                         r["stop"] = n_stop[position_field]
-                    else:
-                        r["start"] = 0
-                        r["stop"] = 0
                     r["size"] = r["stop"] - r["start"]
                     r["annotations"] = get_annotations_in_position_range(genome_ref=genome_ref,chromosome=a["chromosome"], start_position=r["start"],end_position=r["stop"])
                     annot_before_tmp = get_annotation_before_or_after_position(genome_ref=genome_ref, chromosome=a["chromosome"], position=r["start"], before=True)
