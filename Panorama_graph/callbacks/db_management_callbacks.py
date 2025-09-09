@@ -104,9 +104,8 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFA
 
 @app.callback(
     Output("gfa-message", "children", allow_duplicate=True),
-    Output("upload-gfa-text", "children", allow_duplicate=True),
     Input("btn-csv-import", "n_clicks"),
-    State("upload-gfa", "filename"),
+    State('gfa-files-selector', 'value'),
     State("db-chromosome-input", "value"),
     State("db-batch-size-input", "value"),
     prevent_initial_call=True
