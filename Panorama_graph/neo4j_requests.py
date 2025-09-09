@@ -628,6 +628,38 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
                             r["annotation_after"] = annot_tmp
                         analyse[g].append(r)
+            if genome_ref not in genomes:
+                analyse[genome_ref] = []
+                for a in analyse[genomes_list[0]]:
+                    r = {}
+                    r["chromosome"] = a["chromosome"]
+                    r["genome"] = genome_ref
+                    n_start = get_anchor(genomes_list[0], a["chromosome"], a["start"], before = True)
+                    n_stop = get_anchor(genomes_list[0], a["chromosome"], a["stop"], before = False)
+                    position_field = genome_ref+"_position"
+                    if position_field in n_start and position_field in n_stop:
+                        r["start"] = n_start[position_field]
+                        r["stop"] = n_stop[position_field]
+                    else:
+                        r["start"] = 0
+                        r["stop"] = 0
+                    r["annotations"] = get_annotations_in_position_range(genome_ref=genome_ref,chromosome=a["chromosome"], start_position=r["start"],end_position=r["stop"])
+                    annot_before_tmp = get_annotation_before_or_after_position(genome_ref=genome_ref, chromosome=a["chromosome"], position=r["start"], before=True)
+                    annot_tmp = {}
+                    if annot_before_tmp is not None and "gene_name" in annot_before_tmp :
+                        annot_tmp["gene_name"] = annot_before_tmp["gene_name"]
+                        annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
+                    r["annotation_before"] = annot_tmp
+                    
+                    annot_after_tmp = get_annotation_before_or_after_position(genome_ref=genome_ref, chromosome=a["chromosome"], position=r["stop"], before=False)
+                    annot_tmp = {}
+                    if annot_after_tmp is not None and "gene_name" in annot_after_tmp :
+                        annot_tmp["gene_name"] = annot_after_tmp["gene_name"]
+                        annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
+                    r["annotation_after"] = annot_tmp
+                    analyse[genome_ref].append(r)
+                        
+                        
                 analyse[g] = sorted(analyse[g], key=lambda d: d['size'], reverse=True)
             
             
