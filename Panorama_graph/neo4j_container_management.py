@@ -13,7 +13,7 @@ import json
 import time
 
 from config import *
-from neo4j_DB_construction import create_stats_from_nodes, create_indexes
+from neo4j_DB_construction import create_stats_from_nodes, create_indexes, check_state_index
 
 # --- CONSTANTES ---
 DOCKER_IMAGE = "neo4j:2025.05-community-bullseye"
@@ -237,7 +237,7 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
         if check_state_index("NodeIndexChromosome") is not None:
             t = 0
             while int(check_state_index("NodeIndexChromosome")) < 100 and t < MAX_TIME_INDEX:
-                sleep(10)
+                time.sleep(10)
                 t+=10
             print("creating stats")
             create_stats_from_nodes()
