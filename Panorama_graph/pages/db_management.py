@@ -16,6 +16,23 @@ from app import app, DB_VERSION
 from neo4j_available_docker_images_conf import AVAILABLE_DOCKER_IMAGES
 
 PREFIX_CONTAINER_NAME = "DB_"+ DB_VERSION + "_"
+ANNOTATION_DIR = './data/annotations'
+GFA_DIR = './data/gfa'
+
+def list_annotation_files():
+    """Return all .gff / .gtf / .gff3 files in the annotation directory."""
+    return sorted([
+        f for f in os.listdir(ANNOTATION_DIR)
+        if f.lower().endswith(('.gff', '.gtf', '.gff3'))
+    ])
+
+def list_gfa_files():
+    """Return all .gfa files in the annotation directory."""
+    return sorted([
+        f for f in os.listdir(GFA_DIR)
+        if f.lower().endswith(('.gfa'))
+    ])
+
 
 # Layout de la page
 def layout():
@@ -130,29 +147,28 @@ def layout():
             dcc.Input(id='db-batch-size-input', type='number', value = 2000000, style={'width': '100px', 'marginRight': '10px'}),
         ], style={'display': 'flex', 'alignItems': 'center'}),
         html.Br(),
-        dcc.Upload(
-            id="upload-gfa",
-            children=html.Div(id="upload-gfa-text", children=[
-                "Drag and Drop or ",
-                html.A("Select GFA Files")
-            ]),
-            style={
-                'width': '100%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px 0'
-            },
-            multiple=True
-        ),
+        #Checklist of annotations files
+        html.Div([
+            html.H4("Select GFA files:  ", style={'margin-right': '20px'}),
+            dcc.Checklist(
+                id='gfa-files-selector',
+                options=[{'label': f, 'value': f} for f in list_gfa_files()],
+                value=[],
+                labelStyle={'display': 'block'}  # display items vertically
+            ),
+            
+            html.Br(),
+        ]),
     
         html.Div([
             html.Button("Load", title="This will load directly data into database. For big data (> 10 Millions nodes) use 'Generate CSV Import file' button and then create a new database instead.",id="btn-load-gfa", n_clicks=0),
             html.Button("Generate CSV Import file", title="Recommended procedure for big data : This will generates data into csv files. This files will then be used when creating a new databse.", id="btn-csv-import", n_clicks=0),
         ], style={'marginBottom': '10px'}),
+        dcc.Loading(
+            id="loading-gfa-msg",
+            type="circle",
+            children=html.Div(id="gfa-message")
+        ),
         html.Br(),
         html.Label("Create index in database (only if this step has failed)."),
         html.Div([
@@ -162,11 +178,7 @@ def layout():
         html.Div([
             html.Button("Create stats", title= "Recuperation procedure for stats node if not exist after loading data.", id="btn-create-stats", n_clicks=0)
         ], style={'marginBottom': '10px'}),
-        dcc.Loading(
-            id="loading-gfa-msg",
-            type="circle",
-            children=html.Div(id="gfa-message")
-        ),
+        
     
 
         html.Hr(style={"margin": "30px 0"}),
@@ -186,24 +198,17 @@ def layout():
             options=[{"label": genome, "value": genome} for genome in genomes],
             placeholder="Select the reference haplotype associated to the annotations files."
         ),
-        dcc.Upload(
-            id="upload-annotation",
-            children=html.Div(id="upload-annotation-text", children=[
-                "Drag and Drop or ",
-                html.A("Select GFF / GTF Files")
-            ]),
-            style={
-                'width': '100%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px 0'
-            },
-            multiple=True
-        ),
+        #Checklist of annotations files
+        html.Div([
+            html.H4("Select annotations files:  ", style={'margin-right': '20px'}),
+            dcc.Checklist(
+                id='annotations-files-selector',
+                options=[{'label': f, 'value': f} for f in list_annotation_files()],
+                value=[],
+                labelStyle={'display': 'block'}  # display items vertically
+            ),
+            html.Br(),
+        ]),
     
         html.Div([
             html.Button("Load", title="This will load annotations into database. Indexes must be created before (can take some time for big data).", id="btn-load-annotations-with-link", n_clicks=0),

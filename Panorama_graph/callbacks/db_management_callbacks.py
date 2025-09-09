@@ -47,32 +47,16 @@ def get_container_name_no_prefix(container_name):
 
 
 @app.callback(
-    Output("upload-gfa-text", "children", allow_duplicate=True),
-    Input("upload-gfa", "filename"),
-    prevent_initial_call=True
-)
-def update_gfa_upload_text(filenames):
-    if filenames:
-        if isinstance(filenames, str):
-            filenames = [filenames]
-        return f"✅ Selected files: {', '.join(filenames)}"
-    return ["Drag and Drop or ", html.A("Select one or more GFA Files")]
-
-
-@app.callback(
     Output("gfa-message", "children", allow_duplicate=True),
-    Output("upload-gfa-text", "children", allow_duplicate=True),
     Input("btn-load-gfa", "n_clicks"),
-    State("upload-gfa", "filename"),
+    State('gfa-files-selector', 'value'),
     State("db-chromosome-input", "value"),
     State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
 def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFAULT_BATCH_SIZE):
     if not gfa_file_names:
-        return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), [
-            "Drag and Drop or ", html.A("Select one or more GFA Files")
-        ]
+        return html.Div("❌ Please select at least one GFA file before importing.", style=error_style)
     if batch_size < MIN_BATCH_SIZE:
         batch_size = MIN_BATCH_SIZE
     # Force to list
@@ -82,9 +66,7 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFA
     # ✅ Check all files have .gfa extension
     invalid_files = [f for f in gfa_file_names if not f.lower().endswith(".gfa")]
     if invalid_files:
-        return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.", style=error_style), [
-            "Drag and Drop or ", html.A("Select one or more GFA Files")
-        ]
+        return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.", style=error_style)
     if len(gfa_file_names) == 1 and not chromosome_file:
         list_chromosome_file = [None]
     else:
@@ -117,8 +99,7 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFA
     create_indexes(base=True, extend=True, genomes_index=True)
     print("✅ All GFA files loaded.")
 
-    return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style), [
-        "Drag and Drop or ", html.A("Select one or more GFA Files")]
+    return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style)
 
 
 @app.callback(
@@ -218,41 +199,32 @@ def clear_genome_error_on_selection(genome):
         return ""
     dash.exceptions.PreventUpdate 
 
-@app.callback(
-    Output("upload-annotation-text", "children", allow_duplicate=True),
-    Input("upload-annotation", "filename"),
-    prevent_initial_call=True
-)
-def update_annotation_upload_text(filename):
-    if filename:
-        return f"✅ File selected: {filename}"
-    return ["Drag and Drop or ", html.A("Select an Annotation File")]
+
 
 @app.callback(
     Output("annotation-message", "children"),
-    Output("upload-annotation-text", "children", allow_duplicate=True),
     Input("btn-load-annotations-with-link", "n_clicks"),
     #Input("btn-load-only-annotations", "n_clicks"),
     #Input("btn-link-annotations", "n_clicks"),
-    State("upload-annotation", "filename"),
     State("dropdown-genome", "value"),
+    State('annotations-files-selector', 'value'),
     prevent_initial_call=True
 )
-def on_click_load_annotation(n_clicks_load_all, annotation_file_names, genome):
+def on_click_load_annotation(n_clicks_load_all, genome, annotation_file_names):
     triggered_id = ctx.triggered_id
     annotation_time = time.time()
     print("annotations file names : " + str(annotation_file_names))
     print("triggered id : " + str(triggered_id))
     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
         if not annotation_file_names:
-            return html.Div("❌ Please select an annotation file before loading.", style=error_style), ["Drag and Drop or ", html.A("Select GFF / GTF Files")]
+            return html.Div("❌ Please select an annotation file before loading.", style=error_style)
         if not genome or genome == "":
-            return html.Div("❌ Please select a reference haplotype.", style=error_style), no_update
+            return html.Div("❌ Please select a reference haplotype.", style=error_style)
         state_index = check_state_index("NodeIndex"+genome+"_position")
         if state_index is None:
-            return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
+            return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style)
         if int(state_index) != 100:
-            return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
+            return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style)
 
         # Force to list
         if isinstance(annotation_file_names, str):
@@ -261,15 +233,15 @@ def on_click_load_annotation(n_clicks_load_all, annotation_file_names, genome):
         # ✅ Check all files have .gtf / .gff3 / .gff extension
         invalid_files = [f for f in annotation_file_names if not f.lower().endswith(".gff") and not f.lower().endswith(".gff3") and not f.lower().endswith(".gtf")]
         if invalid_files:
-            return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gff, .gff3 or gtf files.", style=error_style), ["Drag and Drop or ", html.A("Select a GFF / GTF File")]
+            return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gff, .gff3 or gtf files.", style=error_style)
 
         for f in annotation_file_names:
             print(f"Load annotations for file {f}")
             state_index = check_state_index("NodeIndex"+genome+"_position")
             if state_index is None:
-                return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
+                return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style)
             if int(state_index) != 100:
-                return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
+                return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style)
             file = os.path.join(ANNOTATIONS_FOLDER, f)
             annotation_time = time.time()
             load_annotations_neo4j(file, genome_ref = genome, single_chromosome = None)
@@ -280,9 +252,9 @@ def on_click_load_annotation(n_clicks_load_all, annotation_file_names, genome):
         creer_relations_annotations_neo4j(genome)
         print("Link annotations in " + str(time.time()-annotation_relation_time) + " s.")
     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
-        return html.Div(f"✅ Annotation '{annotation_file_names}' loaded for genome '{genome}'.", style=success_style), ["Drag and Drop or ", html.A("Select a GFF / GTF File")]
+        return html.Div(f"✅ Annotation '{annotation_file_names}' loaded for genome '{genome}'.", style=success_style)
     else:
-        return html.Div(f"✅ Annotation linked.", style=success_style), ["Drag and Drop or ", html.A("Select a GFA File")]
+        return html.Div(f"✅ Annotation linked.", style=success_style)
 
 ############# Delete data callbacks#################
 
