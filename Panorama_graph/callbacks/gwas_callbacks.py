@@ -288,7 +288,7 @@ def show_upload_area(n_clicks):
     prevent_initial_call=True,
 )
 def display_sequence_on_button_click(active_cell, table_data):
-    if active_cell and active_cell['column_id'] == 'size':
+    if active_cell and active_cell['column_id'] == 'shared_size':
         row_index = active_cell["row"]
         row = table_data[row_index]
         sequence = get_sequence_from_position(row['genome'], row['chromosome'], row['start'], row['stop'])

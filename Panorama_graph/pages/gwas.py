@@ -44,7 +44,8 @@ def layout():
                      html.Li("Deleted nodes : Here, the objective is to detect deletions shared by the selected haplotypes."
                              " This mode is activated only if 'include deletion' is checked."
                              " It detects nodes with the minimum of selected haplotypes and minimal size (see parameters) and at least one of the unselected haplotypes."
-                             " If this node is following by a node with all the unselected haplotypes and only these haplotypes, then a deletion node will be detected."
+                             " If this node is following by a node with all the unselected haplotypes and only these haplotypes, and another following node with the selected haplotypes and almost on more haplotype, then a deletion node will be detected."
+                             " In this case, the size of shared region will be incremented only by the first deleted node, the size of the other nodes will be ignored (but they will be displayed)."
                              " The following parameters are used :"),      
                          html.Ul([
                              html.Li("Min node size : a node will be detected only if it's size is superior to this value"),
@@ -194,7 +195,8 @@ def layout():
                 {"name": "annotation before", "id": "annotation_before"},
                 {"name": "annotations", "id": "annotations"},
                 {"name": "annotation after", "id": "annotation_after"},
-                {"name": "size", "id": "size"}
+                {"name": "region size", "id": "region_size"},
+                {"name": "shared size", "id": "shared_size"}
             ],
             data=[],
             style_cell={

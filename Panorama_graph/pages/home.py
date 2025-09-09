@@ -770,9 +770,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                                               color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
             zoom_shared_storage_out = {}
         else:
+            print(f"min node size : {size_slider_val}")
             elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
                                               color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
     else:
+        print(f"min node size : {size_slider_val}")
         elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
                                           color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
 
