@@ -643,6 +643,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     else:
                         r["start"] = 0
                         r["stop"] = 0
+                    r["size"] = r["stop"] - r["start"]
                     r["annotations"] = get_annotations_in_position_range(genome_ref=genome_ref,chromosome=a["chromosome"], start_position=r["start"],end_position=r["stop"])
                     annot_before_tmp = get_annotation_before_or_after_position(genome_ref=genome_ref, chromosome=a["chromosome"], position=r["start"], before=True)
                     annot_tmp = {}
@@ -659,7 +660,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     r["annotation_after"] = annot_tmp
                     analyse[genome_ref].append(r)
                         
-                        
+            for g in analyse:
                 analyse[g] = sorted(analyse[g], key=lambda d: d['size'], reverse=True)
             
             
