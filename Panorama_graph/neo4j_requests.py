@@ -524,7 +524,8 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     genome_position_ref = genomes_list[0]
                 else :
                     genome_position_ref = genome_ref
-
+                
+                
                 for c in chromosome_list :
                     print("chromosome : " + str(c))
                     dic_regions[c] = {}
@@ -609,30 +610,30 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 if "deleted_node_size" in dict(r):
                                     dic_regions[c][g]["size"].append(r["deleted_node_size"])
                                 else:
-                                    dic_regions[c][g]["size"].append(r["nodes"]["size"])
-                                    
+                                    dic_regions[c][g]["size"].append(r["nodes"]["size"])             
                     #Group regions if they are separated vy less than nodes_max_gap
                     for g in genomes_list :
-                        combined = list(zip(dic_regions[c][g]["nodes_position_list"],dic_regions[c][g]["size"]))
-                        combined_sorted = sorted(combined, key=lambda x: x[0])
-                        nodes_position_sorted, size_sorted = zip(*combined_sorted)
-                        #dic_regions[c][g]["nodes_position_list"].sort()
-                        shared_size = 0
-                        for i in range(len(nodes_position_sorted)):
-                            if i == 0 :
-                                region_start = nodes_position_sorted[0]
-                                region_stop = region_start + dic_regions[c][g]["size"][0]
-                                shared_size = size_sorted[0]
-                            else :
-                                if nodes_position_sorted[i] < nodes_position_sorted[i-1] + nodes_max_gap :
-                                    region_stop = nodes_position_sorted[i]
-                                    shared_size += size_sorted[i]
+                        if len(dic_regions[c][g]["nodes_position_list"]) > 0:
+                            combined = list(zip(dic_regions[c][g]["nodes_position_list"],dic_regions[c][g]["size"]))
+                            combined_sorted = sorted(combined, key=lambda x: x[0])
+                            nodes_position_sorted, size_sorted = zip(*combined_sorted)
+                            #dic_regions[c][g]["nodes_position_list"].sort()
+                            shared_size = 0
+                            for i in range(len(nodes_position_sorted)):
+                                if i == 0 :
+                                    region_start = nodes_position_sorted[0]
+                                    region_stop = region_start + dic_regions[c][g]["size"][0]
+                                    shared_size = size_sorted[0]
                                 else :
-                                    dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "region_size" : region_stop-region_start})
-                                    shared_size = size_sorted[i]
-                                    region_start = nodes_position_sorted[i]
-                                    region_stop = region_start + size_sorted[i]
-                        dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "region_size" : region_stop-region_start})
+                                    if nodes_position_sorted[i] < nodes_position_sorted[i-1] + nodes_max_gap :
+                                        region_stop = nodes_position_sorted[i]
+                                        shared_size += size_sorted[i]
+                                    else :
+                                        dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "region_size" : region_stop-region_start})
+                                        shared_size = size_sorted[i]
+                                        region_start = nodes_position_sorted[i]
+                                        region_stop = region_start + size_sorted[i]
+                            dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "region_size" : region_stop-region_start})
             print("Total number of regions : " +str(nb_regions_total))
             dic_regions_2 = {}
             for c, genomes in dic_regions.items():
