@@ -1564,7 +1564,7 @@ def process_annotation_complex_batch(tx, annotations, genome_ref, annotation_sea
         WHERE n1.`{genome_ref}_position` + n1.size >= ann1.start
         
         MATCH (a1:Annotation {{name: ann1.name}})
-        MERGE (n1)-[:A_POUR_ANNOTATION]->(a1)
+        MERGE (n1)-[:annotation_link]->(a1)
     """
     
     #print(query)
@@ -1601,7 +1601,7 @@ def process_annotation_last_complex_batch(tx, genome_ref, annotation_search_limi
             AND a.genome_ref = n.{genome_ref_field}
             AND a.start > n.{position_field}
             AND a.start < n.{position_field} + n.size
-            MERGE (n)-[:A_POUR_ANNOTATION]->(a)
+            MERGE (n)-[:annotation_link]->(a)
         """
         current_nodes += 1
         result = tx.run(query,annotation_search_limit=annotation_search_limit) 
