@@ -478,7 +478,7 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
 #chromosomes : liste of chromosomes. If defined the function will only look for shared region on these chromosomes
 #node_min_size : the nodes smaller than this value will be ignored (to avoid to look for all snp, if the are required then set this value to 0)
 #nodes_max_gap : this gap i sused to gather find regions into a bigger regions if the initial find regions are separated by less than this value (in numer of nodes)
-def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=80, tolerance_percentage = 10):
+def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=80, tolerance_percentage = 10, min_deletion_percentage=100):
     if get_driver is None :
         return {},{}
     dic_regions = {}
@@ -487,7 +487,9 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
         min_percent_selected_genomes = 100
     if tolerance_percentage > 100:
         tolerance_percentage = 100
-    print("node_min_size : " + str(node_min_size) + " deletion : " + str(deletion) + " min_percent_selected_genomes : "+ str(min_percent_selected_genomes) + " tolerance_percentage : " + str(tolerance_percentage))
+    if min_deletion_percentage > 100:
+        min_deletion_percentage = 100
+    print("node_min_size : " + str(node_min_size) + " deletion : " + str(deletion) + " min_percent_selected_genomes : "+ str(min_percent_selected_genomes) + " tolerance_percentage : " + str(tolerance_percentage) + " min deletion percentage : " + str(min_deletion_percentage))
     temps_depart = time.time()
     if (len(genomes_list) > 1):
         print("finding shared regions for " + str(genomes_list))
@@ -512,8 +514,15 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 min_associated_genomes = max(int(min_percent_selected_genomes*nb_associated_genomes/100), 1)
                 min_flow = min_associated_genomes/nb_genomes - 0.00000001
                 max_flow = nb_associated_genomes*(1+tolerance_percentage/100)/nb_genomes + 0.00000001
+                
 
-                print("genomes number : " + str(nb_genomes))
+                print(f"genomes number : {nb_genomes} - min flow : {min_flow} - max flow : {max_flow}")
+                if deletion:
+                        min_unselected_genomes = max(1,int((nb_genomes - nb_associated_genomes) * min_deletion_percentage / 100))
+                        global_min_flow_deletion = min(min_associated_genomes + min_unselected_genomes,nb_genomes)/nb_genomes - 0.00000001 
+                        min_flow_deletion = min(1,((nb_genomes - nb_associated_genomes) * min_deletion_percentage / 100)/nb_genomes - 0.00000001)
+                        max_flow_deletion = min(1, (nb_genomes - nb_associated_genomes)/nb_genomes) + 0.00000001
+                        print(f"Look for deletions with parameters : global min flow : {global_min_flow_deletion} - min flow : {min_flow_deletion} - max flow :  {max_flow_deletion}")
                 
                 if chromosomes != None :
                     chromosome_list = chromosomes
@@ -554,49 +563,91 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     result1 = list(session.run(query, genomes_list=genomes_list))
                     print("Nodes selected for chromosomes " + str(c) + " : " + str(len(result1)) + "\nTime : " + str(time.time()-time_0))
                     if deletion :
+
                         # query = f"""
-                        #     MATCH (n:Node)
+                        #     MATCH (n:Node)-[r:gfa_link]->(m:Node)
                         #     where n.chromosome = "{c}"
-                        #     AND n.flow >= {min_flow}
+                        #     AND n.flow >= {min_flow_deletion}
                         #     AND n.size >= {node_min_size}
-                        #     with n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
+                        #     with n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes, count(r) as rel_count
                         #     WHERE size(matched_genomes) >= {min_associated_genomes}
                         #     AND size(matched_genomes) < size(n.genomes)
+                        #     AND rel_count = 2
                         #     WITH n, [g IN n.genomes WHERE NOT g IN $genomes_list] AS other_genomes
-                        #     MATCH (n)-[]->(m:Node)
+                        #     MATCH (n)-[r1:gfa_link]->(m:Node)
                         #     WHERE ALL(g IN other_genomes WHERE g IN m.genomes)
                         #     AND NONE(g IN $genomes_list WHERE g IN m.genomes)
                         #     AND  m.size  >= {node_min_size}
+                        #     Match (n)-[r2:gfa_link]->(m2:Node)
+                        #     WHERE ALL(g IN n.genomes WHERE g IN m2.genomes)
+                        #     AND size(m2.genomes) = size(n.genomes)
                         #     RETURN n AS nodes, m.size as deleted_node_size order by n.`{genome_position_ref}_position` ASC
                         # """
                         
                         #Query adapted for finding only first deleted node
+                        # query = f"""
+                        
+                        #     MATCH (n:Node)-[r:gfa_link]->(m:Node)
+                        #     WHERE n.chromosome = "{c}"
+                        #       AND n.flow >= {min_flow_deletion}
+                        #       AND n.size >= {node_min_size}
+                        #     WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes, count(r) AS rel_count, [g IN n.genomes WHERE NOT g IN $genomes_list] AS other_genomes
+                        #     WHERE rel_count = 2
+                        #       AND size(matched_genomes) >= {min_associated_genomes}
+                        #       AND size(matched_genomes) < size(n.genomes)
+                        #     WITH n, other_genomes
+                        
+                        #     MATCH (n)-[r1:gfa_link]->(m1:Node)
+                        #     WHERE ALL(g IN other_genomes WHERE g IN m1.genomes)
+                        #       AND size(m1.genomes) = size(other_genomes)
+                        #       AND m1.size >= {node_min_size}
+                        
+                        #     MATCH (n)-[r2:gfa_link]->(m2:Node)
+                        #     WHERE m1 <> m2
+                        #       AND ALL(g IN n.genomes WHERE g IN m2.genomes)
+                        #       AND size(m2.genomes) = size(n.genomes)
+                        
+                        #     RETURN n AS nodes,
+                        #             m1.size AS deleted_node_size
+                        #     ORDER BY n.`{genome_position_ref}_position` ASC
+                        # """
+                        
                         query = f"""
                             MATCH (n:Node)
                             WHERE n.chromosome = "{c}"
-                              AND n.flow >= {min_flow}
+                              AND n.flow >= {min_flow_deletion} AND n.flow <= {max_flow_deletion}
                               AND n.size >= {node_min_size}
-                            WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
-                            WHERE size(matched_genomes) >= {min_associated_genomes}
-                              AND size(matched_genomes) < size(n.genomes)
-                            WITH n, matched_genomes, [g IN n.genomes WHERE NOT g IN $genomes_list] AS other_genomes
-                            WHERE size([(n)-->() | 1]) = 2
+                              AND NONE(g IN $genomes_list WHERE g IN n.genomes)
+                            
+                            CALL {{
+                              WITH n
+                              MATCH (m:Node)-[]->(n)
+                              WHERE m.chromosome = "{c}"
+                                AND m.flow >= {global_min_flow_deletion}
+                            
+                              WITH m, n,
+                                   [g IN $genomes_list WHERE g IN m.genomes AND NOT g IN n.genomes] AS added_genomes
+                              WHERE size(added_genomes) >= {min_associated_genomes}
+                                AND ALL(g IN n.genomes WHERE g IN m.genomes)
+                            
+                              WITH m, n
+                              WHERE COUNT {{ (m)-[]->(:Node) }} = 2
+                            
+                              MATCH (m)-[]->(n2:Node)
+                              WHERE n2 <> n
+                                AND n2.chromosome = "{c}"
+                                AND ALL(g IN n2.genomes WHERE g IN m.genomes)
+                                AND size(n2.genomes) = size(m.genomes)
+                            
+                              RETURN m
+                              
+                            }}
+                            RETURN m as nodes, n.size AS deleted_node_size 
+                            ORDER BY m.`{genome_position_ref}_position` ASC
                         
-                            MATCH (n)-[r1]->(m1:Node)
-                            WHERE ALL(g IN other_genomes WHERE g IN m1.genomes)
-                              AND NONE(g IN $genomes_list WHERE g IN m1.genomes)
-                              AND m1.size >= {node_min_size}
-                        
-                            MATCH (n)-[r2]->(m2:Node)
-                            WHERE m1 <> m2
-                              AND ALL(g IN matched_genomes WHERE g IN m2.genomes)
-                              AND size([g IN m2.genomes WHERE NOT g IN matched_genomes]) > 0
-                        
-                            RETURN n AS nodes,
-                                   m1.size AS deleted_node_size
-                            ORDER BY n.`{genome_position_ref}_position` ASC
                         """
-
+                        
+                        
                         result = result1 + list(session.run(query, genomes_list=genomes_list))
                         print("Total Nodes selected for chromosome " + str(c) + " : " + str(len(result)) + "\nTime : " + str(time.time()-time_0))
                     else:

@@ -51,6 +51,8 @@ def layout():
                              html.Li("Min node size : a node will be detected only if it's size is superior to this value"),
                              html.Li("Min (%) of selected haplotypes (= p): a node will be detected only if (p/100) * number of selected haplotypes are present on the node."
                                      "If set to zero it wil require at least one of the selected haplotypes."),
+                             html.Li("Unselected haplotypes percentage (%) (= u): a node will be detected only if (u/100) * number of unselected haplotypes + (p/100) * number of selected haplotypes are present on the node."
+                                     "If set to zero it wil require at least one of the unselected haplotypes."),
                              
                          ])
                             
@@ -113,9 +115,16 @@ def layout():
 
                 dcc.Checklist(
                     id='gwas-toggle-deletion',
-                    options=[{'label': 'Include deletion (takes more time to compute) :','title':"If checked, the process will look for deletion : it looks for nodes with minimal size and with the minimum haplotypes (defined by min percent) of the selected list. For these nodes it will look for a following node containing all the haplotypes of the previous node excepted the nodes selected and another following node with all the haplotypes of the previous node.", 'value': 'show'}],
-                    value=['show']
+                    options=[{'label':'', 'title':"If checked, the process will look for deletion node: it looks for nodes with minimal selected and unselected haplotypes followed by a node deleted for defined percentage of selected haplotype. The node size must be greater than min node size value.", 'value': 'show'}],
+                    value=['show'],
+                    style={'margin-right': '15px'}
                 ),
+                html.Label(
+                    "Search for deletion (take more time). Unselected haplotypes percentage (%) :  ",
+                    title="If checked. Used to detect deleted nodes. Search for nodes with at least (T x number of unselected haplotypes / 100) unselected haplotypes + the defined percentage of selected haplotypes. For each node found, it looks for a deleted following node."
+                ),
+                dcc.Input(id='deletion-percentage',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=100, debounce=True),
+                
             ], style={"display": "flex", "align-items": "center", "marginRight": "20px"}
             ),
                 dcc.Dropdown(
