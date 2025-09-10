@@ -199,6 +199,7 @@ def layout():
                 {"name": "shared size", "id": "shared_size"}
             ],
             data=[],
+            sort_action='native',
             style_cell={
                 'whiteSpace':'normal',
                 'height':'auto',

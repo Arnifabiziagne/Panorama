@@ -569,7 +569,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         #     RETURN n AS nodes, m.size as deleted_node_size order by n.`{genome_position_ref}_position` ASC
                         # """
                         
-                        #Query adapted for finding only deletion nodes
+                        #Query adapted for finding only first deleted node
                         query = f"""
                             MATCH (n:Node)
                             WHERE n.chromosome = "{c}"
