@@ -174,12 +174,12 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                     
                     query_genome += """)
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
-                        RETURN m, collect(a.gene_name) as annotations
+                        RETURN m, collect(a.gene_name) as annotations, collect(a.feature) AS features
                             """
                     #print(query_genome)
                     result = session.run(query_genome, start=start, end=end)
                     for record in result :
-                        nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
+                        nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
                 else:
                     if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] >= max_bp_seeking :
                         print("Region too wide")
@@ -197,17 +197,18 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                         MATCH (m:Node)
                         WHERE  m.chromosome = "{chromosome}" 
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
-                        RETURN m, collect(a.gene_name) as annotations
+                        RETURN m, collect(a.gene_name) as annotations, collect(a.feature) AS features
                             """
                         result = session.run(query_genome)
                         for record in result:
-                            nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))}
+                            nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
                     else  :
                         print("Region too wide")
                         nodes_data = {}
             if len(nodes_data) > 0 :
                 for elt in nodes_data:
                     nodes_data[elt]["annotations"] = list(nodes_data[elt]["annotations"])
+                    nodes_data[elt]["features"] = list(nodes_data[elt]["features"])
         print("Total time : " + str(time.time() - temps_depart))
         return nodes_data
 
@@ -262,7 +263,7 @@ def get_annotation_before_or_after_position(genome_ref, chromosome="1", position
             WHERE a.genome_ref = "{genome_ref}" and a.chromosome = "{chromosome}" and a.end < $position and a.gene_name is not null
             ORDER BY a.end DESC
             LIMIT 1
-            RETURN a.gene_name AS gene_name, a.end as end, a.start as start
+            RETURN a.gene_name AS gene_name, a.end as end, a.start as start, a.feature as feature
             """  
         else:
             query = f"""
@@ -270,7 +271,7 @@ def get_annotation_before_or_after_position(genome_ref, chromosome="1", position
             WHERE a.genome_ref = "{genome_ref}" and a.chromosome = "{chromosome}" and a.start > $position and a.gene_name is not null
             ORDER BY a.start ASC
             LIMIT 1
-            RETURN a.gene_name AS gene_name, a.end as end, a.start as start
+            RETURN a.gene_name AS gene_name, a.end as end, a.start as start, a.feature as feature
             """  
         
         with driver.session() as session:
@@ -288,7 +289,7 @@ def get_annotations_in_position_range(genome_ref, chromosome="1", start_position
         query = f"""
         MATCH (n:Node)-[]->(a:Annotation)
         WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end and a.gene_name is not null and a.genome_ref = $genome_ref 
-        RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name
+        RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name, a.feature as feature
         """
         #print("Query : " + query)
         with driver.session() as session:

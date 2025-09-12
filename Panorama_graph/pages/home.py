@@ -24,6 +24,7 @@ cyto.load_extra_layouts()
 
 DEFAULT_SIZE_VALUE = 10
 DEFAULT_SHARED_REGION_COLOR = "#008000"
+DEFAULT_EXONS_COLOR = "#008000"
 EXPORT_DIR = './export/graphs'
 
 
@@ -36,11 +37,18 @@ def records_to_dataframe(nodes_data):
 
 def compute_stylesheet(color_number):
     if color_number > 1:
-        stylesheet = [{
+        stylesheet = [
+            {
             'selector': 'node',
             'style': {
                 'label': 'data(label)',
-                'min-zoomed-font-size': 1
+                'background-color':'data(color)',
+                'min-zoomed-font-size': 1,
+                'text-opacity':1,
+                'opacity':1,
+                'width':'data(displayed_node_size)',
+                'height':'data(displayed_node_size)',
+                'z-index':9999
 
             }
         },
@@ -51,7 +59,8 @@ def compute_stylesheet(color_number):
                 'control-point-weights': [0.5],
                 'target-arrow-shape': 'none',
                 'control-point-distances': [1],
-                'opacity': 1
+                'opacity':0.9,
+                'z-index':0
             },
         },
             {'selector': ':selected', 'style': {
@@ -59,7 +68,9 @@ def compute_stylesheet(color_number):
                 'line-color': '#FF4136',
                 'border-width': 3,
                 'border-color': 'black'
-            }}]
+            }}  
+            
+            ]
         for i in range(1, color_number+1):
             sign = 1 if i % 2 == 0 else -1
             distance = sign * (20 + 10 * (i // 2))
@@ -73,16 +84,23 @@ def compute_stylesheet(color_number):
             {
                 'selector': 'node',
                 'style': {
-                    'background-color': '#BFD7B5',
+                    'background-color':'data(color)',
                     'label': 'data(label)',
-                    'min-zoomed-font-size': 1
+                    'min-zoomed-font-size': 1,
+                    'opacity':1,
+                    'text-opacity':1,
+                    'width':'data(displayed_node_size)',
+                    'height':'data(displayed_node_size)',
+                    'z-index':9999
 
                 }
             },
             {
                 'selector': 'edge',
                 'style': {
-                    'line-color': '#A3C4BC'
+                    'line-color': '#A3C4BC',
+                    'opacity':0.9,
+                    'z-index':0
                 }
             },
             {'selector': ':selected', 'style': {
@@ -95,11 +113,24 @@ def compute_stylesheet(color_number):
     return stylesheet
 
 
-def flow_to_rgb(flow):
-    r = int(255 * flow)
-    g = int(0)
-    b = int(255 * (1 - flow))
-    return f'rgb({r},{g},{b})'
+def flow_to_rgb(flow, node_style="default", exons_color=DEFAULT_EXONS_COLOR):
+    if node_style=="exon":
+        defined_color = hex_to_rgb_string(exons_color)
+    else:
+        r = int(255 * flow)
+        g = int(0)
+        b = int(255 * (1 - flow))
+        defined_color = f'rgb({r},{g},{b})'
+    return defined_color
+
+def hex_to_rgb_string(hex_color):
+    hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        raise ValueError(f"Invalid hex color: {hex_color}")
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f'rgb({r}, {g}, {b})'
 
 
 def get_color_palette(n):
@@ -108,7 +139,8 @@ def get_color_palette(n):
     return [f'rgb({int(r*255)}, {int(g*255)}, {int(b*255)})' for r, g, b, _ in cmap(np.linspace(0, 1, n))]
 
 
-def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes=[], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0, color_shared_regions=DEFAULT_SHARED_REGION_COLOR):
+
+def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes=[], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0, color_shared_regions=DEFAULT_SHARED_REGION_COLOR, exons=False, exons_color=DEFAULT_EXONS_COLOR):
     if data != None and len(data) > 0:
         df = records_to_dataframe(data)
         df = df[df["size"] >= size_min].copy()
@@ -139,29 +171,40 @@ def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_ch
         size_max = df['size'].max()
         size_min = df['size'].min()
         size_max_noeud = 100
-
+        
         for _, row in df.iterrows():
+            node_style = "default"
+            if exons :
+                if "features" in row and "exon" in row['features']:
+                    node_style="exon"
+            node_color = flow_to_rgb(row['flow'],node_style,exons_color)
+            displayed_node_size = (10+row['size']-size_min) / size_max*size_max_noeud+size_min
             main_style = {
-                'background-color': flow_to_rgb(row['flow']),
+                #'background-color': flow_to_rgb(row['flow'],node_style),
                 'shape': 'circle',
-                'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
-                'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                #'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                #'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                
             }
             degenerate_node_style = {
-                'background-color': flow_to_rgb(row['flow']),
+                #'background-color': flow_to_rgb(row['flow'],node_style),
                 'shape': 'square',
-                'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
-                'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                #'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+                #'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
             }
+
+                # else:
+                #     main_style["background-color"]="#000000"
+                #     degenerate_node_style["background-color"]="#000000"
             if row['ref_node'] == row['name']:
                 nodes.append({
-                    'data': {'id': row['name'], 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations']},
+                    'data': {'id':row['name'] ,'name':row['name'], 'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color},
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': main_style
                 })
             else:
                 nodes.append({
-                    'data': {'id': row['name'], 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations']},
+                    'data': {'id':row['name'], 'name': row['name'],  'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color},
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': degenerate_node_style
                 })
@@ -488,20 +531,53 @@ def layout(data=None, initial_size_limit=10):
                         style={'width': '120px',
                                'display': 'inline-block', 'marginRight': '50px'}
                     ),
+                    
+                    
+
                     dcc.Checklist(
                         options=[
-                            {'label': 'Hide labels', 'title': 'Uncheck if labels takes too much space on the graph.', 'value': 'hide'}],
-                        id='show-labels'
+                            {'label': 'Hide labels', 
+                             'title': 'Uncheck if labels takes too much space on the graph.', 
+                             'value': 'hide'
+                            }],
+                        id='show-labels',
+                        style={'marginRight': '30px'}
                     ),
+            
+                    dcc.Checklist(
+                        options=[{
+                            'label': 'Show exons',
+                            'title': 'Check to display exons.',
+                            'value': 'exons'
+                        }],
+                        id='show-exons',
+                        style={'marginRight': '10px'},
+                        value=[]
+                    ),
+            
+                    dbc.Input(
+                        id='exon-color-picker',
+                        type='color',
+                        value=DEFAULT_EXONS_COLOR,
+                        style={'width': '25px',
+                               'height': '25px', 'marginLeft': '10px'}
+                    ),
+
+                        
+
                 ], style={'display': 'flex', 'alignItems': 'center', 'gap': '8px'}),
                 html.Div(id='nb-noeuds', style={'margin': '10px'}),
 
                 dcc.Checklist(
-                    options=[{'label': 'Search shared paths',
-                              'title': 'Check to switch to shared path search options.', 'value': 'shared'}],
+                    options=[{
+                        'label': 'Search shared paths',
+                        'title': 'Check to switch to shared path search options.',
+                        'value': 'shared'
+                    }],
                     id='shared-mode',
-                    style={'marginBottom': '20px'}
+                    style={'marginRight': '30px'}
                 ),
+            
                 html.Div([
 
                     html.Div([
@@ -608,8 +684,10 @@ def layout(data=None, initial_size_limit=10):
             # maxZoom=5,
             zoomingEnabled=True,
             userZoomingEnabled=True,
-            # userPanningEnabled=True,
+            userPanningEnabled=True,
             wheelSensitivity=0.1,
+            #responsive=True,
+            autoRefreshLayout=True,
             boxSelectionEnabled=True,
             autoungrabify=False,
             stylesheet=compute_stylesheet(0),
@@ -635,12 +713,13 @@ def display_element_data(node_data, edge_data):
         )
     elif triggered_id == 'graph' and ctx.triggered[0]['prop_id'] == 'graph.tapNodeData' and node_data:
         return (
-            f"Selected node : {node_data.get('label', node_data.get('id'))}\n"
+            f"Selected node : {node_data.get('label', node_data.get('name'))}\n"
             f"• Size : {node_data.get('size')}\n"
             f"• Flow : {node_data.get('flow')}\n"
             f"• Ref node : {node_data.get('ref_node')}\n"
             f"• Haplotypes : {', '.join(node_data.get('genomes', []))}"
             f"• Annotations : {', '.join(node_data.get('annotations', []))}"
+            f"• Features : {', '.join(node_data.get('features', []))}"
         )
     return "Click on a node or link to display data."
 
@@ -682,9 +761,11 @@ def display_element_data(node_data, edge_data):
     State('tolerance-input', 'value'),
     State('shared-region-color-picker', 'value'),
     State('zoom_shared_storage_nodes', 'data'),
+    State('show-exons', 'value'),
+    State('exon-color-picker', 'value'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, zoom_clicks, reset_zoom_bouton_clicks, selected_nodes_data, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, zoom_clicks, reset_zoom_bouton_clicks, selected_nodes_data, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, show_exons, exons_color):
     ctx = dash.callback_context
     triggered_id = ctx.triggered_id
     if home_data_storage is None:
@@ -721,8 +802,8 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     if triggered_id == "btn-zoom":
         if selected_nodes_data is not None and len(selected_nodes_data) > 0:
             data_to_plot = {}
-            selected_ids = set([node['id']
-                               for node in selected_nodes_data if 'id' in node])
+            selected_ids = set([node['name']
+                               for node in selected_nodes_data if 'name' in node])
             data_to_plot = {
                 k: v for k, v in data_storage_nodes.items() if k in selected_ids}
             zoom_shared_storage_out = data_to_plot
@@ -744,6 +825,10 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     labels = True
     if show_labels and 'hide' in show_labels:
         labels = False
+    exons=False
+    if show_exons and 'exons' in show_exons:
+        exons = True
+        
     all_genomes = data_storage["genomes"]
     all_chromosomes = data_storage["chromosomes"]
     if ctx.triggered and len(ctx.triggered[0]['prop_id'].split('.')) > 0:
@@ -767,16 +852,19 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                     new_data = get_nodes_by_region(
                         genome, chromosome=chromosome, start=0, end=end)
             elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
-                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
+                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
+                                              tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
             zoom_shared_storage_out = {}
         else:
             print(f"min node size : {size_slider_val}")
             elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
-                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
+                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
+                                              tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
     else:
         print(f"min node size : {size_slider_val}")
         elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
-                                          color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, tolerance=tolerance, color_shared_regions=shared_regions_link_color)
+                                          color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
+                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
 
     defined_color = 0
     if color_genomes is not None:
