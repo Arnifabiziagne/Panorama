@@ -13,6 +13,7 @@ It allows the following functionalities :
 - 16 GB RAM (32 Go+ recommanded for big data)
 - Sufficient disk space (approximately 10 times the size of the GFA, ideally SSD)
 - Conda
+- Docker
 - The version of panorama_graph used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
 
 ## Quickstart
