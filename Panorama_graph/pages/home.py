@@ -43,7 +43,7 @@ def compute_stylesheet(color_number):
             'style': {
                 'label': 'data(label)',
                 'background-color':'data(color)',
-                'min-zoomed-font-size': 1,
+                'min-zoomed-font-size': 10,
                 'text-opacity':1,
                 'opacity':1,
                 'width':'data(displayed_node_size)',
@@ -64,7 +64,7 @@ def compute_stylesheet(color_number):
             },
         },
             {'selector': ':selected', 'style': {
-                'background-color': '#FF4136',
+                'background-color': 'grey',
                 'line-color': '#FF4136',
                 'border-width': 3,
                 'border-color': 'black'
@@ -86,7 +86,7 @@ def compute_stylesheet(color_number):
                 'style': {
                     'background-color':'data(color)',
                     'label': 'data(label)',
-                    'min-zoomed-font-size': 1,
+                    'min-zoomed-font-size': 10,
                     'opacity':1,
                     'text-opacity':1,
                     'width':'data(displayed_node_size)',
@@ -104,7 +104,7 @@ def compute_stylesheet(color_number):
                 }
             },
             {'selector': ':selected', 'style': {
-                'background-color': '#FF4136',
+                'background-color': 'grey',
                 'line-color': '#FF4136',
                 'border-width': 3,
                 'border-color': 'black'
