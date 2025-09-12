@@ -230,20 +230,21 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
                 query = f"""
                 MATCH (a:Annotation {{chromosome:"{chromosome}", gene_name: $gene_name}})<-[]-(n:Node)
                 RETURN DISTINCT n
-                ORDER BY n.`genome_position`
+                ORDER BY n.`{genome_position}` ASC
                 """
                 result = session.run(query, gene_name=gene_name)
-                
+                #print(query)
             else:
                 query = f"""
                 MATCH (a:Annotation {{chromosome:"{chromosome}" gene_id: $gene_id}})<-[]-(n:Node)
                 RETURN DISTINCT n
-                ORDER BY n.`genome_position`
+                ORDER BY n.`{genome_position}` ASC
                 """
                 result = session.run(query, gene_id=gene_id)
             noeuds_annotes = [record["n"] for record in result]
             start = noeuds_annotes[0][genome_position]
             stop = noeuds_annotes[-1][genome_position]
+            print(f"start : {start} - stop : {stop} - nodes number : {len(noeuds_annotes)}")
             nodes_data = get_nodes_by_region(genome, chromosome, start, stop)
             
         return nodes_data
