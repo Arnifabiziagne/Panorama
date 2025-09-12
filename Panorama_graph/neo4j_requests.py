@@ -145,6 +145,10 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                 anchor_start = get_anchor(genome, chromosome, start, before = True)
                 anchor_stop = get_anchor(genome, chromosome, end, before = False)
                 if anchor_start is not None and  anchor_stop is not None:
+                    if anchor_start[genome_position] > anchor_stop[genome_position]:
+                        anchor_start_tmp = anchor_start
+                        anchor_start = anchor_stop
+                        anchor_stop = anchor_start_tmp
                     print("Anchor start name : " + str(anchor_start["name"]))
                     print("Anchor stop name : " + str(anchor_stop["name"]))
                     print("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
@@ -224,7 +228,7 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
             if gene_name is not None :
                 print("Looking for gene name : " + str(gene_name))
                 query = f"""
-                MATCH (a:Annotation {chromosome:"{chromosome}", gene_name: $gene_name})<-[:A_POUR_ANNOTATION]-(n:Node)
+                MATCH (a:Annotation {{chromosome:"{chromosome}", gene_name: $gene_name}})<-[]-(n:Node)
                 RETURN DISTINCT n
                 ORDER BY n.`genome_position`
                 """
@@ -232,7 +236,7 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
                 
             else:
                 query = f"""
-                MATCH (a:Annotation {chromosome:"{chromosome}" gene_id: $gene_id})<-[:A_POUR_ANNOTATION]-(n:Node)
+                MATCH (a:Annotation {{chromosome:"{chromosome}" gene_id: $gene_id}})<-[]-(n:Node)
                 RETURN DISTINCT n
                 ORDER BY n.`genome_position`
                 """
@@ -281,7 +285,7 @@ def get_annotations_in_position_range(genome_ref, chromosome="1", start_position
     with get_driver() as driver:
 
         query = f"""
-        MATCH (n:Node)-[:A_POUR_ANNOTATION]->(a:Annotation)
+        MATCH (n:Node)-[]->(a:Annotation)
         WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end and a.gene_name is not null and a.genome_ref = $genome_ref 
         RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name
         """
