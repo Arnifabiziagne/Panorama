@@ -1535,7 +1535,7 @@ def process_annotation_simple_batch(tx, annotations, genome_ref):
         WITH group_annot, n1, chr, start
         UNWIND group_annot AS ann1
         MATCH (a1:Annotation {{name: ann1.name}})
-        MERGE (n1)-[:A_POUR_ANNOTATION]->(a1)
+        MERGE (n1)-[:annotation_link]->(a1)
     """
 
     #print(query)
@@ -1544,33 +1544,34 @@ def process_annotation_simple_batch(tx, annotations, genome_ref):
     
 def process_annotation_complex_batch(tx, annotations, genome_ref, annotation_search_limit=10000):
     
+
     query = f"""
         UNWIND $annotations AS annot
-        WITH 
-          annot.chromosome AS chr, 
-          annot.start AS start, 
-          annot.end AS end, 
-          annot.name AS name,
-          collect(annot) AS group_annot
         
-        MATCH (n1:Node)
-        WHERE n1.chromosome = chr
-          AND n1.`{genome_ref}_position` < start
-          AND n1.`{genome_ref}_position` >= start - {annotation_search_limit}
-          order by n1.`{genome_ref}_position` DESC limit 1
-        WITH group_annot, n1, chr, start
-        UNWIND group_annot AS ann1
-        WITH ann1, n1
-        WHERE n1.`{genome_ref}_position` + n1.size >= ann1.start
+        CALL {{
+            WITH annot
+            MATCH (n1:Node)
+            WHERE n1.chromosome = annot.chromosome
+              AND n1.`{genome_ref}_position` < annot.start
+              AND n1.`{genome_ref}_position` >= annot.start - {annotation_search_limit}
+            ORDER BY n1.`{genome_ref}_position` DESC
+            LIMIT 1
+            RETURN n1
+        }}
         
-        MATCH (a1:Annotation {{name: ann1.name}})
+        WITH annot, n1
+        WHERE n1.`{genome_ref}_position` + n1.size >= annot.start
+        
+        MATCH (a1:Annotation {{name: annot.name}})
         MERGE (n1)-[:annotation_link]->(a1)
     """
-    
+
+                
     #print(query)
-
-
     tx.run(query, annotations=annotations)
+
+
+    
     
     
 def process_annotation_last_complex_batch(tx, genome_ref, annotation_search_limit=10000, batch_limit=10000):
