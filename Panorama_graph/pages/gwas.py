@@ -99,13 +99,13 @@ def layout():
                     "Min (%) of selected haplotypes : ",
                      title="Min (%) of shared haplotypes = M. Number of selected haplotypes = N. To detect a shared node it must contains almost (M/100) x N of the selected haplotypes. If M = 0 then the minimum number of selected haplotypes will be 1.",
                      style={'margin-right': '15px'}),
-                dcc.Input(id='gwas-min-percent_selected',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=80, debounce=True),
+                dcc.Input(id='gwas-min-percent_selected',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=100, debounce=True),
                 html.Label(
                     "Tolerance (%) :  ",
                     title="Tolerance = T. Number of haplotypes on a node = n. To detect a shared node it must contains less than (T/100) x n of the non selected haplotypes. If T = 0 then detected nodes should contain only selected haplotypes.",
                     style={'margin-right': '15px'}
                 ),
-                dcc.Input(id='tolerance_percentage',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=10, debounce=True),
+                dcc.Input(id='tolerance_percentage',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=0, debounce=True),
                 html.Label(
                     "Max gap : ",
                     title="All the nodes detected will be grouped in larger regions. If two nodes are separated by less thant this value (in bp) they will be grouped in the same region.",
