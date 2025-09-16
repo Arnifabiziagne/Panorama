@@ -15,7 +15,7 @@ import numpy as np
 import itertools
 import json
 
-from app import app
+from app import *
 
 import os
 import base64
@@ -464,6 +464,11 @@ def layout(data=None, initial_size_limit=10):
                     ], style={'marginBottom': '20px'}),
                     html.Button('Search', id='search-button',
                                 n_clicks=0, style={'marginTop': '10px'}),
+                    dcc.Loading(
+                        id="loading-search-msg",
+                        type="circle",
+                        children=html.Div(id="search-message")
+                    ),
                     html.Div([
                         html.Label("Haplotypes to visualize :", title="Nodes containing only unselected haplotypes won't be displayed.", style={
                                    'marginBottom': '5px'}),
@@ -488,8 +493,8 @@ def layout(data=None, initial_size_limit=10):
                         # html.Button("as svg", id="btn-save-svg", style={"marginLeft":"10px"}),
                         html.Div(id="dummy-output")
                     ]),
-                    dcc.Loading(id="loading-spinner", type="circle",
-                                children=html.Div(id="output-zone"))
+                    # dcc.Loading(id="loading-spinner", type="circle",
+                    #             children=html.Div(id="output-zone"))
                 ],
                     style={'marginBottom': '20px'}
                 )
@@ -730,7 +735,7 @@ def display_element_data(node_data, edge_data):
     Output("graph", "elements"),
     Output("nb-noeuds", 'children'),
     Output('shared_storage_nodes', 'data', allow_duplicate=True),
-    Output('output-zone', 'children'),
+    Output('search-message', 'children'),
     Output('annotations-info', 'children'),
     Output('graph', 'stylesheet'),
     Output('home-page-store', 'data', allow_duplicate=True),
@@ -767,6 +772,7 @@ def display_element_data(node_data, edge_data):
 )
 def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, zoom_clicks, reset_zoom_bouton_clicks, selected_nodes_data, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, show_exons, exons_color):
     ctx = dash.callback_context
+    message = ""
     triggered_id = ctx.triggered_id
     if home_data_storage is None:
         home_data_storage = {}
@@ -855,6 +861,8 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                                               color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
                                               tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
             zoom_shared_storage_out = {}
+            if len(elements) == 0:
+                message=html.Div("❌ No data found.", style=warning_style)
         else:
             print(f"min node size : {size_slider_val}")
             elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
@@ -883,7 +891,9 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     for a in set_annot:
         annotations += str(a) + "\n"
 
-    return elements, f"{count} displayed nodes", data_storage_nodes, "", annotations, stylesheet, home_data_storage, [], [], zoom_shared_storage_out
+    
+
+    return elements, f"{count} displayed nodes", data_storage_nodes, message, annotations, stylesheet, home_data_storage, [], [], zoom_shared_storage_out
 
 
 # color picker
