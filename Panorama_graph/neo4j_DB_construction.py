@@ -1648,6 +1648,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
             print("Haplotypes list : " + str(liste_genomes))
 
             for g in liste_genomes :
+                print(f"Linking annotation for genome {g}")
                 query = f"""
                 MATCH (a:Annotation) where a.genome_ref = "{g}" return min(ID(a)) as min_id, max(ID(a)) as max_id
                 """
@@ -1661,6 +1662,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                 batch_number = ceil((max_id-min_id)/batch_size)
                 current_id = min_id
                 all_genomes.add(g)
+                i = 0
                 while current_id < max_id:
                     i+=1
                     print("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
