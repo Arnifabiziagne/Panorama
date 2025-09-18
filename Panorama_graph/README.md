@@ -21,9 +21,9 @@ It allows the following functionalities :
   - Download the last release in the Panorama_graph project and unzip the archive where do you want to store your data
   - If there is a dump file available (file named neo4j.dump) or csv files to import (nodes.csv, sequences.csv and relations.csv), move or copy it into ./import directory
   - Create the conda environnement : conda env create -f panorama_graph.yaml 
-  - Make launcher executable : chmod +x launcher.sh
+  - Make launcher executable (linux) : chmod +x launcher.sh
 - Launch the tool : 
-  - Easy way : just execute launcher : ./launcher.sh and go to http://localhost:8050
+  - Easy way : just execute launcher : ./launcher.sh on linux or ./launcher.bat on windows and go to http://localhost:8050
   - Manual way : 
       - Load conda environnement : conda activate panorama_graph
       - Run index.py (python index.py) and go to http://localhost:8050
