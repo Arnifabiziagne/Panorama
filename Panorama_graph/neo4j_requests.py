@@ -592,32 +592,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         # """
                         
                         #Query adapted for finding only first deleted node
-                        # query = f"""
-                        
-                        #     MATCH (n:Node)-[r:gfa_link]->(m:Node)
-                        #     WHERE n.chromosome = "{c}"
-                        #       AND n.flow >= {min_flow_deletion}
-                        #       AND n.size >= {node_min_size}
-                        #     WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes, count(r) AS rel_count, [g IN n.genomes WHERE NOT g IN $genomes_list] AS other_genomes
-                        #     WHERE rel_count = 2
-                        #       AND size(matched_genomes) >= {min_associated_genomes}
-                        #       AND size(matched_genomes) < size(n.genomes)
-                        #     WITH n, other_genomes
-                        
-                        #     MATCH (n)-[r1:gfa_link]->(m1:Node)
-                        #     WHERE ALL(g IN other_genomes WHERE g IN m1.genomes)
-                        #       AND size(m1.genomes) = size(other_genomes)
-                        #       AND m1.size >= {node_min_size}
-                        
-                        #     MATCH (n)-[r2:gfa_link]->(m2:Node)
-                        #     WHERE m1 <> m2
-                        #       AND ALL(g IN n.genomes WHERE g IN m2.genomes)
-                        #       AND size(m2.genomes) = size(n.genomes)
-                        
-                        #     RETURN n AS nodes,
-                        #             m1.size AS deleted_node_size
-                        #     ORDER BY n.`{genome_position_ref}_position` ASC
-                        # """
+
                         
                         query = f"""
                             MATCH (n:Node)
