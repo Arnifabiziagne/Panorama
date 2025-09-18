@@ -95,7 +95,7 @@ def layout():
                 },
                 multiple=False
             ),
-            html.H4("Reference Phylogenetic tree"),
+            html.H4("Reference tree"),
             html.Div(id='upload-status'),
             cyto.Cytoscape(
                 id='cytoscape-phylo',
@@ -115,7 +115,7 @@ def layout():
                 children=html.Div(id="phylogenetic-message")
             ),
             html.Div(id='region-status', style={'margin': '10px 0'}),
-            html.H4("Phylogenetic tree for selected region"),
+            html.H4("Tree for selected region"),
             cyto.Cytoscape(
                 id='cytoscape-phylo-region',
                 elements=[],
