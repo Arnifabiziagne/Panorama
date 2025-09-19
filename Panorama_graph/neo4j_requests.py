@@ -1031,5 +1031,8 @@ def compute_distance_matrix(distance_matrix_filename = "distances.csv", chromoso
         distance_matrix.to_csv(distance_matrix_filename)   
         print("Total time : "+ str(time.time()-temps_depart))
     return distance_matrix
+
+
+
           
  

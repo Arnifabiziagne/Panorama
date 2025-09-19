@@ -1795,24 +1795,37 @@ def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None,
         print("Annotations relations loaded in " + str(annotation_relation_time-annotation_time) + " s")
     print("Process terminated. BDD construct in " + str(time.time()-start_time) + " s")
 
-                 
-            
-def contruire_sequences_et_indexes_bdd(gfa_file_name, kmer_size=31):
-    dic_kmer_relation, nodes_dic = load_sequences(gfa_file_name, kmer_size=31)
+
+def delete_nodes(nodes_label, batch_size=100000):
+    if get_driver() is None :
+        return None
+    temps_depart = time.time()
     with get_driver() as driver:
         with driver.session() as session:
-            creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
-            
-            
-def load_multi_annotations():
-    for annot_file_name in  os.listdir("/media/fgraziani/Genotoul/BDD/Neo4J/quercus/data/annotations"):
-        if annot_file_name.endswith(".gff3"):
-            genomes_ref = 	['01_QrobDT_HiC_REF_1','02_QrobDT_HiC_2','03_QrobNP_1','04_QrobNP_2','05_QrobSP_1','06_QrobSP_2','07_Qrob3P_1','08_QrobA4_1','09_QrobB214_1','10_QrobB274_1','11_QcanPM_1','12_QcanPM_2','13_QpetDT_1','14_QpetDT_2','15_QpetSP_1','16_QpetSP_2','17_QpetLD_1','18_QpetLD_2','19_QpyrPM_1','20_QpyrPM_2','21_QfraSP_1','22_QfraSP_2','23_QfagPM_1','24_QfagPM_2','25_QvirPM_1','26_QvirPM_2','27_QpubSP_1','28_QpubSP_2','29_QpubCR_1','30_QpubCR_2']
-            for g in genomes_ref:
-                genome_ref = g.split("_")[1].lower()
-                hap = "hap"+str(g.split("_")[-1])
-                file_name = os.path.splitext(annot_file_name)[0].lower()
-                if genome_ref in file_name and hap in file_name:
-                    print(f"load annotation file {file_name} for genome ref {g}")
-                    load_annotations_neo4j(os.path.join("/media/fgraziani/Genotoul/BDD/Neo4J/quercus/data/annotations",annot_file_name), genome_ref=g, node_name="Annotation")
-            
+            while True:
+                result = session.run(f"""
+                MATCH (s:{nodes_label})
+                WITH s LIMIT {batch_size}
+                DELETE s
+                RETURN count(s) AS deleted
+                """)
+                deleted = result.single()["deleted"]
+                if deleted == 0:
+                    break
+ 
+                    
+def delete_relations(relation_label, batch_size=100000):
+    if get_driver() is None :
+        return None
+    temps_depart = time.time()
+    with get_driver() as driver:
+        with driver.session() as session:
+            while True:
+                result = session.run(f"""
+                MATCH () -[r:{relation_label}]->()
+                WITH r LIMIT {batch_size}
+                DELETE r
+                RETURN count(r) AS deleted
+                """)
+                deleted = result.single()["deleted"]
+                if deleted == 0:
