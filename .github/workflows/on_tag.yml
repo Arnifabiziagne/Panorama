@@ -1,14 +1,15 @@
-name: Create and Release ZIP
+name: Manual Release
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag version (e.g. v1.2.3)"
+        description: "1.0.0-beta"
         required: true
         type: string
+
 jobs:
-  build:
+  manual_release:
     runs-on: ubuntu-latest
     name: Archive project and create release
 
@@ -24,10 +25,11 @@ jobs:
 
       - name: Create ZIP archive
         run: |
-          TAG_NAME="${GITHUB_REF##*/}"
+          TAG_NAME="${{ github.event.inputs.tag }}"
           ZIP_NAME="Panorama-${TAG_NAME}.zip"
           zip -r "./dist/${ZIP_NAME}" . -x "*.git*" "./dist/*"
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
 
       - name: Show archive info
         run: ls -lh dist/
@@ -35,9 +37,9 @@ jobs:
       - name: Create GitHub Release and upload asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: Automated release for tag ${{ github.ref_name }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
+          body: Automated manual release for tag ${{ env.TAG_NAME }}
           files: dist/${{ env.ZIP_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
