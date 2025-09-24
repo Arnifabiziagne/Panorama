@@ -1,7 +1,7 @@
-Panorama_graph project : tools to manipulate and visualize pangenomes variation graphs.
+Panorama project : tools to manipulate and visualize pangenomes variation graphs.
 
 # Overview
-Panorama_graph is based on a graph database modelisation (neo4j) from a gfa graph.
+Panorama is based on a graph database modelisation (neo4j) from a gfa graph.
 It allows the following functionalities : 
 - Load a GFA file into a neo4j database (including optionnal annotations if present)
 - Compute shared regions between a set of selected haplotypes
@@ -14,11 +14,11 @@ It allows the following functionalities :
 - Sufficient disk space (approximately 10 times the size of the GFA, ideally SSD)
 - Conda
 - Docker
-- The version of panorama_graph used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
+- The version of panorama used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
 
 ## Quickstart
 - Installation (only the first time) :
-  - Download the last release in the Panorama_graph project and unzip the archive where do you want to store your data
+  - Download the last release in the Panorama project and unzip the archive where do you want to store your data
   - If there is a dump file available (file named neo4j.dump) or csv files to import (nodes.csv, sequences.csv and relations.csv), move or copy it into ./import directory
   - Create the conda environnement : conda env create -f panorama_graph.yaml 
   - Make launcher executable (linux) : chmod +x launcher.sh
