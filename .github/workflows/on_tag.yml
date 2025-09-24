@@ -1,10 +1,12 @@
 name: Create and Release ZIP
 
 on:
-  push:
-    tags:
-      - '*'  # Déclenche sur tous les tags
-
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag version (e.g. v1.2.3)"
+        required: true
+        type: string
 jobs:
   build:
     runs-on: ubuntu-latest
