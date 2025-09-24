@@ -12,7 +12,6 @@ create_panorama_archive:
   script:
     - apt-get update && apt-get install -y zip
     - mkdir -p dist
-    - cd Panorama
     - zip -r "../dist/$ZIP_NAME" . -x "*.git*" "../dist/*"
     - cd ..
     - ls -lh dist/
