@@ -1,0 +1,41 @@
+name: Create and Release ZIP
+
+on:
+  push:
+    tags:
+      - '*'  # Déclenche sur tous les tags
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Archive project and create release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install zip
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Create dist directory
+        run: mkdir -p dist
+
+      - name: Create ZIP archive
+        run: |
+          TAG_NAME="${GITHUB_REF##*/}"
+          ZIP_NAME="Panorama-${TAG_NAME}.zip"
+          zip -r "./dist/${ZIP_NAME}" . -x "*.git*" "./dist/*"
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+
+      - name: Show archive info
+        run: ls -lh dist/
+
+      - name: Create GitHub Release and upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: Automated release for tag ${{ github.ref_name }}
+          files: dist/${{ env.ZIP_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
