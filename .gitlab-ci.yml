@@ -24,7 +24,7 @@ create_panorama_graph_archive:
       - dist/
     expire_in: 1 week
 
-release_graph:
+release:
   image:
     name: registry.gitlab.com/gitlab-org/release-cli:latest
     entrypoint: [""]
