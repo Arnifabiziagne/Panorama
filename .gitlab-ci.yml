@@ -5,14 +5,14 @@ stages:
   - release
 
 variables:
-  ZIP_NAME: "Panorama_graph-$CI_COMMIT_TAG.zip"
+  ZIP_NAME: "Panorama-$CI_COMMIT_TAG.zip"
 
 create_panorama_graph_archive:
   stage: archive
   script:
     - apt-get update && apt-get install -y zip
     - mkdir -p dist
-    - cd Panorama_graph
+    - cd Panorama
     - zip -r "../dist/$ZIP_NAME" . -x "*.git*" "../dist/*"
     - cd ..
     - ls -lh dist/
@@ -30,7 +30,7 @@ release_graph:
     entrypoint: [""]
   stage: release
   needs:
-    - job: create_panorama_graph_archive
+    - job: create_panorama_archive
       artifacts: true
   script:
     - echo "Creating GitLab release with linked artifact"
@@ -43,4 +43,4 @@ release_graph:
     assets:
       links:
         - name: "$ZIP_NAME"
-          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/dist/$ZIP_NAME?job=create_panorama_graph_archive"
+          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/dist/$ZIP_NAME?job=create_panorama_archive"
