@@ -1,4 +1,4 @@
-Panorama_graph project : tools to manipulate and visualize pangenomes graphs.
+Panorama_graph project : tools to manipulate and visualize pangenomes variation graphs.
 
 # Overview
 Panorama_graph is based on a graph database modelisation (neo4j) from a gfa graph.
