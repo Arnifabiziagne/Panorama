@@ -151,9 +151,10 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
 @app.callback(
     Output('selected-region-output', 'children', allow_duplicate=True),
     Output('shared_storage_nodes', 'data',allow_duplicate=True),
-    Output("url", "pathname"),
+    Output("url", "pathname",allow_duplicate=True),
     Output("home-page-store", "data", allow_duplicate=True),
     Output("load_spinner_zone", "children", allow_duplicate=True),
+    Output('tabs-navigation', 'value'),
     Input('shared-region-table', 'selected_rows'),
     State('shared-region-table', 'data'),
     State('shared_storage_nodes', 'data'),
@@ -165,7 +166,7 @@ def handle_row_selection(selected_rows, table_data, data, home_page_data):
     if home_page_data is None:
         home_page_data = {}
     if not selected_rows:
-        return no_update, data, redirect, home_page_data, ""
+        return no_update, data, redirect, home_page_data, "",redirect
     print(table_data[selected_rows[0]])
     row = table_data[selected_rows[0]]
     print("selected row to plot : " +str(row))
@@ -183,9 +184,9 @@ def handle_row_selection(selected_rows, table_data, data, home_page_data):
         redirect = "/"
         return html.Div([
             html.P(f"Found nodes into the region : {len(nodes)}")
-        ]), nodes,redirect,home_page_data,""
+        ]), nodes,redirect,home_page_data,"",redirect
     except Exception as e:
-        return f"Erreur : {e}", data,redirect,home_page_data,""
+        return f"Erreur : {e}", data,redirect,home_page_data,"",redirect
     
 #Restore checklist
 @app.callback(
@@ -288,7 +289,7 @@ def show_upload_area(n_clicks):
     prevent_initial_call=True,
 )
 def display_sequence_on_button_click(active_cell, table_data):
-    if active_cell and active_cell['column_id'] == 'shared_size':
+    if active_cell and active_cell['column_id'] == 'region_size':
         row_index = active_cell["row"]
         row = table_data[row_index]
         sequence = get_sequence_from_position(row['genome'], row['chromosome'], row['start'], row['stop'])

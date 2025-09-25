@@ -106,7 +106,7 @@ def display_sequences(n_clicks, nodes_data):
             sequence = ""
             for i in range(len(sorted_names_by_genome[g]["names"])):
                 if sorted_names_by_genome[g]["strands"][i] == "M":
-                    sequence += sequences_list[sorted_names_by_genome[g]["names"][i]].reverse_complement()
+                    sequence += Seq(sequences_list[sorted_names_by_genome[g]["names"][i]]).reverse_complement()
                 else:
                     sequence += sequences_list[sorted_names_by_genome[g]["names"][i]]
             sequences_dic[g] = sequence

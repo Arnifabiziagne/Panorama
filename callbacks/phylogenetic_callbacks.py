@@ -23,6 +23,8 @@ if root_path not in sys.path:
 from app import *
 from neo4j_requests import *
 
+EXPORT_DIR = "./export/phylo/"
+
 def generate_elements(newick_str, xlen=30, ylen=30, grabbable=False):
     tree = Phylo.read(io.StringIO(newick_str), "newick")
     def get_col_positions(tree, column_width=80):
@@ -218,27 +220,50 @@ def color_children(edgeData):
 @app.callback(
     Output('cytoscape-phylo-region', 'elements'),
     Output("phylogenetic-message", "children"),
+    Output("phylogenetic-page-store", "data"),
     Input('btn-plot-region', 'n_clicks'),
     State('shared_storage_nodes', 'data'),
+    State("phylogenetic-page-store", "data"),
     prevent_initial_call=True
 )
-def plot_region(n_clicks, stored_data):
+def plot_region(n_clicks, stored_data, phylo_data):
     if not stored_data:
         return [], html.Div(html.P([
         "❌ No data to compute tree. Select a region to visualise on the ",
         dcc.Link("home page", href="/", style={'color': 'blue', 'textDecoration': 'underline'}),
         " or on the ",
         dcc.Link("gwas page", href="/gwas", style={'color': 'blue', 'textDecoration': 'underline'})
-        ], style=error_style))
+        ], style=error_style)), phylo_data
 
     try:
         # Step 1 : compute tree of the region
         newick_str = compute_phylo_tree_from_nodes(stored_data)
+        phylo_data = {"newick":newick_str}
     
         # Step2 : draw tree
         elements = generate_elements(newick_str)
-        return elements, ""
+        return elements, "", phylo_data
     
     except Exception as e:
         print(f"Error while computing tree : {e}")
-        return [], html.Div(f"❌ Error while computing tree : {e}", style=error_style)
+        return [], html.Div(f"❌ Error while computing tree : {e}", style=error_style), phylo_data
+    
+    
+
+
+@app.callback(
+    Output("phylogenetic-message", "children", allow_duplicate=True),
+    Input('btn-save-tree', 'n_clicks'),
+    State("phylogenetic-page-store", "data"),
+    prevent_initial_call=True
+)
+def save_tree(n_clicks, phylo_data):
+    if len(phylo_data):
+        save_path = os.path.join(os.getcwd(), EXPORT_DIR, "tree.nwk")
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        with open(save_path, "w", encoding="utf-8") as f:
+            f.write(phylo_data["newick"])
+    
+        return f"File saved : {save_path}"
+    else:
+        return f"No data to save"

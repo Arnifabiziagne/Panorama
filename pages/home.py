@@ -140,8 +140,13 @@ def get_color_palette(n):
 
 
 
-def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes=[], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0, color_shared_regions=DEFAULT_SHARED_REGION_COLOR, exons=False, exons_color=DEFAULT_EXONS_COLOR):
+def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes=[], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0, color_shared_regions=DEFAULT_SHARED_REGION_COLOR, exons=False, exons_color=DEFAULT_EXONS_COLOR):
+    print(f"Ref genome {ref_genome}")
     if data != None and len(data) > 0:
+        if ref_genome is not None and ref_genome != "":
+            position_field = ref_genome+"_position"
+        else:
+            position_field = "mean_pos"
         df = records_to_dataframe(data)
         df = df[df["size"] >= size_min].copy()
         df = df[df["genomes"].apply(lambda g: any(
@@ -198,13 +203,13 @@ def compute_graph_elements(data, selected_genomes, size_min, all_genomes, all_ch
                 #     degenerate_node_style["background-color"]="#000000"
             if row['ref_node'] == row['name']:
                 nodes.append({
-                    'data': {'id':row['name'] ,'name':row['name'], 'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color},
+                    'data': {'id':row['name'] ,'name':row['name'], 'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': main_style
                 })
             else:
                 nodes.append({
-                    'data': {'id':row['name'], 'name': row['name'],  'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color},
+                    'data': {'id':row['name'], 'name': row['name'],  'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': degenerate_node_style
                 })
@@ -511,7 +516,8 @@ def layout(data=None, initial_size_limit=10):
                         id='size_slider',
                         min=0,
                         max=size_max,
-                        step=int(100/size_max),
+                        step=1,
+                        marks={i: str(i) for i in range(0, size_max + 1, int(size_max/10))},
                         value=DEFAULT_SIZE_VALUE,
                         tooltip={"placement": "bottom",
                                  "always_visible": False},
@@ -657,6 +663,10 @@ def layout(data=None, initial_size_limit=10):
             html.Button(
                 "🔄 Reset Zoom",
                 id='btn-reset-zoom',
+            ),
+            html.Button(
+                "🔄 Zoom out 2000 bp",
+                id='btn-zoom-out',
             )
         ]),
 
@@ -720,6 +730,7 @@ def display_element_data(node_data, edge_data):
         return (
             f"Selected node : {node_data.get('label', node_data.get('name'))}\n"
             f"• Size : {node_data.get('size')}\n"
+            f"• Position : {node_data.get('position')}\n"
             f"• Flow : {node_data.get('flow')}\n"
             f"• Ref node : {node_data.get('ref_node')}\n"
             f"• Haplotypes : {', '.join(node_data.get('genomes', []))}"
@@ -742,6 +753,8 @@ def display_element_data(node_data, edge_data):
     Output('graph', 'selectedNodeData'),
     Output('graph', 'selectedEdgeData'),
     Output('zoom_shared_storage_nodes', 'data', allow_duplicate=True),
+    Output('start-input', 'value', allow_duplicate=True),
+    Output('end-input', 'value', allow_duplicate=True),
     State('genome_selector', 'value'),
     State('shared-mode', 'value'),
     State('specific-genome_selector', 'value'),
@@ -749,6 +762,7 @@ def display_element_data(node_data, edge_data):
     Input('show-labels', 'value'),
     Input('update-btn', 'n_clicks'),
     Input('btn-zoom', 'n_clicks'),
+    Input('btn-zoom-out', 'n_clicks'),
     Input('btn-reset-zoom', 'n_clicks'),
     State('graph', 'selectedNodeData'),
     # Input('size_slider', 'value'),
@@ -770,10 +784,14 @@ def display_element_data(node_data, edge_data):
     State('exon-color-picker', 'value'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, zoom_clicks, reset_zoom_bouton_clicks, selected_nodes_data, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, show_exons, exons_color):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, zoom_clicks, zoom_out_clicks, reset_zoom_bouton_clicks, selected_nodes_data, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, show_exons, exons_color):
     ctx = dash.callback_context
+    
     message = ""
+    start_value = None
+    end_value = None
     triggered_id = ctx.triggered_id
+    print(f"{triggered_id} update")
     if home_data_storage is None:
         home_data_storage = {}
     if home_data_storage is not None and 'slider_value' in home_data_storage:
@@ -783,14 +801,17 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     # save the parameters into store
     if genome is not None:
         home_data_storage["selected_genome"] = genome
+    genome = home_data_storage["selected_genome"]
     if chromosome is not None:
         home_data_storage["selected_chromosome"] = chromosome
     if shared_regions_link_color is not None:
         home_data_storage["shared_regions_link_color"] = shared_regions_link_color
     if start is not None:
         home_data_storage["start"] = start
+        start_value = start
     if end is not None:
         home_data_storage["end"] = end
+        end_value = end
     if gene_name is not None:
         home_data_storage["gene_name"] = gene_name
     if gene_id is not None:
@@ -807,19 +828,29 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     zoom_shared_storage_out = zoom_shared_storage or {}
     if triggered_id == "btn-zoom":
         if selected_nodes_data is not None and len(selected_nodes_data) > 0:
-            data_to_plot = {}
-            selected_ids = set([node['name']
-                               for node in selected_nodes_data if 'name' in node])
-            data_to_plot = {
-                k: v for k, v in data_storage_nodes.items() if k in selected_ids}
-            zoom_shared_storage_out = data_to_plot
-            print("Zoom : datat to plot length : " + str(len(data_to_plot)))
+            if start is not None and end is not None and len(zoom_shared_storage_out) == 0:
+                zoom_shared_storage_out = {"start":start, "end":end}
+            selected_positions = set([node['position']
+                               for node in selected_nodes_data if 'position' in node and 'flow' in node and node['flow'] == 1])
+            start_value = min(selected_positions)
+            home_data_storage["start"] = start_value
+            end_value = max(selected_positions)
+            home_data_storage["end"] = end_value
+            
+            print(f"Zoom - start : {start_value} - end : {end_value}")
+    if triggered_id == "btn-zoom-out":
+        if "start" in home_data_storage and home_data_storage["start"] is not None \
+            and "end" in home_data_storage and home_data_storage["end"] is not None:
+            start_value = max(0,home_data_storage["start"] - 1000)
+            end_value = home_data_storage["end"] + 1000
+            home_data_storage["start"] = start_value
+            home_data_storage["end"] = end_value
     if triggered_id == "btn-reset-zoom":
+        if len(zoom_shared_storage_out) > 0:
+            start_value = zoom_shared_storage_out["start"]
+            end_value = zoom_shared_storage_out["end"]
         zoom_shared_storage_out = {}
-    if len(zoom_shared_storage_out) > 0:
-        data_to_plot = zoom_shared_storage_out
-    else:
-        data_to_plot = data_storage_nodes
+
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
     if shared_mode and 'shared' in shared_mode:
@@ -837,40 +868,36 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         
     all_genomes = data_storage["genomes"]
     all_chromosomes = data_storage["chromosomes"]
-    if ctx.triggered and len(ctx.triggered[0]['prop_id'].split('.')) > 0:
-        input_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        if input_id == "search-button" and n_clicks > 0:
-            if start is not None:
-                new_data = get_nodes_by_region(
-                    genome, chromosome=chromosome, start=start, end=end)
-                data_storage_nodes = new_data
-                print("len new_data : " + str(len(new_data)))
-            else:
-                if ((gene_name is not None and gene_name != "") or (gene_id is not None and gene_id != "")) and chromosome is not None:
-                    if gene_name is not None and gene_name != "":
-                        new_data = get_nodes_by_gene(
-                            genome, chromosome=chromosome, gene_name=gene_name)
-                    else:
-                        new_data = get_nodes_by_gene(
-                            genome, chromosome=chromosome, gene_id=gene_id)
-                    data_storage_nodes = new_data
-                else:
-                    new_data = get_nodes_by_region(
-                        genome, chromosome=chromosome, start=0, end=end)
-            elements = compute_graph_elements(new_data, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
-                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
-                                              tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
-            zoom_shared_storage_out = {}
-            if len(elements) == 0:
-                message=html.Div("❌ No data found.", style=warning_style)
+
+    if (triggered_id== "search-button" and n_clicks > 0) or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"]:
+        if start_value is not None:
+            new_data = get_nodes_by_region(
+                genome, chromosome=chromosome, start=start_value, end=end_value)
+            data_storage_nodes = new_data
+            print("len new_data : " + str(len(new_data)))
         else:
-            print(f"min node size : {size_slider_val}")
-            elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
-                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
-                                              tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
+            if ((gene_name is not None and gene_name != "") or (gene_id is not None and gene_id != "")) and chromosome is not None:
+                if gene_name is not None and gene_name != "":
+                    new_data = get_nodes_by_gene(
+                        genome, chromosome=chromosome, gene_name=gene_name)
+                else:
+                    new_data = get_nodes_by_gene(
+                        genome, chromosome=chromosome, gene_id=gene_id)
+                data_storage_nodes = new_data
+            else:
+                new_data = get_nodes_by_region(
+                    genome, chromosome=chromosome, start=0, end=end)
+        elements = compute_graph_elements(new_data, genome, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
+                                          color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
+                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
+        if triggered_id == "search-button":
+            zoom_shared_storage_out = {}
+        if len(elements) == 0:
+            message=html.Div("❌ No data found.", style=warning_style)
+
     else:
         print(f"min node size : {size_slider_val}")
-        elements = compute_graph_elements(data_to_plot, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
+        elements = compute_graph_elements(data_storage_nodes, genome, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
                                           color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
                                           tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
 
@@ -893,7 +920,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
 
     
 
-    return elements, f"{count} displayed nodes", data_storage_nodes, message, annotations, stylesheet, home_data_storage, [], [], zoom_shared_storage_out
+    return elements, f"{count} displayed nodes", data_storage_nodes, message, annotations, stylesheet, home_data_storage, [], [], zoom_shared_storage_out, start_value, end_value
 
 
 # color picker

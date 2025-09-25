@@ -11,9 +11,9 @@ It allows the following functionalities :
 ## Prerequisites
 - Docker available
 - 16 GB RAM (32 Go+ recommanded for big data)
-- Sufficient disk space (approximately 10 times the size of the GFA, ideally SSD)
+- Sufficient disk space : approximately 10 times the size of the GFA, ideally SSD (HDD are about 10 times slower and are not recommended for this use)
 - Conda
-- Docker
+- Docker : Docker must be able to be launched by the $USER user; otherwise, see the procedure for launching Docker in non-root mode ("sudo groupadd docker" then "sudo usermod -aG docker $USER" and finally "newgrp docker")
 - The version of panorama used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
 
 ## Quickstart

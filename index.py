@@ -29,46 +29,66 @@ app.layout = html.Div([
     dcc.Store(id='shared_storage', data={'genomes':[], 'chromosomes':[]}, storage_type='session'),
     dcc.Store(id="home-page-store", storage_type='session'),
 
+
+    html.Div(
+        children=[
+            dcc.Tabs(
+                id="tabs-navigation",
+                value="/",  # valeur par défaut (la page affichée au lancement)
+                children=[
+                    dcc.Tab(label='Home', value='/', className='custom-tab', selected_className='custom-tab--selected'),
+                    dcc.Tab(label='Shared regions finder', value='/gwas', className='custom-tab', selected_className='custom-tab--selected'),
+                    dcc.Tab(label='Phylogenetic', value='/phylogenetic', className='custom-tab', selected_className='custom-tab--selected'),
+                    dcc.Tab(label='Sequences', value='/sequences', className='custom-tab', selected_className='custom-tab--selected'),
+                    dcc.Tab(label='DB management', value='/db_management', className='custom-tab', selected_className='custom-tab--selected'),
+                    dcc.Tab(label='About', value='/about', className='custom-tab', selected_className='custom-tab--selected'),
+                ],
+            )
+        ],
+        style={"marginBottom": "20px"}
+    ),
+
+
 # Menu button
-html.Div([
-    dcc.Store(id="sidebar-state", data={"visible":True}),
-    html.Button("☰", id="btn-toggle-sidebar", n_clicks=0),
-], style={"padding": "10px"}),
+# html.Div([
+#     dcc.Store(id="sidebar-state", data={"visible":True}),
+#     html.Button("☰", id="btn-toggle-sidebar", n_clicks=0),
+# ], style={"padding": "10px"}),
 
 # Sidebar
-html.Div(id="sidebar-container", children=sidebar, style={"display": "none", "width": "250px", "backgroundColor": "#f4f4f4", "position": "fixed", "height": "100%", "zIndex": 1}),
+#html.Div(id="sidebar-container", children=sidebar, style={"display": "none", "width": "250px", "backgroundColor": "#f4f4f4", "position": "fixed", "height": "100%", "zIndex": 1}),
 
 # main content
 html.Div(id="page-content", style={"marginLeft": "10px", "padding": "20px"})
 ])
 
-@app.callback(
-    Output("sidebar-state", "data"),
-    Input("btn-toggle-sidebar", "n_clicks"),
-    Input("url", "pathname"),
-    State("sidebar-state", "data"),
-    prevent_initial_call=True
-)
-def toggle_sidebar(n_clicks, pathname, data):
-    triggered = ctx.triggered_id
+# @app.callback(
+#     Output("sidebar-state", "data"),
+#     Input("btn-toggle-sidebar", "n_clicks"),
+#     Input("url", "pathname"),
+#     State("sidebar-state", "data"),
+#     prevent_initial_call=True
+# )
+# def toggle_sidebar(n_clicks, pathname, data):
+#     triggered = ctx.triggered_id
 
-    if triggered == "btn-toggle-sidebar":
-        return {"visible": not data["visible"]}
-    else:
-        # Hide sidebar when changing page
-        return {"visible": False}
+#     if triggered == "btn-toggle-sidebar":
+#         return {"visible": not data["visible"]}
+#     else:
+#         # Hide sidebar when changing page
+#         return {"visible": False}
 
 
-#Toggle menu
-@app.callback(
-    Output("sidebar-container", "style"),
-    Input("sidebar-state", "data")
-)
-def toggle_sidebar(data):
-    if data["visible"]:
-        return {"display": "block"}
-    else:
-        return {"display": "none"}
+# #Toggle menu
+# @app.callback(
+#     Output("sidebar-container", "style"),
+#     Input("sidebar-state", "data")
+# )
+# def toggle_sidebar(data):
+#     if data["visible"]:
+#         return {"display": "block"}
+#     else:
+#         return {"display": "none"}
 
 #Getting chromosomes and genomes
 @app.callback(
@@ -85,6 +105,15 @@ def init_data(pathname):
     new_data["chromosomes"]  = get_chromosomes()
     return new_data
 
+
+@app.callback(
+    Output('url', 'pathname'),
+    Input('tabs-navigation', 'value'),
+    prevent_initial_call=True,
+    allow_duplicate=True
+)
+def update_url_from_tab(tab_value):
+    return tab_value
 
 #Routing
 @app.callback(

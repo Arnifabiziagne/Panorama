@@ -67,7 +67,7 @@ def layout():
                              html.Li("Export to csv / export to csv with sequences : it will save the result into a csv file (without or with the sequences associated to each region). The file is located in the './export/gwas' directory."),
                              html.Li("Load csv : it allows to load the saved csv (it must be located in the '/gwas' directory)."),
                              html.Li("First column : by clicking on the first columns it will display the region in the home page."),
-                             html.Li("Size column : by clicking on the size columns it will display the sequence associated to the region."),
+                             html.Li("Region size column : by clicking on the size columns it will display the sequence associated to the region."),
                              ])
                      ])
             ])

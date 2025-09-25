@@ -182,7 +182,7 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                         nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
                 else:
                     if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] >= max_bp_seeking :
-                        print("Region too wide")
+                        print(f"Region too wide : {anchor_stop[genome_position] - anchor_start[genome_position]}" )
                     else:
                         print("Region not found")
                     nodes_data = {}

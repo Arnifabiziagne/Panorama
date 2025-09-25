@@ -57,6 +57,7 @@ stylesheet = [
 
 def layout():
     return html.Div([
+        dcc.Store(id="phylogenetic-page-store",storage_type="memory"),
         html.H2("Phylogenetics tree"),
         
         #Help section
@@ -108,7 +109,8 @@ def layout():
     
         #Second column for specific region tree
         html.Div([
-            html.Button("Plot tree of selected region", title="Before using this button, data must be displayed on home page. If data are displayed, then this will computes the phylogenetic tree of displayed haplotypes (see help for details).", id="btn-plot-region"),
+            html.Button("Plot tree of selected region", title="Before using this button, data must be displayed on home page. If data are displayed, then this will computes the phylogenetic tree of displayed haplotypes (see help for details).",style={'margin-right': '15px'}, id="btn-plot-region"),
+            html.Button("Save tree", title="Tree will be saved into newick format.", id="btn-save-tree"),
             dcc.Loading(
                 id="loading-phylogenetic-msg",
                 type="circle",
