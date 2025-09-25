@@ -16,6 +16,10 @@ import pages.sequences as sequences
 import pages.gwas as gwas
 import pages.db_management as db_management
 import pages.about as about
+import callbacks.phylogenetic_callbacks
+import callbacks.gwas_callbacks
+import callbacks.sequences_callbacks
+import callbacks.db_management_callbacks
 
 from neo4j_requests import *
 
