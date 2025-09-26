@@ -801,7 +801,8 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     # save the parameters into store
     if genome is not None:
         home_data_storage["selected_genome"] = genome
-    genome = home_data_storage["selected_genome"]
+    if "selected_genome" in home_data_storage:
+        genome = home_data_storage["selected_genome"]
     if chromosome is not None:
         home_data_storage["selected_chromosome"] = chromosome
     if shared_regions_link_color is not None:
@@ -828,16 +829,21 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     zoom_shared_storage_out = zoom_shared_storage or {}
     if triggered_id == "btn-zoom":
         if selected_nodes_data is not None and len(selected_nodes_data) > 0:
-            if start is not None and end is not None and len(zoom_shared_storage_out) == 0:
-                zoom_shared_storage_out = {"start":start, "end":end}
-            selected_positions = set([node['position']
-                               for node in selected_nodes_data if 'position' in node and 'flow' in node and node['flow'] == 1])
+            selected_nodes_name = set([node['name'] for node in selected_nodes_data])
+        position_field = genome + "_position"
+        selected_positions =set()
+        for n in data_storage_nodes:
+            node = data_storage_nodes[n]
+            if node["name"] in selected_nodes_name and position_field in node :
+                selected_positions.add(node[position_field])
+        if len(selected_positions) > 0:
             start_value = min(selected_positions)
             home_data_storage["start"] = start_value
             end_value = max(selected_positions)
             home_data_storage["end"] = end_value
-            
             print(f"Zoom - start : {start_value} - end : {end_value}")
+        else:
+            print(f"No position found in the selected nodes for the reference genome {genome}")
     if triggered_id == "btn-zoom-out":
         if "start" in home_data_storage and home_data_storage["start"] is not None \
             and "end" in home_data_storage and home_data_storage["end"] is not None:
@@ -871,8 +877,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
 
     if (triggered_id== "search-button" and n_clicks > 0) or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"]:
         if start_value is not None:
+            use_anchor = True
+            if triggered_id == "btn-zoom":
+                use_anchor = False
             new_data = get_nodes_by_region(
-                genome, chromosome=chromosome, start=start_value, end=end_value)
+                    genome, chromosome=chromosome, start=start_value, end=end_value, use_anchor=use_anchor)
             data_storage_nodes = new_data
             print("len new_data : " + str(len(new_data)))
         else:

@@ -29,6 +29,7 @@ import pandas as pd
 import numpy as np
 from Bio import Phylo
 from Bio.Seq import Seq
+import statistics
 
 
 
@@ -44,76 +45,102 @@ logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 
 
-def get_anchor(genome, chromosome, position, before = True):
+def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
     if get_driver() is None :
         return None
     genome_position = genome+"_position"
-    window_size=1000
-    max_attemps = 500
-    attempt = 0
-    with get_driver() as driver:
-        with driver.session() as session:
-            while attempt < max_attemps :
-                attempt += 1
-        
+    if use_anchor :
+        window_size=1000
+        max_attemps = 500
+        attempt = 0
+        with get_driver() as driver:
+            with driver.session() as session:
+                while attempt < max_attemps :
+                    attempt += 1
+            
+                    if before:
+                        if attempt == 1:
+                            lower_bound = position
+                        upper_bound = lower_bound
+                        lower_bound = lower_bound - window_size
+                        order = "DESC"
+    
+                    else:
+                        if attempt == 1:
+                            upper_bound = position
+                        lower_bound = upper_bound
+                        upper_bound = upper_bound + window_size
+                        order = "ASC"
+            
+                    query = f"""
+                    MATCH (n:Node)
+                    WHERE n.chromosome = "{chromosome}"
+                      AND n.`{genome_position}` >= $lower_bound
+                      AND n.`{genome_position}` <= $upper_bound
+                      AND n.flow >= 1.0
+                    RETURN n
+                    ORDER BY n.`{genome_position}` {order}
+                    LIMIT 1
+                    """
+    
+                    result = session.run(
+                            query,
+                            chromosome=chromosome,
+                            lower_bound=lower_bound,
+                            upper_bound=upper_bound
+                        )
+                    record = result.single()
+                    if record:
+                        return dict(record["n"])
+                #Anchor not found => the current node will be used
                 if before:
-                    if attempt == 1:
-                        lower_bound = position
-                    upper_bound = lower_bound
-                    lower_bound = lower_bound - window_size
-                    order = "DESC"
-
-                else:
-                    if attempt == 1:
-                        upper_bound = position
-                    lower_bound = upper_bound
-                    upper_bound = upper_bound + window_size
-                    order = "ASC"
-        
-                query = f"""
-                MATCH (n:Node)
-                WHERE n.chromosome = "{chromosome}"
-                  AND n.`{genome_position}` >= $lower_bound
-                  AND n.`{genome_position}` <= $upper_bound
-                  AND n.flow >= 1.0
-                RETURN n
-                ORDER BY n.`{genome_position}` {order}
-                LIMIT 1
-                """
-
+                    query = f"""
+                    MATCH (n:Node)
+                    WHERE n.chromosome = "{chromosome}"
+                      AND n.`{genome_position}` >= $position
+                    RETURN n order by n.`{genome_position}` ASC limit 1
+                    """
+                else :
+                    query = f"""
+                    MATCH (n:Node)
+                    WHERE n.chromosome = "{chromosome}"
+                      AND n.`{genome_position}` <= $position
+                    RETURN n order by n.`{genome_position}` DESC limit 1
+                    """
+    
                 result = session.run(
                         query,
                         chromosome=chromosome,
-                        lower_bound=lower_bound,
-                        upper_bound=upper_bound
+                        position=position
                     )
                 record = result.single()
                 if record:
                     return dict(record["n"])
-            #Anchor not found => the current node will be used
-            if before:
-                query = f"""
-                MATCH (n:Node)
-                WHERE n.chromosome = "{chromosome}"
-                  AND n.`{genome_position}` >= $position
-                RETURN n order by n.`{genome_position}` ASC limit 1
-                """
-            else :
-                query = f"""
-                MATCH (n:Node)
-                WHERE n.chromosome = "{chromosome}"
-                  AND n.`{genome_position}` <= $position
-                RETURN n order by n.`{genome_position}` DESC limit 1
-                """
-
-            result = session.run(
-                    query,
-                    chromosome=chromosome,
-                    position=position
-                )
-            record = result.single()
-            if record:
-                return dict(record["n"])
+    else:
+        if before:
+            query = f"""
+            MATCH (n:Node)
+            WHERE n.chromosome = "{chromosome}"
+              AND n.`{genome_position}` >= $position
+            RETURN n order by n.`{genome_position}` ASC limit 1
+            """
+        else :
+            query = f"""
+            MATCH (n:Node)
+            WHERE n.chromosome = "{chromosome}"
+              AND n.`{genome_position}` <= $position
+            RETURN n order by n.`{genome_position}` DESC limit 1
+            """
+        with get_driver() as driver:
+            with driver.session() as session:
+                result = session.run(
+                        query,
+                        chromosome=chromosome,
+                        position=position
+                    )
+                record = result.single()
+                if record:
+                    return dict(record["n"])    
 
     return None
 
@@ -123,7 +150,7 @@ def get_anchor(genome, chromosome, position, before = True):
 #and it returns all the nodes in this region and the other related regions : 
 #for each haplotype the start and stop are given by the first anchor node before the start position and the first after the end position
 #Anchor node is a node with all haplotypes
-def get_nodes_by_region(genome, chromosome, start, end ):
+def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
     if get_driver() is None :
         return []
     temps_depart = time.time()
@@ -142,8 +169,10 @@ def get_nodes_by_region(genome, chromosome, start, end ):
             if start is not None and end is not None :
                 genome_position = genome+"_position"
                 print("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome) + " - genome : " + str(genome))
-                anchor_start = get_anchor(genome, chromosome, start, before = True)
-                anchor_stop = get_anchor(genome, chromosome, end, before = False)
+
+                anchor_start = get_anchor(genome, chromosome, start, before = True, use_anchor=use_anchor)
+                anchor_stop = get_anchor(genome, chromosome, end, before = False, use_anchor=use_anchor)
+                delta = abs(stop - start)
                 if anchor_start is not None and  anchor_stop is not None:
                     if anchor_start[genome_position] > anchor_stop[genome_position]:
                         anchor_start_tmp = anchor_start
@@ -163,14 +192,15 @@ def get_nodes_by_region(genome, chromosome, start, end ):
                     """
                     first = True
                     for g in set(anchor_start["genomes"]+anchor_stop["genomes"]):
-                        champ_position = g+"_position"
-                        start = min(anchor_start[champ_position],anchor_stop[champ_position])
-                        stop = max(anchor_start[champ_position],anchor_stop[champ_position])
-                        if first :
-                            query_genome += f"(m.`{champ_position}` >= {start} AND m.`{champ_position}` <= {stop})"
-                            first = False
-                        else :
-                            query_genome += f" OR (m.`{champ_position}` >= {start} AND m.`{champ_position}` <= {stop})"
+                        position_field = g+"_position"
+                        if position_field in anchor_start and position_field in anchor_stop:
+                            start = min(anchor_start[position_field],anchor_stop[position_field])
+                            stop = max(anchor_start[position_field],anchor_stop[position_field])
+                            if first :
+                                query_genome += f"(m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
+                                first = False
+                            else :
+                                query_genome += f" OR (m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
                     
                     query_genome += """)
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
@@ -561,7 +591,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     dic_number_to_position = {}  
                     dic_number_to_size = {}
                     for g in genomes_list :
-                        dic_regions[c][g] = {"nodes_position_list":[], "size":[], "regions" : [], "shared_size":[]}
+                        dic_regions[c][g] = {"nodes_position_list":[], "size":[], "regions" : [], "shared_size":[], "deleted_size":[]}
                         dic_number_to_position[g] = {}
                         dic_number_to_size[g] = {}
                         #query += ' AND "' + str(g) + '" IN n.genomes'
@@ -621,10 +651,13 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 AND ALL(g IN n2.genomes WHERE g IN m.genomes)
                                 AND size(n2.genomes) = size(m.genomes)
                             
-                              RETURN m
+                            
+                              WITH m, collect(n2) AS nodes_tmp, count(n2) AS nodes_tmp_count
+                              WHERE nodes_tmp_count = 1
+                              RETURN m, nodes_tmp[0] AS n2
                               
                             }}
-                            RETURN m as nodes, n.size AS deleted_node_size 
+                            RETURN m as nodes, n.size AS deleted_node_size, n2 as end_deletion_nodes  
                             ORDER BY m.`{genome_position_ref}_position` ASC
                         
                         """
@@ -634,22 +667,28 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         print("Total Nodes selected for chromosome " + str(c) + " : " + str(len(result)) + "\nTime : " + str(time.time()-time_0))
                     else:
                         result = result1
-                        
                     nb_regions_total += len(result)
                     for r in result:
                         for g in genomes_list:
                             if (r["nodes"][g+"_position"] != None):
                                 dic_regions[c][g]["nodes_position_list"].append(r["nodes"][g+"_position"]) 
-                                if "deleted_node_size" in dict(r):
-                                    dic_regions[c][g]["size"].append(r["deleted_node_size"])
+                                if "deleted_node_size" in dict(r): 
+                                    gap = []
+                                    for hap in r["end_deletion_nodes"]["genomes"]:
+                                        if hap not in genomes_list :
+                                            gap.append(abs(r["end_deletion_nodes"][hap+"_position"]-(r["nodes"][hap+"_position"]+r["nodes"]["size"])))
+
+                                    dic_regions[c][g]["deleted_size"].append(statistics.median(gap))
+
+                                    
                                 else:
-                                    dic_regions[c][g]["size"].append(r["nodes"]["size"])             
+                                    dic_regions[c][g]["size"].append(r["nodes"]["size"])   
                     #Group regions if they are separated vy less than nodes_max_gap
                     for g in genomes_list :
                         if len(dic_regions[c][g]["nodes_position_list"]) > 0:
-                            combined = list(zip(dic_regions[c][g]["nodes_position_list"],dic_regions[c][g]["size"]))
+                            combined = list(zip(dic_regions[c][g]["nodes_position_list"],dic_regions[c][g]["size"],dic_regions[c][g]["deleted_size"]))
                             combined_sorted = sorted(combined, key=lambda x: x[0])
-                            nodes_position_sorted, size_sorted = zip(*combined_sorted)
+                            nodes_position_sorted, size_sorted, deleted_size_sorted = zip(*combined_sorted)
                             #dic_regions[c][g]["nodes_position_list"].sort()
                             shared_size = 0
                             for i in range(len(nodes_position_sorted)):
@@ -657,16 +696,19 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                     region_start = nodes_position_sorted[0]
                                     region_stop = region_start + dic_regions[c][g]["size"][0]
                                     shared_size = size_sorted[0]
+                                    shared_deleted_size = deleted_size_sorted[0]
                                 else :
                                     if nodes_position_sorted[i] < nodes_position_sorted[i-1] + nodes_max_gap :
                                         region_stop = nodes_position_sorted[i]
                                         shared_size += size_sorted[i]
+                                        shared_deleted_size += deleted_size_sorted[i]
                                     else :
-                                        dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "region_size" : region_stop-region_start})
+                                        dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
                                         shared_size = size_sorted[i]
+                                        shared_deleted_size = deleted_size_sorted[i]
                                         region_start = nodes_position_sorted[i]
                                         region_stop = region_start + size_sorted[i]
-                            dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "region_size" : region_stop-region_start})
+                            dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
             print("Total number of regions : " +str(nb_regions_total))
             dic_regions_2 = {}
             for c, genomes in dic_regions.items():
@@ -705,7 +747,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     r = {}
                     r["chromosome"] = a["chromosome"]
                     r["shared_size"] = a["shared_size"]
-
+                    r["shared_deleted_size"] = a["shared_deleted_size"]
                     r["genome"] = genome_ref
                     n_start = get_anchor(genomes_list[0], a["chromosome"], a["start"], before = True)
                     n_stop = get_anchor(genomes_list[0], a["chromosome"], a["stop"], before = False)

@@ -205,7 +205,8 @@ def layout():
                 {"name": "annotations", "id": "annotations"},
                 {"name": "annotation after", "id": "annotation_after"},
                 {"name": "region size", "id": "region_size"},
-                {"name": "shared size", "id": "shared_size"}
+                {"name": "shared size", "id": "shared_size"},
+                {"name": "shared deleted nodes size", "id": "shared_deleted_size"}
             ],
             data=[],
             sort_action='native',
