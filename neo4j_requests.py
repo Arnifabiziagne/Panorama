@@ -679,10 +679,11 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                             gap.append(abs(r["end_deletion_nodes"][hap+"_position"]-(r["nodes"][hap+"_position"]+r["nodes"]["size"])))
 
                                     dic_regions[c][g]["deleted_size"].append(statistics.median(gap))
-
+                                    dic_regions[c][g]["size"].append(0)
                                     
                                 else:
-                                    dic_regions[c][g]["size"].append(r["nodes"]["size"])   
+                                    dic_regions[c][g]["size"].append(r["nodes"]["size"]) 
+                                    dic_regions[c][g]["deleted_size"].append(0)
                     #Group regions if they are separated vy less than nodes_max_gap
                     for g in genomes_list :
                         if len(dic_regions[c][g]["nodes_position_list"]) > 0:
