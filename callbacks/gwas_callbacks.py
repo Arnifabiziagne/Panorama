@@ -72,6 +72,7 @@ def update_dropdown(data):
     State('genome-list', 'value'),
     State("gwas-page-store", "data"),
     State("gwas-min-node-size-int", 'value'),
+    State("gwas-max-node-size-int", 'value'),
     State("gwas-min-percent_selected", 'value'),
     State("tolerance_percentage", 'value'),
     State("gwas-region-gap", 'value'),
@@ -81,7 +82,7 @@ def update_dropdown(data):
     State("deletion-percentage", 'value'),
     prevent_initial_call=True
 )
-def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, min_percent_selected, tolerance_percentage, region_gap, deletion_checkbox, chromosome, ref_genome, deletion_percentage):
+def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, max_node_size, min_percent_selected, tolerance_percentage, region_gap, deletion_checkbox, chromosome, ref_genome, deletion_percentage):
     if min_node_size is not None and min_node_size != "" and isinstance(min_node_size, int):
         min_size = min_node_size
     else:
@@ -90,6 +91,8 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         c = None
     else:
         c = [chromosome]
+    if max_node_size is None or max_node_size == "" or max_node_size == 0:
+        max_node_size = 0
     if data is None:
         data = {}
     data["checkboxes"]= selected_genomes
@@ -99,7 +102,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
     if 'show' in deletion_checkbox : 
         deletion = True
     try:       
-        dic_region, analyse = find_shared_regions(selected_genomes, genome_ref = ref_genome, chromosomes = c,node_min_size = min_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, tolerance_percentage = tolerance_percentage, min_deletion_percentage=deletion_percentage)
+        dic_region, analyse = find_shared_regions(selected_genomes, genome_ref = ref_genome, chromosomes = c,node_min_size = min_size, node_max_size = max_node_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, tolerance_percentage = tolerance_percentage, min_deletion_percentage=deletion_percentage)
            
         #take an annotated genome if no reference genome selected
         if ref_genome is None or ref_genome == "":

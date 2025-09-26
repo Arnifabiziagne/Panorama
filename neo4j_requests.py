@@ -515,7 +515,7 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
 #chromosomes : liste of chromosomes. If defined the function will only look for shared region on these chromosomes
 #node_min_size : the nodes smaller than this value will be ignored (to avoid to look for all snp, if the are required then set this value to 0)
 #nodes_max_gap : this gap i sused to gather find regions into a bigger regions if the initial find regions are separated by less than this value (in numer of nodes)
-def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=80, tolerance_percentage = 10, min_deletion_percentage=100):
+def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, node_max_size = 0, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=80, tolerance_percentage = 10, min_deletion_percentage=100):
     if get_driver is None :
         return {},{}
     dic_regions = {}
@@ -526,7 +526,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
         tolerance_percentage = 100
     if min_deletion_percentage > 100:
         min_deletion_percentage = 100
-    print("node_min_size : " + str(node_min_size) + " deletion : " + str(deletion) + " min_percent_selected_genomes : "+ str(min_percent_selected_genomes) + " tolerance_percentage : " + str(tolerance_percentage) + " min deletion percentage : " + str(min_deletion_percentage))
+    print("node_min_size : " + str(node_min_size) + " node_max_size : " + str(node_max_size) + " deletion : " + str(deletion) + " min_percent_selected_genomes : "+ str(min_percent_selected_genomes) + " tolerance_percentage : " + str(tolerance_percentage) + " min deletion percentage : " + str(min_deletion_percentage))
     temps_depart = time.time()
     if (len(genomes_list) > 1):
         print("finding shared regions for " + str(genomes_list))
@@ -576,17 +576,31 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     print("chromosome : " + str(c))
                     dic_regions[c] = {}
                     #Looking for shared nodes
-                    query = f"""
-                        MATCH (n:Node)
-                        WHERE n.chromosome = '{c}'
-                          AND n.flow >= {min_flow}
-                          AND n.flow <= {max_flow}
-                          AND n.size >= {node_min_size}
-                        WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
-                        WHERE size(matched_genomes) >= {min_associated_genomes}
-                          AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
-                        RETURN n AS nodes order by n.`{genome_position_ref}_position` ASC
-                    """
+                    if node_max_size == 0:
+                        query = f"""
+                            MATCH (n:Node)
+                            WHERE n.chromosome = '{c}'
+                              AND n.flow >= {min_flow}
+                              AND n.flow <= {max_flow}
+                              AND n.size >= {node_min_size}
+                            WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
+                            WHERE size(matched_genomes) >= {min_associated_genomes}
+                              AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
+                            RETURN n AS nodes order by n.`{genome_position_ref}_position` ASC
+                        """
+                    else:
+                        query = f"""
+                            MATCH (n:Node)
+                            WHERE n.chromosome = '{c}'
+                              AND n.flow >= {min_flow}
+                              AND n.flow <= {max_flow}
+                              AND n.size >= {node_min_size}
+                              AND n.size <= {node_max_size}
+                            WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
+                            WHERE size(matched_genomes) >= {min_associated_genomes}
+                              AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
+                            RETURN n AS nodes order by n.`{genome_position_ref}_position` ASC
+                        """
                     #print(query)
                     dic_number_to_position = {}  
                     dic_number_to_size = {}
@@ -629,6 +643,12 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             WHERE n.chromosome = "{c}"
                               AND n.flow >= {min_flow_deletion} AND n.flow <= {max_flow_deletion}
                               AND n.size >= {node_min_size}
+                              """
+                        if node_max_size > 0:
+                             query += f" AND n.size <= {node_max_size}"
+                        
+                        query += f"""
+                                 
                               AND NONE(g IN $genomes_list WHERE g IN n.genomes)
                             
                             CALL {{

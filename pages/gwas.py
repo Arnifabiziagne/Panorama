@@ -96,6 +96,12 @@ def layout():
                 ),
                 dcc.Input(id='gwas-min-node-size-int',style={'width': '80px', 'margin-right': '15px'},  type='number', step=1, value=10, debounce=True),
                 html.Label(
+                    "Max node size to detect a shared region (integer) : ",
+                    title="The nodes with a size above this value won't be detected by the process. Set to 0 or empty for no max size.",
+                    style={'margin-right': '15px'}
+                ),
+                dcc.Input(id='gwas-max-node-size-int',style={'width': '80px', 'margin-right': '15px'},  type='number', step=1, debounce=True),
+                html.Label(
                     "Min (%) of selected haplotypes : ",
                      title="Min (%) of shared haplotypes = M. Number of selected haplotypes = N. To detect a shared node it must contains almost (M/100) x N of the selected haplotypes. If M = 0 then the minimum number of selected haplotypes will be 1.",
                      style={'margin-right': '15px'}),
