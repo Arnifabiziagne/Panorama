@@ -34,7 +34,8 @@ def layout():
                         html.Li("Shared nodes : Here, the objective is to detect the nodes shared by the selected haplotypes."
                                 " Several parameters are involved:"),      
                             html.Ul([
-                                html.Li("Min node size : a node will be detected only if it's size is superior to this value"),
+                                html.Li("Min node size : a node will be detected only if it's size is superior to this value."),
+                                html.Li("Max node size : a node will be detected only if it's size is inferior to this value. Set to zero or empty for no limitation."),
                                 html.Li("Min (%) of selected haplotypes (= p): a node will be detected only if (p/100) * number of selected haplotypes are present on the node."
                                         "If set to zero it wil require at least one of the selected haplotypes."),
                                 html.Li("Tolerance (%) (= t): a node with more than (t/100) * number of haplotypes present on this node will not be detected. If set to zero then nodes with a non selected haplotype will not be detected.")
@@ -49,6 +50,7 @@ def layout():
                              " The following parameters are used :"),      
                          html.Ul([
                              html.Li("Min node size : a node will be detected only if it's size is superior to this value"),
+                             html.Li("Max node size : a node will be detected only if it's size is inferior to this value. Set to zero or empty for no limitation."),
                              html.Li("Min (%) of selected haplotypes (= p): a node will be detected only if (p/100) * number of selected haplotypes are present on the node."
                                      "If set to zero it wil require at least one of the selected haplotypes."),
                              html.Li("Unselected haplotypes percentage (%) (= u): a node will be detected only if (u/100) * number of unselected haplotypes + (p/100) * number of selected haplotypes are present on the node."
