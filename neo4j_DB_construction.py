@@ -557,7 +557,7 @@ def get_chromosome_genome(WP_line, haplotype=True, chromosome_file = None):
                 name_dec = ligne_dec[1].split("#")
             else:
                 name_dec = ligne_dec[1].split(".")
-            if haplotype  and len(name_dec) > 0 :
+            if haplotype  and len(name_dec) > 1 :
                 genome = name_dec[0]+"_"+name_dec[1]
             else:
                 genome = name_dec[0]
