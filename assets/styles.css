@@ -1,0 +1,20 @@
+
+.custom-tab {
+    font-size: 16px;
+    padding: 12px 20px;
+    color: #003366;
+    background: linear-gradient(to right, #e0f7ff, #c0e5ff);
+    border: 1px solid #b0d4ef;
+    margin-right: 2px;
+    border-radius: 5px 5px 0 0;
+    transition: 0.3s;
+}
+
+/* Style for selected tab */
+.custom-tab--selected {
+    background: linear-gradient(to right, #a0d8ff, #70c1ff);
+    color: #002244;
+    font-weight: bold;
+    border-bottom: 3px solid #3399ff;
+    box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+}
