@@ -9,6 +9,8 @@ Created on Wed Jul  2 12:06:35 2025
 from dash import dcc, html, Input, Output, State, ctx
 from app import app
 from sidebar import sidebar
+import signal
+import sys
 import argparse
 import pages.home as home
 import pages.phylogenetic as phylogenetic
@@ -22,6 +24,21 @@ import callbacks.sequences_callbacks
 import callbacks.db_management_callbacks
 
 from neo4j_requests import *
+from config import stop_container
+
+
+def clean_exit(signum, frame):
+    print("\nStopping docker")
+    stop_container()
+    time.sleep(10)
+    print("\nPanorama stopped")
+    sys.exit(0)
+
+# Close docker when quitting app
+signal.signal(signal.SIGINT, clean_exit)
+signal.signal(signal.SIGTERM, clean_exit)
+
+
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
