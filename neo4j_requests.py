@@ -515,7 +515,7 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
 #chromosomes : liste of chromosomes. If defined the function will only look for shared region on these chromosomes
 #node_min_size : the nodes smaller than this value will be ignored (to avoid to look for all snp, if the are required then set this value to 0)
 #nodes_max_gap : this gap i sused to gather find regions into a bigger regions if the initial find regions are separated by less than this value (in numer of nodes)
-def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, node_max_size = 0, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=80, tolerance_percentage = 10, min_deletion_percentage=100):
+def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, node_max_size = 0, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=100, tolerance_percentage = 0, min_deletion_percentage=100):
     if get_driver is None :
         return {},{}
     dic_regions = {}
@@ -553,7 +553,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 max_flow = nb_associated_genomes*(1+tolerance_percentage/100)/nb_genomes + 0.00000001
                 
 
-                print(f"genomes number : {nb_genomes} - min flow : {min_flow} - max flow : {max_flow}")
+                print(f"genomes number : {nb_genomes} - min flow : {min_flow} - max flow : {max_flow} - min associated genomes : {min_associated_genomes}")
                 if deletion:
                         min_unselected_genomes = max(1,int((nb_genomes - nb_associated_genomes) * min_deletion_percentage / 100))
                         global_min_flow_deletion = min(min_associated_genomes + min_unselected_genomes,nb_genomes)/nb_genomes - 0.00000001 
@@ -651,7 +651,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                  
                               AND NONE(g IN $genomes_list WHERE g IN n.genomes)
                             
-                            CALL {{
+                            OPTIONAL CALL {{
                               WITH n
                               MATCH (m:Node)-[]->(n)
                               WHERE m.chromosome = "{c}"
@@ -677,58 +677,137 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                               RETURN m, nodes_tmp[0] AS n2
                               
                             }}
-                            RETURN m as nodes, n.size AS deleted_node_size, n2 as end_deletion_nodes  
+                            WITH m, n, n2
+                            WHERE m IS NOT NULL and n2 IS NOT NULL 
+                            RETURN m as nodes, n.size AS deleted_node_size, n.genomes as genomes_deleted_nodes, n2 as end_deletion_nodes  
                             ORDER BY m.`{genome_position_ref}_position` ASC
                         
                         """
                         
-                        
-                        result = result1 + list(session.run(query, genomes_list=genomes_list))
+                        result2 = list(session.run(query, genomes_list=genomes_list))
+                        result = result1 + result2
                         print("Total Nodes selected for chromosome " + str(c) + " : " + str(len(result)) + "\nTime : " + str(time.time()-time_0))
                     else:
                         result = result1
                     nb_regions_total += len(result)
                     for r in result:
                         for g in genomes_list:
+                            if "deleted_nodes" not in dic_regions[c][g]:
+                                dic_regions[c][g]["deleted_nodes"]= []
                             if (r["nodes"][g+"_position"] != None):
                                 dic_regions[c][g]["nodes_position_list"].append(r["nodes"][g+"_position"]) 
-                                if "deleted_node_size" in dict(r): 
-                                    gap = []
-                                    for hap in r["end_deletion_nodes"]["genomes"]:
-                                        if hap not in genomes_list :
-                                            gap.append(abs(r["end_deletion_nodes"][hap+"_position"]-(r["nodes"][hap+"_position"]+r["nodes"]["size"])))
 
-                                    dic_regions[c][g]["deleted_size"].append(statistics.median(gap))
+                                if "deleted_node_size" in dict(r): 
+                                    #If deleted nodes are found, we try to reconstruct the size of the deleted regions. 
+                                    #To do this, we check that there is no overlap.
+                                    deleted_nodes_dict = {}
+                                    for hap in genomes : 
+                                        if hap in r["genomes_deleted_nodes"]:
+                                            start_deletion = r["nodes"][hap+"_position"]+r["nodes"]["size"]
+                                            end_deletion = r["end_deletion_nodes"][hap+"_position"]
+                                            if start_deletion > end_deletion:
+                                                end_deletion_tmp = end_deletion
+                                                end_deletion = start_deletion
+                                                start_deletion = end_deletion_tmp
+                                            deleted_nodes_dict[hap]={"start_deletion":start_deletion, "end_deletion":end_deletion}
+                                        else:
+                                            deleted_nodes_dict[hap] = {"start_deletion":-1, "end_deletion":-1}
+                                    dic_regions[c][g]["deleted_nodes"].append(deleted_nodes_dict)
+                                    #dic_regions[c][g]["deleted_size"].append(statistics.median(gap))
                                     dic_regions[c][g]["size"].append(0)
-                                    
+                                                                    
                                 else:
                                     dic_regions[c][g]["size"].append(r["nodes"]["size"]) 
-                                    dic_regions[c][g]["deleted_size"].append(0)
+                                    #dic_regions[c][g]["deleted_size"].append(0)
+                                    dic_regions[c][g]["deleted_nodes"].append({})
+
+                    
                     #Group regions if they are separated vy less than nodes_max_gap
                     for g in genomes_list :
                         if len(dic_regions[c][g]["nodes_position_list"]) > 0:
-                            combined = list(zip(dic_regions[c][g]["nodes_position_list"],dic_regions[c][g]["size"],dic_regions[c][g]["deleted_size"]))
+                            combined = list(zip(dic_regions[c][g]["nodes_position_list"],dic_regions[c][g]["size"],dic_regions[c][g]["deleted_nodes"]))
                             combined_sorted = sorted(combined, key=lambda x: x[0])
-                            nodes_position_sorted, size_sorted, deleted_size_sorted = zip(*combined_sorted)
+                            nodes_position_sorted, size_sorted, deleted_nodes_sorted = zip(*combined_sorted)
                             #dic_regions[c][g]["nodes_position_list"].sort()
                             shared_size = 0
+                            shared_deleted_size = 0
+                            current_deletion = {}
                             for i in range(len(nodes_position_sorted)):
                                 if i == 0 :
                                     region_start = nodes_position_sorted[0]
                                     region_stop = region_start + dic_regions[c][g]["size"][0]
                                     shared_size = size_sorted[0]
-                                    shared_deleted_size = deleted_size_sorted[0]
+                                    if len(deleted_nodes_sorted[0]) > 0:
+                                        for dg in deleted_nodes_sorted[0] :
+                                            current_deletion[dg] = {"start_deletion":deleted_nodes_sorted[0][dg]["start_deletion"], "end_deletion":deleted_nodes_sorted[0][dg]["end_deletion"]}
+                                    else:
+                                        current_deletion = None
                                 else :
                                     if nodes_position_sorted[i] < nodes_position_sorted[i-1] + nodes_max_gap :
                                         region_stop = nodes_position_sorted[i]
                                         shared_size += size_sorted[i]
-                                        shared_deleted_size += deleted_size_sorted[i]
+
+                                        if len(deleted_nodes_sorted[i]) > 0:
+                                            #If deleted nodes are found, we try to reconstruct the size of the deleted regions. 
+                                            #To do this, we check that there is no overlap.
+                                            same_deletion = False
+                                            if current_deletion is None:
+                                                same_deletion = True
+                                            else:
+                                                for dg in deleted_nodes_sorted[i] :
+                                                    if "start_deletion" in deleted_nodes_sorted[i][dg] and deleted_nodes_sorted[i][dg]["start_deletion"]>=0 \
+                                                        and current_deletion[dg]["start_deletion"] >= 0 \
+                                                        and ((deleted_nodes_sorted[i][dg]["start_deletion"] >= current_deletion[dg]["start_deletion"] \
+                                                        and deleted_nodes_sorted[i][dg]["start_deletion"] <= current_deletion[dg]["end_deletion"]) \
+                                                        or (deleted_nodes_sorted[i][dg]["end_deletion"] >= current_deletion[dg]["start_deletion"] \
+                                                        and deleted_nodes_sorted[i][dg]["end_deletion"] <= current_deletion[dg]["end_deletion"])) :
+                                                            same_deletion = True
+                                            if same_deletion :
+                                                for dg in deleted_nodes_sorted[i] :
+                                                    if current_deletion is not None :
+                                                        current_deletion[dg] = {"start_deletion": min(deleted_nodes_sorted[i][dg]["start_deletion"], current_deletion[dg]["start_deletion"]),
+                                                                           "end_deletion": max(deleted_nodes_sorted[i][dg]["end_deletion"], current_deletion[dg]["end_deletion"])}
+                                                    else:
+                                                        current_deletion[dg] = {"start_deletion": deleted_nodes_sorted[i][dg]["start_deletion"],
+                                                                           "end_deletion": deleted_nodes_sorted[i][dg]["end_deletion"]}
+                                            else:
+                                                gap = []
+                                                for dg in current_deletion :
+                                                    if "start_deletion" in current_deletion[dg] and current_deletion[dg]["start_deletion"]>=0:
+                                                        gap.append(abs(current_deletion[dg]["end_deletion"]-current_deletion[dg]["start_deletion"]))
+                                                shared_deleted_size += statistics.median(gap)
+                                                for dg in deleted_nodes_sorted[i] :
+                                                    current_deletion[dg] = {"start_deletion":deleted_nodes_sorted[i][dg]["start_deletion"], "end_deletion":deleted_nodes_sorted[i][dg]["end_deletion"]}
+                                        
                                     else :
+                                        if current_deletion is not None :
+                                            gap = []
+                                            for dg in current_deletion :
+                                                if "start_deletion" in current_deletion[dg] and current_deletion[dg]["start_deletion"]>=0:
+                                                    gap.append(abs(current_deletion[dg]["end_deletion"]-current_deletion[dg]["start_deletion"]))
+                                            shared_deleted_size += statistics.median(gap)
+                                        if region_start == region_stop:
+                                            region_start -= 100
+                                            region_stop += 100
                                         dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
                                         shared_size = size_sorted[i]
-                                        shared_deleted_size = deleted_size_sorted[i]
+                                        shared_deleted_size = 0
+                                        if len(deleted_nodes_sorted[i]) > 0:
+                                            for dg in deleted_nodes_sorted[0] :
+                                                current_deletion[dg] = {"start_deletion":deleted_nodes_sorted[i][dg]["start_deletion"], "end_deletion":deleted_nodes_sorted[i][dg]["end_deletion"]}
+                                        else:
+                                            current_deletion = None
                                         region_start = nodes_position_sorted[i]
                                         region_stop = region_start + size_sorted[i]
+                            if current_deletion is not None:
+                                gap = []
+                                for dg in current_deletion :
+                                    if "start_deletion" in current_deletion[dg] and current_deletion[dg]["start_deletion"]>=0:
+                                        gap.append(abs(current_deletion[dg]["end_deletion"]-current_deletion[dg]["start_deletion"]))
+                                shared_deleted_size += statistics.median(gap)
+                            if region_start == region_stop:
+                                region_start -= 100
+                                region_stop += 100    
                             dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
             print("Total number of regions : " +str(nb_regions_total))
             dic_regions_2 = {}

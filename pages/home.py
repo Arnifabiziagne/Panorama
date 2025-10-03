@@ -830,6 +830,9 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     if triggered_id == "btn-zoom":
         if selected_nodes_data is not None and len(selected_nodes_data) > 0:
             selected_nodes_name = set([node['name'] for node in selected_nodes_data])
+        if len(zoom_shared_storage_out) ==0:
+            zoom_shared_storage_out["start"] = start_value
+            zoom_shared_storage_out["end"] = end_value
         position_field = genome + "_position"
         selected_positions =set()
         for n in data_storage_nodes:
@@ -844,6 +847,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             print(f"Zoom - start : {start_value} - end : {end_value}")
         else:
             print(f"No position found in the selected nodes for the reference genome {genome}")
+
     if triggered_id == "btn-zoom-out":
         if "start" in home_data_storage and home_data_storage["start"] is not None \
             and "end" in home_data_storage and home_data_storage["end"] is not None:
@@ -853,9 +857,12 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             home_data_storage["end"] = end_value
     if triggered_id == "btn-reset-zoom":
         if len(zoom_shared_storage_out) > 0:
+            print(f"reset zoom to {zoom_shared_storage_out['start']} - {zoom_shared_storage_out['end']}")
             start_value = zoom_shared_storage_out["start"]
             end_value = zoom_shared_storage_out["end"]
-        zoom_shared_storage_out = {}
+            zoom_shared_storage_out = {}
+            home_data_storage["start"] = start_value
+            home_data_storage["end"] = end_value
 
     print("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
