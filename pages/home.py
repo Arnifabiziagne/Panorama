@@ -175,7 +175,7 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
         nodes = []
         size_max = df['size'].max()
         size_min = df['size'].min()
-        size_max_noeud = 100
+        size_max_noeud = 10
         
         for _, row in df.iterrows():
             node_style = "default"
@@ -183,7 +183,8 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
                 if "features" in row and "exon" in row['features']:
                     node_style="exon"
             node_color = flow_to_rgb(row['flow'],node_style,exons_color)
-            displayed_node_size = (10+row['size']-size_min) / size_max*size_max_noeud+size_min
+            #displayed_node_size = (10+row['size']-size_min) / size_max*size_max_noeud+size_min
+            displayed_node_size = (40+row['size'])/ size_max_noeud
             main_style = {
                 #'background-color': flow_to_rgb(row['flow'],node_style),
                 'shape': 'circle',
@@ -673,41 +674,52 @@ def layout(data=None, initial_size_limit=10):
         # Graph block
         cyto.Cytoscape(
             id='graph',
-            # layout is important to get good visualization result
-            # There are many algorithms : cose, cose-bilkent-fcose, euler, dagre, etc.
-            # fcose seems to be the most performant
-            # dagre is usefull to get a linear representation
-            layout={
-                'name': 'fcose',
-                'maxIterations': 100000,
-                'maxSimulationTime': 5000,
-                # 'nodeRepulsion': 10000,
-                # 'gravity': 0.1,
-                # 'gravityRangeCompound': 1.5,
-                # 'idealEdgeLength': 100,
-                # 'componentSpacing': 100,
-                # 'nodeDimensionsIncludeLabels': True,
-                # 'edgeElasticity': 0.1,
-                # 'nestingFactor': 0.8,
-                # 'tile': True,
-                'quality': "proof",
-                'fit': True
-            },
             style={'width': '100%', 'height': '1000px'},
-            elements=elements,
-            # minZoom=0.1,
-            # maxZoom=5,
             zoomingEnabled=True,
             userZoomingEnabled=True,
             userPanningEnabled=True,
             wheelSensitivity=0.1,
-            #responsive=True,
-            autoRefreshLayout=True,
             boxSelectionEnabled=True,
-            autoungrabify=False,
-            stylesheet=compute_stylesheet(0),
-
+            
         )
+        #old version
+        # cyto.Cytoscape(
+        #     id='graph',
+        #     # layout is important to get good visualization result
+        #     # There are many algorithms : cose, cose-bilkent-fcose, euler, dagre, etc.
+        #     # fcose seems to be the most performant
+        #     # dagre is usefull to get a linear representation
+        #     layout={
+        #         'name': 'fcose',
+        #         'maxIterations': 100000,
+        #         'maxSimulationTime': 5000,
+        #         # 'nodeRepulsion': 10000,
+        #         # 'gravity': 0.1,
+        #         # 'gravityRangeCompound': 1.5,
+        #         # 'idealEdgeLength': 100,
+        #         # 'componentSpacing': 100,
+        #         # 'nodeDimensionsIncludeLabels': True,
+        #         # 'edgeElasticity': 0.1,
+        #         # 'nestingFactor': 0.8,
+        #         # 'tile': True,
+        #         'quality': "proof",
+        #         'fit': True
+        #     },
+        #     style={'width': '100%', 'height': '1000px'},
+        #     elements=elements,
+        #     # minZoom=0.1,
+        #     # maxZoom=5,
+        #     zoomingEnabled=True,
+        #     userZoomingEnabled=True,
+        #     userPanningEnabled=True,
+        #     wheelSensitivity=0.1,
+        #     #responsive=True,
+        #     autoRefreshLayout=False,
+        #     boxSelectionEnabled=True,
+        #     autoungrabify=False,
+        #     stylesheet=compute_stylesheet(0),
+
+        # )
         ])
 
 
@@ -749,6 +761,7 @@ def display_element_data(node_data, edge_data):
     Output('search-message', 'children'),
     Output('annotations-info', 'children'),
     Output('graph', 'stylesheet'),
+    Output('graph', 'layout', allow_duplicate=True),
     Output('home-page-store', 'data', allow_duplicate=True),
     Output('graph', 'selectedNodeData'),
     Output('graph', 'selectedEdgeData'),
@@ -782,9 +795,15 @@ def display_element_data(node_data, edge_data):
     State('zoom_shared_storage_nodes', 'data'),
     State('show-exons', 'value'),
     State('exon-color-picker', 'value'),
+    State('layout-dropdown', 'value'),
     prevent_initial_call=True
 )
-def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, update_n_clicks, zoom_clicks, zoom_out_clicks, reset_zoom_bouton_clicks, selected_nodes_data, home_data_storage, n_clicks, start, end, gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, show_exons, exons_color):
+def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, 
+                 update_n_clicks, zoom_clicks, zoom_out_clicks, reset_zoom_bouton_clicks, 
+                 selected_nodes_data, home_data_storage, n_clicks, start, end, 
+                 gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, 
+                 min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, 
+                 show_exons, exons_color, layout_choice):
     ctx = dash.callback_context
     
     message = ""
@@ -933,10 +952,22 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                     set_annot.add(a)
     for a in set_annot:
         annotations += str(a) + "\n"
+    if layout_choice and 'dagre' in layout_choice:
+        layout = {'name': 'dagre',
+                  'rankDir': "RL",
+                  'nodeDimensionsIncludeLabels': True,
+                  'fit': True
+                  }
+    else:
+        layout = {
+            'name': 'fcose',
+            'maxIterations': 100000,
+            'maxSimulationTime': 5000,
+            'quality': "proof",
+            'fit': True
+        }
 
-    
-
-    return elements, f"{count} displayed nodes", data_storage_nodes, message, annotations, stylesheet, home_data_storage, [], [], zoom_shared_storage_out, start_value, end_value
+    return elements,f"{count} displayed nodes", data_storage_nodes, message, annotations, stylesheet, layout, home_data_storage, [], [], zoom_shared_storage_out, start_value, end_value
 
 
 # color picker
