@@ -535,6 +535,30 @@ def load_sequences(gfa_file_name, chromosome_file = None, create=False, batch_si
     print("Sequences created. Total time : " + str(time.time()-start_time) + " s")
     file.close()
     
+    
+lettres_vers_chiffres = {
+    'UN': '1',
+    'DEUX': '2',
+    'TROIS': '3',
+    'QUATRE': '4',
+    'CINQ': '5',
+    'SIX': '6',
+    'SEPT': '7',
+    'HUIT': '8',
+    'NEUF': '9',
+    'DIX': '10',
+    'ONZE': '11',
+    'DOUZE': '12',
+    'TREIZE': '13',
+    'QUATORZE': '14',
+    'QUINZE': '15',
+    'SEIZE': '16',
+    'DIXSEPT': '17',
+    'DIXHUIT': '18',
+    'DIXNEUF': '19',
+    'VINGT': '20'
+}
+
 
 """
 Function to find the genome and chromosome of a P or W line
@@ -564,7 +588,15 @@ def get_chromosome_genome(WP_line, haplotype=True, chromosome_file = None):
             if len(name_dec) > 0 :
                 chromosome = re.sub("^0*", "", name_dec[-1].upper().replace("CHR", ""))
         else:
-            chromosome = re.sub("^0*", "", str(ligne_dec[3]).upper().replace("CHR", ""))
+            match = re.search(r'(chromosome|chr)\s*([a-zA-Z0-9]+)', ligne_dec[3], re.IGNORECASE)
+            if match:
+                chromosome = match.group(2)
+                chromosome = chromosome.lstrip('0').upper()
+                chromosome = chromosome or '0'  
+                chromosome = lettres_vers_chiffres.get(chromosome, chromosome)
+            else:
+                chromosome = '0'
+            #chromosome = re.sub("^0*", "", str(ligne_dec[3]).upper().replace("CHR", ""))
             if haplotype :
                 genome = ligne_dec[1]+"_"+ligne_dec[2]
             else : 
@@ -637,7 +669,7 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                     nodes_size_dic[ligne_dec[1]]=int(len(ligne_dec[2]))
                     total_nodes += 1
             if ligne.startswith(('P',"W")):
-                print(ligne[0:40])
+                print(ligne[0:80])
                 total_path += 1
                 ligne_dec = ligne.split()
                 chromosome, genome = get_chromosome_genome(ligne, haplotype = haplotype, chromosome_file=chromosome_file)
@@ -1059,7 +1091,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                         last_node_id += 1
                     total_nodes += 1
             if ligne.startswith(('P',"W")):
-                print(ligne[0:40])
+                print(ligne[0:80])
                 total_path += 1
                 ligne_dec = ligne.split()
                 chromosome, genome = get_chromosome_genome(ligne, haplotype = haplotype, chromosome_file=chromosome_file)
@@ -1107,7 +1139,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             for k in range(len(chromosomes_list)):
                 if chromosomes_list[k] == first_chromosome:
                     index_first_chromosme = k
-        print("Genomes number : " + str(len(set_all_genomes)) + " - chromosomes list : " + str(set_all_chromosomes))
+        print("Genomes number : " + str(len(set_all_genomes)) + " - genomes list : " + str(set_all_genomes) +  "- chromosomes list : " + str(set_all_chromosomes))
         print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(start_chromosome) + "\nstart index : " + str(node_id))
         for k in range(index_first_chromosme,len(chromosomes_list)) :
             c = chromosomes_list[k]

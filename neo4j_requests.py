@@ -765,9 +765,14 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                             if same_deletion :
                                                 for dg in deleted_nodes_sorted[i] :
                                                     if current_deletion is not None :
-                                                        current_deletion[dg] = {"start_deletion": min(deleted_nodes_sorted[i][dg]["start_deletion"], current_deletion[dg]["start_deletion"]),
-                                                                           "end_deletion": max(deleted_nodes_sorted[i][dg]["end_deletion"], current_deletion[dg]["end_deletion"])}
+                                                        if dg in current_deletion :
+                                                            current_deletion[dg] = {"start_deletion": min(deleted_nodes_sorted[i][dg]["start_deletion"], current_deletion[dg]["start_deletion"]),
+                                                                               "end_deletion": max(deleted_nodes_sorted[i][dg]["end_deletion"], current_deletion[dg]["end_deletion"])}
+                                                        else:
+                                                            current_deletion[dg] = {"start_deletion": deleted_nodes_sorted[i][dg]["start_deletion"],
+                                                                               "end_deletion": deleted_nodes_sorted[i][dg]["end_deletion"]}
                                                     else:
+                                                        current_deletion = {}
                                                         current_deletion[dg] = {"start_deletion": deleted_nodes_sorted[i][dg]["start_deletion"],
                                                                            "end_deletion": deleted_nodes_sorted[i][dg]["end_deletion"]}
                                             else:
@@ -794,6 +799,8 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                         shared_deleted_size = 0
                                         if len(deleted_nodes_sorted[i]) > 0:
                                             for dg in deleted_nodes_sorted[0] :
+                                                if current_deletion is None :
+                                                    current_deletion = {}
                                                 current_deletion[dg] = {"start_deletion":deleted_nodes_sorted[i][dg]["start_deletion"], "end_deletion":deleted_nodes_sorted[i][dg]["end_deletion"]}
                                         else:
                                             current_deletion = None
