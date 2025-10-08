@@ -1418,6 +1418,7 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
     file = open(annotations_file_name, "r", encoding='utf-8')
     nodes_dic = {}
     file_format = "gtf"
+    current_gene_id = ""
     file_name = os.path.basename(annotations_file_name)
     with file:
         n = 0
