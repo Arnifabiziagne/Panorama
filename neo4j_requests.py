@@ -540,7 +540,6 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 result = session.run(query)
                 for record in result:
                     genomes = record["genomes"]
-                
                 nb_genomes = len(genomes)
                 nb_regions_total = 0
                 nb_associated_genomes = len(genomes_list)
@@ -823,10 +822,15 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     if genome not in dic_regions_2:
                         dic_regions_2[genome] = {}
                     dic_regions_2[genome][c] = valeur
+            # for g in dic_regions_2:
+            #     for c in dic_regions_2[g]:
+            #         print(f"Number of regions for genome {g} chromosome {c} : {len(dic_regions_2[g][c]['regions'])}")
             
             #print("Genomes : " + str(genomes))
             analyse = {}
-            for g in tqdm(genomes):
+            print(f"genomes : {dic_regions_2.keys()}")
+            for g in tqdm(dic_regions_2):
+                print(f"genome : {g}")
                 analyse[g] = []
                 for c in dic_regions_2[g]:
                     for r in dic_regions_2[g][c]['regions']:
@@ -848,7 +852,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
                             r["annotation_after"] = annot_tmp
                         analyse[g].append(r)
-            if genome_ref not in genomes:
+            if genome_ref not in analyse:
                 analyse[genome_ref] = []
                 for a in analyse[genomes_list[0]]:
                     r = {}
