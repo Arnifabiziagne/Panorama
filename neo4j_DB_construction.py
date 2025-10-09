@@ -1524,6 +1524,8 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
                                         nodes_dic[name][feature+"_name"] = attributes[i+1]
                                         
                             if current_gene_id != "" :
+                                if current_gene_name is None or current_gene_name == "":
+                                    current_gene_name = current_gene_id
                                 nodes_dic[name]["gene_id"] = current_gene_id
                                 nodes_dic[name]["gene_name"] = current_gene_name
                                 if current_transcript_id != "":

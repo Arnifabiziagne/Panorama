@@ -18,6 +18,7 @@ import plotly.express as px
 import plotly.io as pio
 import webbrowser
 import os
+import glob
 from typing import List, Dict
 import logging
 import csv
@@ -1076,6 +1077,151 @@ def compute_phylo_tree_from_nodes(nodes_data,output_dir = "", weighted=False):
     return newick_tree
             
 
+"""
+Fonction to convert PAV matrix to phylip format
+
+Parameters
+    @pav_matrix_dic : PAV matrix (dictionnary)
+    @matrice_distance_phylip_filename : output filename (PHYLIP)
+returns
+"""
+
+
+def pav_to_phylip(pav_matrix_dic, distance_matrix_phylip_filename):
+    # Creating phylip file
+    file = open(distance_matrix_phylip_filename, "w")
+
+    with file:
+        if len(list(pav_matrix_dic.keys())) > 0:
+            entete = str(len(list(pav_matrix_dic.keys()))) + " " + str(
+                len(pav_matrix_dic[list(pav_matrix_dic.keys())[0]])) + "\n"
+            file.write(entete)
+            for item in pav_matrix_dic:
+                ligne = str(item) + " "
+                for p in pav_matrix_dic[item]:
+                    ligne += str(p)
+                ligne += "\n"
+                file.write(ligne)
+
+    file.close()
+
+
+
+
+#This function compute a raxml tree from a random selection of nodes
+def compute_global_raxml_phylo_tree_from_nodes(node_selection_percentage=1,output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree"):
+    total_nodes_number = 0
+    max_nodes = 1000000
+    min_sample_size = 1000
+    dir_raxml = "./export/phylo/raxml"
+    distance_matrix_filename = "distance_matrix.phy"
+    tree_newick_filename = os.path.join(dir_raxml,"RAxML_bestTree."+project_name)
+    distance_matrix_phylip_filename = os.path.join(dir_raxml, distance_matrix_filename)
+    if not os.path.exists(dir_raxml):
+        os.makedirs(dir_raxml)
+    if get_driver() is None :
+        return None
+    
+    with get_driver() as driver:
+        if driver is None:
+            return None
+        if chromosome is None :
+            query = f"""
+            MATCH (n:Node)
+            return count(*) as total_nodes_number
+            """
+        else:
+            print(f"Chromosome : {chromosome}")
+            query = f"""
+            MATCH (n:Node)
+            where n.chromosome = '{chromosome}'
+            return count(*) as total_nodes_number
+            """
+    
+        with driver.session() as session:
+            result = session.run(query)
+            for record in result :
+                total_nodes_number = record["total_nodes_number"]
+        
+        sample_nodes_number = min(int(node_selection_percentage*total_nodes_number/100), max_nodes)
+        if sample_nodes_number == max_nodes:
+            print(f"Warning : maximal nodes number has been set to {max_nodes} and correspond to {max_nodes*100/total_nodes_number}% of total nodes")
+        
+        if chromosome is None :
+            query = f"""
+            MATCH (n:Node)
+            with n, rand() AS r
+            order by r
+            limit {sample_nodes_number}
+            return distinct(n) as nodes
+            """
+        else:
+            query = f"""
+            MATCH (n:Node)
+            WHERE n.chromosome = '{chromosome}'
+            with n, rand() AS r
+            order by r
+            limit {sample_nodes_number}
+            return distinct(n) as nodes
+            """
+        nodes_list = []
+        with driver.session() as session:
+            result = session.run(query)
+            for record in result :
+                nodes_list.append(dict(record["nodes"]))
+        
+        
+        print(f"Number of sampled nodes : {len(nodes_list)}")
+        sample_size = len(nodes_list)
+        if sample_size > min_sample_size :
+            #Prepare PAV matrix
+            genomes = get_genomes()
+            pav_matrix = {}
+            for g in genomes : 
+                if g not in pav_matrix:
+                    if strand :
+                        pav_matrix[g] = np.zeros(2 * sample_size, dtype=int)
+                    else:
+                        pav_matrix[g] = np.zeros(sample_size, dtype=int)
+            
+            for i in range(0, len(nodes_list)):
+                for g in nodes_list[i]["genomes"]:
+                    if strand:
+                        if "strandP" in nodes_list[i] and g in nodes_list[i]["strandP"]:
+                            pav_matrix[g][i] = int(1)
+                        else:
+                            pav_matrix[g][i+sample_size] = int(1)
+                    else:
+                        pav_matrix[g][i] = int(1)
+                        
+            pav_to_phylip(pav_matrix, distance_matrix_phylip_filename)
+            
+            pattern = os.path.join(dir_raxml, f"RAxML_*")
+            
+            for f in glob.glob(pattern):
+                os.remove(f)
+            
+            raxml_command = [
+                "raxmlHPC", 
+                "-s", distance_matrix_filename, 
+                "-m", "BINGAMMA",  
+                "-p", "12345",  
+                # '-#', '100',  # Iterations number for bootstrapping
+                "-n", project_name
+            ]
+        
+            # launching RaxML command
+            result = subprocess.run(raxml_command, check=True, cwd=dir_raxml)
+            try:
+                with open(tree_newick_filename, 'r') as f:
+                    return f.read()
+            except FileNotFoundError:
+                return None
+        else:
+            return None
+
+
+            
 
 #Computes the distance matrix on the whole GFA (could take a long time for big GFA)
 def compute_distance_matrix(distance_matrix_filename = "distances.csv", chromosome=None, ponderation=True, strand=False):

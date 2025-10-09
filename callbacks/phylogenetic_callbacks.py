@@ -7,7 +7,7 @@ Created on Wed Jul  2 22:08:19 2025
 """
 
 import base64
-from dash import html, Input, Output, callback, State, dcc
+from dash import html, Input, Output, callback, State, dcc, ctx
 
 
 
@@ -170,33 +170,66 @@ stylesheet = [
     }
 ]
 
+
+#Populate chromosome droplist
 @app.callback(
-    Output('cytoscape-phylo', 'elements'),
-    Output('upload-status', 'children'),
-    Input('upload-newick', 'contents'),
-    State('upload-newick', 'filename'),
-    prevent_initial_call=True,
-    allow_duplicate=True
+    Output('phylogenetic_chromosomes_dropdown', 'options'),
+    Input('shared_storage', 'data')
 )
-def update_phylo_graph(contents, filename):
-    if contents is None:
-        return [], "Aucun fichier chargé."
-
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
+def update_dropdown(data):
+    if not data or "chromosomes" not in data:
+        return []
     
-    try:
-        
-        newick_str = decoded.decode('utf-8')
-        elements = generate_elements(newick_str)
-        status = f"File '{filename}' successfully load."
-        return elements, status
-    except Exception as e:
-        return [], f"Parsing error : {str(e)}"
+    chromosomes = data["chromosomes"]
+    options = [{"label": str(chrom), "value": str(chrom)} for chrom in chromosomes]
+    return options
+
 
 @app.callback(
-    Output('cytoscape-phylo', 'stylesheet'),
-    Input('cytoscape-phylo', 'mouseoverEdgeData')
+    Output('cytoscape-phylo', 'elements', allow_duplicate=True),
+    Output('upload-status', 'children'),
+    Output("load_spinner_zone", "children", allow_duplicate=True),
+    Output("phylogenetic-page-store", "data"),
+    Input('upload-newick', 'contents'),
+    Input('btn-plot-global-tree', 'n_clicks'),
+    State('upload-newick', 'filename'),
+    State("phylogenetic_chromosomes_dropdown", 'value'),
+    State("phylogenetic-page-store", "data"),
+    prevent_initial_call=True
+)
+def update_phylo_graph(contents, n_clicks_global_tree, filename, chromosome, pĥylo_data):
+    triggered_id = ctx.triggered_id
+    if triggered_id == "btn-plot-global-tree":
+        if chromosome == None or chromosome == "":
+            c = None
+        else:
+            c = chromosome
+        newick_str = compute_global_raxml_phylo_tree_from_nodes(chromosome=c)
+        status = f"Tree successfully computed."
+    else:
+        if contents is None:
+            return [], "Aucun fichier chargé.","", pĥylo_data
+    
+            content_type, content_string = contents.split(',')
+            decoded = base64.b64decode(content_string)
+            
+            try:
+                newick_str = decoded.decode('utf-8')
+                status = f"File '{filename}' successfully load."
+            except Exception as e:
+                return [], f"Parsing error : {str(e)}"
+    elements = generate_elements(newick_str)
+    if pĥylo_data is None:
+        pĥylo_data = {"newick_global":newick_str}
+    else:
+        pĥylo_data["newick_global"] = newick_str
+    return elements, status,"", pĥylo_data
+
+
+@app.callback(
+    Output('cytoscape-phylo', 'stylesheet', allow_duplicate=True),
+    Input('cytoscape-phylo', 'mouseoverEdgeData'),
+    prevent_initial_call=True
     )
 def color_children(edgeData):
     if edgeData is None:
@@ -218,9 +251,9 @@ def color_children(edgeData):
 
 
 @app.callback(
-    Output('cytoscape-phylo-region', 'elements'),
-    Output("phylogenetic-message", "children"),
-    Output("phylogenetic-page-store", "data"),
+    Output('cytoscape-phylo-region', 'elements', allow_duplicate=True),
+    Output("phylogenetic-message", "children", allow_duplicate=True),
+    Output("phylogenetic-page-store", "data", allow_duplicate=True),
     Input('btn-plot-region', 'n_clicks'),
     State('shared_storage_nodes', 'data'),
     State("phylogenetic-page-store", "data"),
@@ -238,7 +271,10 @@ def plot_region(n_clicks, stored_data, phylo_data):
     try:
         # Step 1 : compute tree of the region
         newick_str = compute_phylo_tree_from_nodes(stored_data)
-        phylo_data = {"newick":newick_str}
+        if phylo_data is None:
+            phylo_data = {"newick_region":newick_str}
+        else:
+            phylo_data["newick_region"] = newick_str
     
         # Step2 : draw tree
         elements = generate_elements(newick_str)
@@ -262,8 +298,30 @@ def save_tree(n_clicks, phylo_data):
         save_path = os.path.join(os.getcwd(), EXPORT_DIR, "tree.nwk")
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         with open(save_path, "w", encoding="utf-8") as f:
-            f.write(phylo_data["newick"])
+            f.write(phylo_data["newick_region"])
     
         return f"File saved : {save_path}"
     else:
         return f"No data to save"
+    
+    
+@app.callback(
+    Output('cytoscape-phylo', 'elements', allow_duplicate=True),
+    Output('cytoscape-phylo-region', 'elements', allow_duplicate=True),
+    Input('url', 'pathname'),
+    Input('phylogenetic-page-store', 'data'),
+    prevent_initial_call=True
+
+)
+def update_graph_on_page_load(pathname, pĥylo_data):
+    elements_region = []
+    elements_global = []
+    if pĥylo_data is None:
+        pĥylo_data = {}
+    if "newick_region" in pĥylo_data:
+        elements_region = generate_elements(pĥylo_data["newick_region"])
+    if "newick_global" in pĥylo_data:
+        elements_global = generate_elements(pĥylo_data["newick_global"])
+    return elements_global, elements_region
+    
+        

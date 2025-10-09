@@ -57,7 +57,7 @@ stylesheet = [
 
 def layout():
     return html.Div([
-        dcc.Store(id="phylogenetic-page-store",storage_type="memory"),
+        dcc.Store(id="phylogenetic-page-store",storage_type="session"),
         html.H2("Phylogenetics tree"),
         
         #Help section
@@ -68,6 +68,8 @@ def layout():
                     html.Ul([
                         html.Li("Load a newick file : this allows you to load a file and display a reference tree, for example."
                                 " For that, juste drag / drop or select the newick file."),   
+                        html.Li("Plot global tree : this will compute a global tree with a RAxML method based on a presence / absence of a subset of sampled nodes (1% and limited to 1000000 nodes). Nodes traversed directly or in reverse are considered different nodes."
+                                " It is possible to select a chromosome to limit the tree to this chromosome. If no chromosome selected then the tree is computed on all chromosomes."),   
                         html.Li("Plot tree of selected region : This allows you to calculate a tree for the region currently being viewed on the home page."
                                 " It is therefore necessary to select a region to view beforehand (on the home or gwas pages)."
                                 " The tree is constructed based on a distance matrix. This matrix is calculated using the Jaccard index, taking into account the strand and repetition of each node."
@@ -96,6 +98,26 @@ def layout():
                 },
                 multiple=False
             ),
+            html.Div([
+                html.Button("Plot global tree", title="This will compute the tree for the whole pangenome (or limited to the selected chromosome) using a RaxML method (presence / absence of random sampled nodes).",style={'margin-right': '15px'}, id="btn-plot-global-tree"),
+                html.Label("Chromosome", title="The regions / annotations will be related only to this chromosome.",
+                           style={'display': 'block', 'marginRight': "10px"}),
+                dcc.Dropdown(
+                    id='phylogenetic_chromosomes_dropdown',
+                    placeholder="Limit tree to chromosome : ",
+                    style={
+                        "width": "250px",     
+                        "minWidth": "150px",
+                        "maxWidth": "100%",   
+                        "flexShrink": 0
+                    }
+                ),
+                dcc.Loading(
+                    id="phylogenetic_loading-spinner",
+                    type="circle",  # 'default', 'circle', or 'dot'
+                    children=html.Div(id="load_spinner_zone")
+                ),
+            ], style={"display": "flex", "flexDirection": "row", "align-items": "center", "marginBottom": "20px"}),
             html.H4("Reference tree"),
             html.Div(id='upload-status'),
             cyto.Cytoscape(

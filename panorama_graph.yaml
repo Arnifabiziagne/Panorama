@@ -5,6 +5,7 @@ channels:
   - bioconda
 dependencies:
   - python=3.10
+  - raxml=8.2.13  
   - pandas
   - matplotlib
   - numpy
