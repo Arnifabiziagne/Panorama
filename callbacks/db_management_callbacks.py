@@ -359,7 +359,20 @@ def confirm_create_db(n_clicks,container_name, docker_image, data, options):
         data['container_name'] = container_name
         container_name=PREFIX_CONTAINER_NAME+container_name
     try:
-        create_db(container_name, docker_image)
+        creation_mode = create_db(container_name, docker_image)
+        #If creation by importing csv files it is necessary to create stats and indexes
+        if creation_mode == "csv" :
+            print("creating base indexes")
+            create_indexes(base=True, extend=True, genomes_index=False)
+            if check_state_index("NodeIndexChromosome") is not None:
+                t = 0
+                while int(check_state_index("NodeIndexChromosome")) < 100 and t < MAX_TIME_INDEX:
+                    time.sleep(10)
+                    t+=10
+                print("creating stats")
+                create_stats_from_nodes()
+            print("creating other indexes")    
+            create_indexes(base=False, extend=False, genomes_index=True)
         genomes = get_genomes()
         options = []
         if genomes is not None :

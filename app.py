@@ -10,9 +10,6 @@ from dash import Dash
 import os
 
 
-from config import get_driver
-
-
 #Database version. This version is associated with a database model; 
 #compatibility with other versions is not guaranteed.
 DB_VERSION="1.0.0"

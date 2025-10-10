@@ -24,7 +24,7 @@ import callbacks.sequences_callbacks
 import callbacks.db_management_callbacks
 
 from neo4j_requests import *
-from config import stop_container
+from neo4j_container_management import *
 
 
 def clean_exit(signum, frame):
@@ -160,7 +160,7 @@ def run():
     args = parser.parse_args()
     
     port = args.port or int(8050)
-    
+    start_container()
     app.run(debug=True, port = port)
     
 if __name__ == "__main__":

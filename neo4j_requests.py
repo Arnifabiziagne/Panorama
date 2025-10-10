@@ -317,12 +317,17 @@ def get_annotations_in_position_range(genome_ref, chromosome="1", start_position
     if get_driver() is None :
         return []
     with get_driver() as driver:
-
         query = f"""
-        MATCH (n:Node)-[]->(a:Annotation)
-        WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end and a.gene_name is not null and a.genome_ref = $genome_ref 
+        MATCH (a:Annotation)
+        WHERE a.genome_ref = "{genome_ref}" and a.chromosome = "{chromosome}" and a.end <= {end_position} and a.start >= {start_position} and a.gene_name is not null
         RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name, a.feature as feature
-        """
+        """ 
+        
+        # query = f"""
+        # MATCH (n:Node)-[]->(a:Annotation)
+        # WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end and a.gene_name is not null and a.genome_ref = $genome_ref 
+        # RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name, a.feature as feature
+        # """
         #print("Query : " + query)
         with driver.session() as session:
             result = session.run(query, start=start_position, end=end_position, genome_ref=genome_ref)
@@ -823,22 +828,21 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     if genome not in dic_regions_2:
                         dic_regions_2[genome] = {}
                     dic_regions_2[genome][c] = valeur
-            # for g in dic_regions_2:
-            #     for c in dic_regions_2[g]:
-            #         print(f"Number of regions for genome {g} chromosome {c} : {len(dic_regions_2[g][c]['regions'])}")
-            
-            #print("Genomes : " + str(genomes))
+
             analyse = {}
             print(f"genomes : {dic_regions_2.keys()}")
             for g in tqdm(dic_regions_2):
                 print(f"genome : {g}")
                 analyse[g] = []
                 for c in dic_regions_2[g]:
+                    #print(f"genome : {g} - chromosome : {c} - regions number : {len(dic_regions_2[g][c]['regions'])}")
                     for r in dic_regions_2[g][c]['regions']:
                         r["chromosome"] = c
                         r["genome"] = g
-                        if (genome_ref is not None and g == genome_ref) or genome_ref is None :
+                        if (genome_ref is not None and g == genome_ref) or (genome_ref is None and g == genomes_list[0]) :
+                            #print("Search annotations")
                             r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
+                            #print("Search annotation before")
                             annot_before_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["start"], before=True)
                             annot_tmp = {}
                             if annot_before_tmp is not None and "gene_name" in annot_before_tmp :
@@ -846,6 +850,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
                             r["annotation_before"] = annot_tmp
                             
+                            #print("Search annotation after")
                             annot_after_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["stop"], before=False)
                             annot_tmp = {}
                             if annot_after_tmp is not None and "gene_name" in annot_after_tmp :

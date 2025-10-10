@@ -13,15 +13,14 @@ import json
 import time
 
 from config import *
-from neo4j_DB_construction import create_stats_from_nodes, create_indexes, check_state_index
+
 
 # --- CONSTANTES ---
 DOCKER_IMAGE = "neo4j:2025.05-community-bullseye"
-HTTP_PORT = 7474
-BOLT_PORT = 7687
 NEO4J_BASE_DIR = os.path.abspath("./data")
 CONF_SOURCE_FILE = os.path.abspath("./neo4j_install/conf/neo4j.conf")
 CONF_FILE = os.path.abspath("./db_conf.json")
+DOCKER_COMPOSE_CONF_PATH = os.path.abspath("./docker-compose.yml")
 IMPORT_DIR = os.path.abspath("./data/import")
 DUMP_FILE = os.path.join(IMPORT_DIR, "neo4j.dump")
 #Read buffer size is important in case of csv import : 
@@ -74,6 +73,8 @@ def import_dump():
         "--from-path=/import", "--overwrite-destination=true"
     ], check=True)
 
+
+
 def import_csv():
     print(f"📂 Importing CSV - data dir : {NEO4J_BASE_DIR}/data ...")
     prepare_data_directories_in_container()
@@ -93,33 +94,59 @@ def import_csv():
         "--relationships=/import/relations.csv"
     ], check=True)
 
-def start_container(container_name):
-    print("🚀 Starting Neo4j container...")
-    subprocess.run([
-        "docker", "run", "-d",
-        "--name", container_name,
-        "-e", f"NEO4J_AUTH={NEO4J_AUTH}",
-        "-e", "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes",
-        "-e", "NEO4J_apoc_export_file_enabled=true",
-        "-e", "NEO4J_apoc_import_file_enabled=true",
-        "-e", "NEO4J_apoc_import_file_use__neo4j__config=true",
-        "-e", "NEO4J_PLUGINS=[\"apoc\"]",
-        "-p", f"{HTTP_PORT}:7474",
-        "-p", f"{BOLT_PORT}:7687",
-        "-v", f"{NEO4J_BASE_DIR}/data:/data",
-        "-v", f"{NEO4J_BASE_DIR}/logs:/logs",
-        "-v", f"{NEO4J_BASE_DIR}/conf:/conf",
-        "-v", f"{NEO4J_BASE_DIR}/import:/import",
-        "-v", f"{NEO4J_BASE_DIR}/plugins:/plugins",
-        DOCKER_IMAGE
-    ], check=True)
 
-    time.sleep(10)
-    print(f"✅ Neo4j {container_name} is ready!")
-    print(f"🌍 HTTP: http://localhost:{HTTP_PORT}")
-    print(f"🔗 BOLT: bolt://localhost:{BOLT_PORT}")
+def start_container():
+    if os.path.exists(CONF_FILE):
+        with open(CONF_FILE) as f:
+            conf = json.load(f)
+        container_name = str(conf["container_name"])
+        result = subprocess.run(
+            ["docker", "ps", "-a", "--format", "{{.Names}} {{.Status}}"],
+            capture_output=True, text=True, check=True
+        )
+        lines = result.stdout.strip().splitlines()
+    
+        for line in lines:
+            name, *status_parts = line.split()
+            status = " ".join(status_parts)
+    
+            if name == container_name:
+                if status.startswith("Up"):
+                    return True
+        
+        remove_container(container_name)
+        
+        HTTP_PORT = int(conf["http_port"])
+        BOLT_PORT = int(conf["bolt_port"])
+        NEO4J_AUTH = conf["login"]+"/"+conf["password"]
+        print("🚀 Starting Neo4j container...")
+        subprocess.run([
+            "docker", "run", "-d",
+            "--name", container_name,
+            "-e", f"NEO4J_AUTH={NEO4J_AUTH}",
+            "-e", "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes",
+            "-e", "NEO4J_apoc_export_file_enabled=true",
+            "-e", "NEO4J_apoc_import_file_enabled=true",
+            "-e", "NEO4J_apoc_import_file_use__neo4j__config=true",
+            "-e", "NEO4J_PLUGINS=[\"apoc\"]",
+            "-p", f"{HTTP_PORT}:7474",
+            "-p", f"{BOLT_PORT}:7687",
+            "-v", f"{NEO4J_BASE_DIR}/data:/data",
+            "-v", f"{NEO4J_BASE_DIR}/logs:/logs",
+            "-v", f"{NEO4J_BASE_DIR}/conf:/conf",
+            "-v", f"{NEO4J_BASE_DIR}/import:/import",
+            "-v", f"{NEO4J_BASE_DIR}/plugins:/plugins",
+            DOCKER_IMAGE
+        ], check=True)
+    
+        time.sleep(10)
+        print(f"✅ Neo4j {container_name} is ready!")
+        print(f"🌍 HTTP: http://localhost:{HTTP_PORT}")
+        print(f"🔗 BOLT: bolt://localhost:{BOLT_PORT}")
+        return True
 
-def write_config(container_name):
+def write_config(container_name, HTTP_PORT=7474, BOLT_PORT=7687):
+    print(f"write conf {container_name}")
     with open(CONF_FILE, "w") as f:
         json.dump({
             "container_name": container_name,
@@ -128,9 +155,16 @@ def write_config(container_name):
             "login": NEO4J_LOGIN,
             "password": NEO4J_PASSWORD
         }, f, indent=2)
+        
+            
 
 
-def stop_container(container_name: str):
+def stop_container(container_name=None):
+    if container_name == None:
+        with open(CONF_FILE) as f:
+            conf = json.load(f)
+            container_name = conf["container_name"]
+
     """
     Stops and removes a Docker container if it exists.
     Does nothing if the container does not exist.
@@ -152,6 +186,8 @@ def stop_container(container_name: str):
         print(f"❌ Error while stopping/removing container: {e}")
 
 
+
+
 def remove_container(container_name: str):
     """
     Stops and removes a Docker container if it exists.
@@ -166,10 +202,8 @@ def remove_container(container_name: str):
         existing_containers = result.stdout.strip().splitlines()
 
         if container_name in existing_containers:
-            print(f"🛑 Stopping and removing existing container: {container_name}")
+            print(f"Stopping and removing existing container: {container_name}")
             subprocess.run(["docker", "rm", "-f", container_name], check=True)
-        else:
-            print(f"ℹ️ Container '{container_name}' does not exist. Nothing to do.")
     except subprocess.CalledProcessError as e:
         print(f"❌ Error while stopping/removing container: {e}")
 
@@ -178,6 +212,7 @@ def remove_container(container_name: str):
 #If no dump but nodes.csv, sequences.csv and relations.csv exists in ./data/import directory it will load these data into database
 #In other cases it will create an empty database
 def create_db(container_name, docker_image=DOCKER_IMAGE):
+    creation_mode = "empty" 
     csv_import_mode = False
     
     if docker_image is not None :
@@ -229,20 +264,14 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
     write_config(container_name)
     
     # Launch the container
-    start_container(container_name)
+    start_container()
 
     if csv_import_mode:
-        print("creating base indexes")
-        create_indexes(base=True, extend=True, genomes_index=False)
-        if check_state_index("NodeIndexChromosome") is not None:
-            t = 0
-            while int(check_state_index("NodeIndexChromosome")) < 100 and t < MAX_TIME_INDEX:
-                time.sleep(10)
-                t+=10
-            print("creating stats")
-            create_stats_from_nodes()
-        print("creating other indexes")    
-        create_indexes(base=False, extend=False, genomes_index=True)
+        creation_mode = "csv"
+    
+    
+    return creation_mode
+
 
     
     
@@ -270,7 +299,7 @@ def dump_db(container_name, docker_image=DOCKER_IMAGE):
         ], check=True)
 
         print(f"✅ Dump successfully created at: {os.path.join(IMPORT_DIR, 'neo4j.dump')}")
-        start_container(container_name)
+        start_container()
 
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to create dump: {e}")

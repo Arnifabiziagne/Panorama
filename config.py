@@ -14,17 +14,26 @@ import subprocess
 import time
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable
+from neo4j_container_management import *
 
 
-# global variables with default value
-DB_URL="bolt://localhost:7687"
-AUTH=("neo4j", "Administrateur")
+CONF_FILE = os.path.abspath("./db_conf.json")
 
 #Delay in s to wait between tests of the database connexion
 neo4j_start_delay = 10
 #max_iter_test_connexion is the maximum number of pooling database to test if it is up
 max_iter_test_connexion = 60
 
+
+def get_conf():
+    with open(CONF_FILE) as f:
+        conf = json.load(f)
+    container_name = str(conf["container_name"])   
+    HTTP_PORT = int(conf["http_port"])
+    BOLT_PORT = int(conf["bolt_port"])
+    AUTH = (conf["login"],conf["password"])
+    DB_URL="bolt://localhost:"+str(BOLT_PORT)
+    return {"container_name":container_name, "HTTP_PORT":HTTP_PORT, "BOLT_PORT":BOLT_PORT, "AUTH":AUTH, "DB_URL":DB_URL}
 
 def test_connection(DB_URL, AUTH):
     try:
@@ -45,79 +54,26 @@ def load_config_from_json():
     with open(config_path, "r") as f:
         return json.load(f)
 
-
-def start_neo4j_container(container_name, DB_URL, AUTH):
-    print(f"Launching Neo4j docker container : {container_name}")
-    # Lancer le container s'il n'existe pas déjà
-    try:
-        subprocess.run(["docker", "start", container_name], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Fail to launch container : {e}")
-        return False
-
-    # Waiting for neo4j up
-    time.sleep(neo4j_start_delay)
-    i = 0
-    while not test_connection(DB_URL, AUTH) and i < max_iter_test_connexion:
-        i += 1
-        print(f"⏳ Trying to connect to database – attempt {i}")
-        time.sleep(neo4j_start_delay)
-
-    if i < max_iter_test_connexion:
-        print("✅ Database is up.")
-        return True
-    else:
-        print("❌ Database did not start in time.")
-        return False
-
-def stop_container():
-    conf = load_config_from_json()
-    if not conf:
-        print("⚠️ db_conf.json not present, could not connect to neo4j DB.")
-        return None
-    container_name = conf.get("container_name")
-    try:
-        subprocess.run(["docker", "stop", container_name], check=True)
-        time.sleep(10)
-        print("container stopped")
-    except subprocess.CalledProcessError as e:
-        print(f"Fail to stop container : {e}")
-        return False
-
         
         
-def get_driver():
-    global DB_URL, AUTH
-
-
-    if test_connection(DB_URL, AUTH):
-        driver = GraphDatabase.driver(DB_URL, auth=AUTH)
-        return driver
-
-    conf = load_config_from_json()
-    if not conf:
-        print("⚠️ db_conf.json not present, could not connect to neo4j DB.")
-        return None
+def get_driver(max_retries=5, retry_delay=5):
+    if os.path.exists(CONF_FILE):
+        conf=get_conf()
+        DB_URL = conf["DB_URL"]
+        AUTH= conf["AUTH"]
+        for attempt in range(1, max_retries + 1):
+            if test_connection(DB_URL, AUTH):
+                driver = GraphDatabase.driver(DB_URL, auth=AUTH)
+                return driver
+            else:
+                print(f"Retry {attempt}/{max_retries} to connect to driver")
+                time.sleep(retry_delay)
+                
     
-    bolt_port = conf.get("bolt_port")
-    DB_URL = f"bolt://localhost:{bolt_port}"
-    AUTH = (conf.get("login"),conf.get("password"))
-    container_name = conf.get("container_name")
-    
-    
-    
-    
-    if test_connection(DB_URL, AUTH):
-        driver = GraphDatabase.driver(DB_URL, auth=AUTH)
-        return driver
-
-    if start_neo4j_container(container_name, DB_URL, AUTH):
         if test_connection(DB_URL, AUTH):
-            driver = GraphDatabase.driver(DB_URL, auth=AUTH)
-            return driver
-        else:
-            print("❌ Connexion to neo4j db failed.")
-            return None
+                driver = GraphDatabase.driver(DB_URL, auth=AUTH)
+                return driver
+        print(f"❌ Fail to access Database of container {conf['container_name']}.")
+        return None
     else:
-        print("❌ Fail to launch container.")
         return None

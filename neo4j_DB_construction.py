@@ -197,17 +197,17 @@ def indexes_populating():
 #if index has been created this return 100
 #else it returns the percentage of index creation
 def check_state_index(index_name: str):
-    
+    index_name_formate = index_name.replace("-", "_").replace(".","_")
     with get_driver() as driver:
         with driver.session() as session:
             query = """
             SHOW INDEX YIELD name, state, populationPercent
-            WHERE name = $index_name
+            WHERE name = $index_name_formate
             RETURN populationPercent
             """
 
             try:
-                result = session.run(query, index_name=index_name)
+                result = session.run(query, index_name_formate=index_name_formate)
                 record = result.single()
                 if record:
                     return record["populationPercent"]
@@ -244,6 +244,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                     "CREATE INDEX AnnotationIndexGeneId IF NOT EXISTS FOR (a:Annotation) ON (a.gene_id)",
                     "CREATE INDEX AnnotationIndexGeneName IF NOT EXISTS FOR (a:Annotation) ON (a.gene_name)",
                     "CREATE INDEX AnnotationIndexGenomeRef IF NOT EXISTS FOR (a:Annotation) ON (a.genome_ref)",
+                    "CREATE INDEX AnnotationIndexAnnotationSearch IF NOT EXISTS FOR (a:Annotation) ON (a.genome_ref, a.chromosome, a.start, a.end)",
                     "CREATE INDEX SequenceIndexName IF NOT EXISTS FOR (s:Sequence) ON (s.name)"
                     ]
             with session.begin_transaction() as tx:
@@ -273,7 +274,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                     print("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
                     current_genome += 1
                     indexes_queries = []
-                    indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_")+"_position IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_position`)")
+                    indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_").replace(".","_")+"_position IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_position`)")
                     with session.begin_transaction() as tx:
                         for query in indexes_queries :
                             tx.run(query)
@@ -329,8 +330,8 @@ def creer_index_chromosome_genomes():
                 print("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
                 current_genome += 1
                 indexes_queries = []
-                indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_")+"_position IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_position`)")
-                indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_")+"_node IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_node`)")
+                indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_").replace(".","_")+"_position IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_position`)")
+                indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_").replace(".","_")+"_node IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_node`)")
                 with session.begin_transaction() as tx:
                     for query in indexes_queries :
                         tx.run(query)   
@@ -536,7 +537,7 @@ def load_sequences(gfa_file_name, chromosome_file = None, create=False, batch_si
     file.close()
     
     
-lettres_vers_chiffres = {
+letters_to_num = {
     'UN': '1',
     'DEUX': '2',
     'TROIS': '3',
@@ -593,7 +594,7 @@ def get_chromosome_genome(WP_line, haplotype=True, chromosome_file = None):
                 chromosome = match.group(2)
                 chromosome = chromosome.lstrip('0').upper()
                 chromosome = chromosome or '0'  
-                chromosome = lettres_vers_chiffres.get(chromosome, chromosome)
+                chromosome = letters_to_num.get(chromosome, chromosome)
             else:
                 chromosome = '0'
             #chromosome = re.sub("^0*", "", str(ligne_dec[3]).upper().replace("CHR", ""))
