@@ -1,5 +1,5 @@
 #!/bin/bash
-
+DASH_PORT=${1:-8050}
 # Stop on error
 set -e
 
@@ -13,4 +13,6 @@ fi
 
 conda activate panorama_graph
 
-python index.py
+echo "Launching Panorama on port $DASH_PORT..."
+
+python index.py --port $DASH_PORT

@@ -23,17 +23,19 @@ It allows the following functionalities :
   - Create the conda environnement : conda env create -f panorama_graph.yaml 
   - Make launcher executable (linux) : chmod +x launcher.sh
 - Launch the tool : 
-  - Easy way : just execute launcher : ./launcher.sh on linux or ./launcher.bat on windows and go to http://localhost:8050
-  - Manual way : 
-      - Load conda environnement : conda activate panorama_graph
-      - Run index.py (python index.py) and go to http://localhost:8050
+  - Execute launcher : ./launcher.sh on linux or ./launcher.bat on windows and go to http://localhost:8050
+  - To launch on an other port, just specify the porty after. For example, to launch on port 8051 : ./launcher.sh 8051 or ./launcher.bat 8051.
 - Prepare database (IHM)
   - Go to "DB management" page, give a name to your container (e.g. DB_my_species_PGGB) and click on "Create new DB"
-  - If no data (dump or csv) where in the ./data/import directory, load GFA data by selecting GFA file (if the file concerns only a single chromosome it is required to set the chromosome name)
+  - If no data (dump or csv) present in the ./data/import directory, load GFA data by selecting GFA file (if the file concerns only a single chromosome it is required to set the chromosome name)
   - Load annotations by selecting the file and the genome related. Before to load annotations it is required that indexex are fully created (after creating data or loading GFA the indexes are automatically created but if data are big it requires some time)
   Once data are loaded the tool can be ued (see quick pages description).
 - Prepare database (command line):
   - It is possible to prepare database with command lines : go into neo4j_install directory and run the script (replace $container_name with the desired name) : bash ./setup_neo4j.sh --container-name $container_name
+
+###Tips
+  For big pangenome, it is recommended to generate csv files before creation the database. In this case, on the DB management page, select the gfa file and click on "Generate CSV Import file". Once the csv are generated, click on "Create new DB".
+
 
 ## Quick pages description
   The menu allow to navigate on differents pages :
@@ -44,14 +46,16 @@ It allows the following functionalities :
   - Phylogenetic : on left it is possible to load a reference phylogenetic tree. On right, by clicking on the "Plot tree..." button it computes the tree of the region defined in the Home page.
   - Sequences : by clicking on the button it computes the sequence for each haplotype of the region selected in the home page.
 
-## Install neo4
+
+## Manual installation
+### Install neo4
     See the readme in neo4j_install directory
 
-## Create environment
+### Create environment
 - Create conda env : conda env create -f panorama_graph.yaml
 - Load conda env : conda activate panorama_graph
 
-## Generate the database
+### Generate the database
     There are 3 ways to generate database :
     - From a dump file : this is the fastest way but the dump must be available. It uses the neo4j-admin load functionnality.
     - From csv file : it is a fast way to create rthe database if the csv files are available. It uses the neo4j-admin import functionnality. The difference with the dump is that annotations and indexes won't be created.
@@ -59,5 +63,5 @@ It allows the following functionalities :
         If the pangenome is big this can take a long time, in this case it is recommanded to use the load_gfa_data_to_csv function to generate csv files. According to the memory available, it is necessary to limit the 
         batch size. If a gtf / gff file is present, the genome_ref must be set in order to link annotations nodes with the main nodes of pangenome.
 
-## Use the tool 
+### Use the tool 
     You can use the tool from the graphical interface. To launch it, just launch the index.py file : python index.py
