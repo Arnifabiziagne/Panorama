@@ -37,7 +37,7 @@ import statistics
 
 #This value is used to limit the nodes number when seeking for regions :
 #If the region is wider than this value then it is ignored
-max_bp_seeking = 500000
+max_bp_seeking = 800000
 
 #Maximal number of nodes to get the whole region
 max_nodes_number = 100000
