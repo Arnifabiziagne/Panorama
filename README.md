@@ -33,7 +33,7 @@ It allows the following functionalities :
 - Prepare database (command line):
   - It is possible to prepare database with command lines : go into neo4j_install directory and run the script (replace $container_name with the desired name) : bash ./setup_neo4j.sh --container-name $container_name
 
-###Tips
+### Tips
   - For big pangenome, it is recommended to generate csv files before creation the database. In this case, on the DB management page, select the gfa file and click on "Generate CSV Import file". Once the csv are generated, click on "Create new DB".
   - To launch multiple neo4j instance, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
 
