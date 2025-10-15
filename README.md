@@ -23,7 +23,7 @@ It allows the following functionalities :
   - Create the conda environnement : conda env create -f panorama_graph.yaml 
   - Make launcher executable (linux) : chmod +x launcher.sh
 - Launch the tool : 
-  - Execute launcher : ./launcher.sh on linux or ./launcher.bat on windows and go to http://localhost:8050
+  - Execute launcher : ./launch.sh on linux (or ./launch_gunicorn.sh to launch with gunicorn server in production) or ./launch.bat on windows and go to http://localhost:8050
   - To launch on an other port, just specify the porty after. For example, to launch on port 8051 : ./launcher.sh 8051 or ./launcher.bat 8051.
 - Prepare database (IHM)
   - Go to "DB management" page, give a name to your container (e.g. DB_my_species_PGGB) and click on "Create new DB"
