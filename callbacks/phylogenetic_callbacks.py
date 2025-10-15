@@ -218,12 +218,16 @@ def update_phylo_graph(contents, n_clicks_global_tree, filename, chromosome, pĥ
                 status = f"File '{filename}' successfully load."
             except Exception as e:
                 return [], f"Parsing error : {str(e)}"
-    elements = generate_elements(newick_str)
-    if pĥylo_data is None:
-        pĥylo_data = {"newick_global":newick_str}
+    if newick_str is not None and newick_str != "":
+        elements = generate_elements(newick_str)
+        if pĥylo_data is None:
+            pĥylo_data = {"newick_global":newick_str}
+        else:
+            pĥylo_data["newick_global"] = newick_str
+        return elements, status,"", pĥylo_data
     else:
-        pĥylo_data["newick_global"] = newick_str
-    return elements, status,"", pĥylo_data
+        status = f"Unable to compute global tree."
+        return [], status,"", pĥylo_data
 
 
 @app.callback(

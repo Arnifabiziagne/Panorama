@@ -1148,7 +1148,7 @@ def compute_global_raxml_phylo_tree_from_nodes(node_selection_percentage=1,outpu
             for record in result :
                 total_nodes_number = record["total_nodes_number"]
         
-        sample_nodes_number = min(int(node_selection_percentage*total_nodes_number/100), max_nodes)
+        sample_nodes_number = max(min_sample_size,min(int(node_selection_percentage*total_nodes_number/100), max_nodes))
         if sample_nodes_number == max_nodes:
             print(f"Warning : maximal nodes number has been set to {max_nodes} and correspond to {max_nodes*100/total_nodes_number}% of total nodes")
         
@@ -1178,7 +1178,7 @@ def compute_global_raxml_phylo_tree_from_nodes(node_selection_percentage=1,outpu
         
         print(f"Number of sampled nodes : {len(nodes_list)}")
         sample_size = len(nodes_list)
-        if sample_size > min_sample_size :
+        if sample_size >= min_sample_size :
             #Prepare PAV matrix
             genomes = get_genomes()
             pav_matrix = {}
@@ -1197,8 +1197,7 @@ def compute_global_raxml_phylo_tree_from_nodes(node_selection_percentage=1,outpu
                         else:
                             pav_matrix[g][i+sample_size] = int(1)
                     else:
-                        pav_matrix[g][i] = int(1)
-                        
+                        pav_matrix[g][i] = int(1)         
             pav_to_phylip(pav_matrix, distance_matrix_phylip_filename)
             
             pattern = os.path.join(dir_raxml, f"RAxML_*")
