@@ -9,6 +9,7 @@ Created on Wed May  7 16:03:15 2025
 import re
 from tqdm import tqdm
 from math import *
+from numpy.polynomial.polynomial import Polynomial
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable
 import time
@@ -1114,10 +1115,11 @@ def pav_to_phylip(pav_matrix_dic, distance_matrix_phylip_filename):
 
 
 #This function compute a raxml tree from a random selection of nodes
-def compute_global_raxml_phylo_tree_from_nodes(node_selection_percentage=1,output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree"):
+def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree"):
     total_nodes_number = 0
-    max_nodes = 1000000
-    min_sample_size = 1000
+    max_nodes = 2000000
+    min_sample_size = 10000
+    min_nodes_number = 1000
     dir_raxml = "./export/phylo/raxml"
     distance_matrix_filename = "distance_matrix.phy"
     tree_newick_filename = os.path.join(dir_raxml,"RAxML_bestTree."+project_name)
@@ -1142,15 +1144,32 @@ def compute_global_raxml_phylo_tree_from_nodes(node_selection_percentage=1,outpu
             where n.chromosome = '{chromosome}'
             return count(*) as total_nodes_number
             """
-    
+ 
         with driver.session() as session:
             result = session.run(query)
             for record in result :
                 total_nodes_number = record["total_nodes_number"]
+                
+        #The number of sampled nodes depends on the total number of nodes. It is set to be at least min_sample_size and at most max_nodes.
+        #If the pangenome contains less than min_nodes_number then no tree can be computed.
+        #The number of sampled nodes is determined by a polynomial interpolation in log-space of the total number of nodes, fitted through a set of control points.
+        if total_nodes_number < min_nodes_number:
+            return None
+        if total_nodes_number < min_sample_size:
+            sample_nodes_number = total_nodes_number
+        else:
+            #Set of control points :
+            x_vals = np.array([1e4, 1e5, 1e7, 1e8, 2e9])
+            y_vals = np.array([1e4, 5e4, 3e5, 5e5, 1e6])
+            logx = np.log10(x_vals)
+            #Compute the polynomial interpolation in log space:
+            coeffs = np.polyfit(logx, y_vals, deg=4)
+            def f(x):
+                return np.polyval(coeffs, np.log10(x))
+            sample_nodes_number = max(min_sample_size, min(int(f(total_nodes_number)),max_nodes))
+        #sample_nodes_number = max(min_sample_size,min(int(node_selection_percentage*total_nodes_number/100), max_nodes))
         
-        sample_nodes_number = max(min_sample_size,min(int(node_selection_percentage*total_nodes_number/100), max_nodes))
-        if sample_nodes_number == max_nodes:
-            print(f"Warning : maximal nodes number has been set to {max_nodes} and correspond to {max_nodes*100/total_nodes_number}% of total nodes")
+        
         
         if chromosome is None :
             query = f"""
@@ -1176,7 +1195,7 @@ def compute_global_raxml_phylo_tree_from_nodes(node_selection_percentage=1,outpu
                 nodes_list.append(dict(record["nodes"]))
         
         
-        print(f"Number of sampled nodes : {len(nodes_list)}")
+        print(f"Number of sampled nodes : {sample_nodes_number} - Total node {total_nodes_number}")
         sample_size = len(nodes_list)
         if sample_size >= min_sample_size :
             #Prepare PAV matrix
