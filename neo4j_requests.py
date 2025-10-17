@@ -157,6 +157,7 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
         return []
     temps_depart = time.time()
     nodes_data = {}
+    max_sequence = 1000
     if end is None:
         stop = max_bp_seeking
     else:
@@ -204,14 +205,19 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                             else :
                                 query_genome += f" OR (m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
                     
-                    query_genome += """)
+                    query_genome += f""")
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
-                        RETURN m, collect(a.gene_name) as annotations, collect(a.feature) AS features
-                            """
+                        OPTIONAL MATCH (s:Sequence)
+                        WHERE s.name = m.ref_node
+                        RETURN m, substring(s.sequence, 0, {max_sequence}) as sequence, collect(a.gene_name) AS annotations, collect(a.feature) AS features
+                        """
+
+                    
+                    
                     #print(query_genome)
                     result = session.run(query_genome, start=start, end=end)
                     for record in result :
-                        nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
+                        nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]} |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
                 else:
                     if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] >= max_bp_seeking :
                         print(f"Region too wide : {anchor_stop[genome_position] - anchor_start[genome_position]}" )
