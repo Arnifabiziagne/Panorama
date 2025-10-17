@@ -748,7 +748,7 @@ def display_element_data(node_data, edge_data):
             f"• Haplotypes : {', '.join(node_data.get('genomes', []))}"
             f"• Annotations : {', '.join(node_data.get('annotations', []))}"
             f"• Features : {', '.join(node_data.get('features', []))}"
-            f"• Sequence : {node_data.get('sequence')}\n"
+            f"• Sequence (first 1000 bp only) : {node_data.get('sequence')}\n"
         )
     return "Click on a node or link to display data."
 
