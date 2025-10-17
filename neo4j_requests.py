@@ -1115,11 +1115,17 @@ def pav_to_phylip(pav_matrix_dic, distance_matrix_phylip_filename):
 
 
 #This function compute a raxml tree from a random selection of nodes
-def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree"):
+#RaxML output file will be created in output_dir directory
+#to take account of direct / reverse traversing set the strand to True, else to False
+#To limit the tree to 1 chromosome, set chromosome value (else it will be computed on the whole graph)
+#project_name is used to name the RaxML files
+#max_nodes is used to limit the number of sampled nodes
+#min_sample_size is the minimal sampled size for pangenome of size >= min_sample_size
+#min_nodes_number : tree won't be computed on pangenomes with less than min_nodes_number nodes 
+def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree", max_nodes = 1000000, min_sample_size = 10000, min_nodes_number = 1000):
     total_nodes_number = 0
-    max_nodes = 2000000
-    min_sample_size = 10000
-    min_nodes_number = 1000
+    
+
     dir_raxml = "./export/phylo/raxml"
     distance_matrix_filename = "distance_matrix.phy"
     tree_newick_filename = os.path.join(dir_raxml,"RAxML_bestTree."+project_name)
