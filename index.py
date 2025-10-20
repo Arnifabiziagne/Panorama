@@ -27,6 +27,8 @@ from neo4j_requests import *
 from neo4j_container_management import *
 
 
+
+
 def clean_exit(signum, frame):
     print("\nStopping docker")
     stop_container()
@@ -154,14 +156,18 @@ def display_page(pathname):
     else:
         return html.H1("Page non trouvée")
 
+start_container()
+
+
 def run():
     parser = argparse.ArgumentParser(description="Launch server.")
     parser.add_argument("--port", type=int, help="HTTP port to use (default : 8050)")
     args = parser.parse_args()
     
     port = args.port or int(8050)
-    start_container()
+
     app.run(debug=True, port = port)
     
 if __name__ == "__main__":
+
     run()
