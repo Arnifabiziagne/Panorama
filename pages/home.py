@@ -204,13 +204,13 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
                 #     degenerate_node_style["background-color"]="#000000"
             if row['ref_node'] == row['name']:
                 nodes.append({
-                    'data': {'id':row['name'] ,'name':row['name'], 'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'sequence':row['sequence'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
+                    'data': {'id':row['name'] ,'name':row['name'], 'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'sequence':row.get('sequence'), 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': main_style
                 })
             else:
                 nodes.append({
-                    'data': {'id':row['name'], 'name': row['name'],  'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'sequence':row['sequence'], 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
+                    'data': {'id':row['name'], 'name': row['name'],  'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'sequence':row.get('sequence'), 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': degenerate_node_style
                 })
