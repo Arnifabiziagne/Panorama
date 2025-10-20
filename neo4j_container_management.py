@@ -51,7 +51,7 @@ def prepare_data_directories_in_container():
     ], check=True)
 
 def remove_directories():
-    for folder in ["data", "logs", "conf", "plugins"]:
+    for folder in ["data", "logs", "plugins"]:
         path = os.path.join(NEO4J_BASE_DIR, folder)
         if os.path.exists(path):
             shutil.rmtree(path)
