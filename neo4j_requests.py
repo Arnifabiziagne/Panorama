@@ -275,7 +275,7 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
                 #print(query)
             else:
                 query = f"""
-                MATCH (a:Annotation {{chromosome:"{chromosome}" gene_id: $gene_id}})<-[]-(n:Node)
+                MATCH (a:Annotation {{chromosome:"{chromosome}", gene_id: $gene_id}})<-[]-(n:Node)
                 RETURN DISTINCT n
                 ORDER BY n.`{genome_position}` ASC
                 """
