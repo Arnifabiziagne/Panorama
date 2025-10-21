@@ -1408,7 +1408,7 @@ def get_chromosome_annotation(annotation):
                 if i < len(tab)-1:
                     chromosome = tab[i+1].lstrip('0')
         else:
-            chromosome = annotation.split()[0].upper().replace("CHR", "")        
+            chromosome = annotation.split()[0].upper().replace("CHR", "").replace("C", "").lstrip('0')       
     return chromosome
     
 
