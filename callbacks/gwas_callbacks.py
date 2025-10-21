@@ -106,22 +106,23 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
            
         #take an annotated genome if no reference genome selected
         if ref_genome is None or ref_genome == "":
-            no_annotations = True
-            i = 0
-            keys = list(analyse.keys())
-            analyse_to_plot = analyse[keys[0]]
-            while no_annotations and i < len(keys):
-                current_key = keys[i]
-                r = 0
-                while r < len(analyse[current_key]) and no_annotations :
-                    if len(analyse[current_key][r]["annotations"]) > 0:
-                        no_annotations = False
-                        analyse_to_plot = analyse[current_key]
-                    r += 1
-                i += 1
-        else:
+            ref_genome = selected_genomes[0]
+        #     no_annotations = True
+        #     i = 0
+        #     keys = list(analyse.keys())
+        #     analyse_to_plot = analyse[keys[0]]
+        #     while no_annotations and i < len(keys):
+        #         current_key = keys[i]
+        #         r = 0
+        #         while r < len(analyse[current_key]) and no_annotations :
+        #             if len(analyse[current_key][r]["annotations"]) > 0:
+        #                 no_annotations = False
+        #                 analyse_to_plot = analyse[current_key]
+        #             r += 1
+        #         i += 1
+        # else:
             #print(f"Genome ref : {ref_genome}")
-            analyse_to_plot = analyse[ref_genome]
+        analyse_to_plot = analyse[ref_genome]
                 
         #print("analyse to plot : " + str(analyse_to_plot))
         

@@ -584,7 +584,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 else :
                     genome_position_ref = genome_ref
                 
-                
+                print(f"ref genome : {genome_ref}")
                 for c in chromosome_list :
                     print("chromosome : " + str(c))
                     dic_regions[c] = {}
@@ -818,7 +818,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                         #Minimal region to allow visualization
                                         if region_stop - region_start < 200 :
                                             min_size_region = 200
-                                            gap = int((min_size_region-region_stop - region_start)/2)
+                                            gap = int((min_size_region-(region_stop - region_start))/2)
                                             region_start = max(0, region_start-gap)
                                             region_stop = region_stop+gap
                                         dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
@@ -851,7 +851,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             #Minimal region to allow visualization
                             if region_stop - region_start < 200 :
                                 min_size_region = 200
-                                gap = int((min_size_region-region_stop - region_start)/2)
+                                gap = int((min_size_region-(region_stop - region_start))/2)
                                 region_start = max(0, region_start-gap)
                                 region_stop = region_stop+gap
                             dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
@@ -929,7 +929,6 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         
             for g in analyse:
                 analyse[g] = sorted(analyse[g], key=lambda d: d['shared_size'], reverse=True)
-            
             
             print("Total time : "+ str(time.time()-temps_depart))
     return dic_regions_2, analyse

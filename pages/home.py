@@ -57,7 +57,9 @@ def compute_stylesheet(color_number):
             'style': {
                 'curve-style': 'unbundled-bezier',
                 'control-point-weights': [0.5],
-                'target-arrow-shape': 'none',
+                'target-arrow-color': 'data(color)',
+                'target-arrow-shape': 'triangle',
+                'arrow-scale': 0.5,
                 'control-point-distances': [1],
                 'opacity':0.9,
                 'z-index':0
@@ -99,6 +101,10 @@ def compute_stylesheet(color_number):
                 'selector': 'edge',
                 'style': {
                     'line-color': '#A3C4BC',
+                    'target-arrow-color': '#A3C4BC',
+                    'target-arrow-shape': 'triangle',
+                    'arrow-scale': 0.5,
+                    'curve-style': 'straight',
                     'opacity':0.9,
                     'z-index':0
                 }
@@ -204,13 +210,42 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
                 #     degenerate_node_style["background-color"]="#000000"
             if row['ref_node'] == row['name']:
                 nodes.append({
-                    'data': {'id':row['name'] ,'name':row['name'], 'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'sequence':row.get('sequence'), 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
+                    'data': {
+                        'id': row.get('name'),
+                        'name': row.get('name'),
+                        'displayed_node_size': displayed_node_size,
+                        'ref_node': row.get('ref_node'),
+                        'size': row.get('size'),
+                        'flow': row.get('flow'),
+                        'genomes': row.get('genomes'),
+                        'chromosome': row.get('chromosome'),
+                        'sequence': row.get('sequence'),
+                        'annotations': row.get('annotations'),
+                        'features': row.get('features'),
+                        'color': node_color,
+                        'position': row.get(position_field)
+                    },
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': main_style
                 })
             else:
                 nodes.append({
-                    'data': {'id':row['name'], 'name': row['name'],  'displayed_node_size':displayed_node_size, 'ref_node': row['ref_node'], 'size': row['size'], 'flow': row['flow'], 'genomes': row['genomes'], 'chromosome': row['chromosome'], 'sequence':row.get('sequence'), 'annotations': row['annotations'], 'features': row['features'], 'color':node_color, "position":row[position_field]},
+                    'data': 
+                        {
+                        'id': row.get('name'),
+                        'name': row.get('name'),
+                        'displayed_node_size': displayed_node_size,
+                        'ref_node': row.get('ref_node'),
+                        'size': row.get('size'),
+                        'flow': row.get('flow'),
+                        'genomes': row.get('genomes'),
+                        'chromosome': row.get('chromosome'),
+                        'sequence': row.get('sequence'),
+                        'annotations': row.get('annotations'),
+                        'features': row.get('features'),
+                        'color': node_color,
+                        'position': row.get(position_field)
+                    },
                     'position': {'x': row['x'], 'y': row['y']},
                     'style': degenerate_node_style
                 })
@@ -284,6 +319,7 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
                 },
                 'style': {
                     'line-color': link_color,
+                    'target-arrow-color': link_color,
                     'label': label,
                     'text-rotation': 'autorotate',
                     'width': (virtual_flow+int(0.2*len(all_genomes)))/len(all_genomes)*10
@@ -306,6 +342,7 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
                             'classes': f'offset-{i}',
                             'style': {
                                 'line-color': colored_genomes[g],
+                                'target-arrow-color': colored_genomes[g],
                                 'width': 4
 
                             }
