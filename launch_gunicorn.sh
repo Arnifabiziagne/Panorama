@@ -16,4 +16,4 @@ conda activate panorama_graph
 echo "Launching Panorama on port $DASH_PORT..."
 
 
-python -m gunicorn wsgi:application -w 4 -b 0.0.0.0:$DASH_PORT
+python -m gunicorn wsgi:application -w 4 -b 0.0.0.0:$DASH_PORT --timeout 260000 --config gunicorn_config.py --preload

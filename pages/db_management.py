@@ -138,6 +138,33 @@ def layout():
             ])
         ]),
         html.Br(),
+        html.H3("GFA files loading (it is recommended to put big gfa files directly into the /data/gfa directory)"),
+    
+        dcc.Upload(
+            id='upload-gfa-data',
+            children=html.Div([
+                'Dropdown or select ',
+                html.A('GFA files')
+            ]),
+            style={
+                'width': '50%',
+                'height': '100px',
+                'lineHeight': '100px',
+                'borderWidth': '2px',
+                'borderStyle': 'dashed',
+                'borderRadius': '5px',
+                'textAlign': 'center',
+                'margin': '10px'
+            },
+            multiple=True
+        ),
+        dcc.Loading(
+            id="loading-gfa-upload",
+            type="default", 
+            children=html.Div(id='upload-gfa-output'),
+        ),
+    
+        html.Br(),
         html.Div([
             html.H4("If GFA concern only one chromosome, or if no chromosome, specify the chromosome value here (0 if no chromosome):  ", style={'margin-right': '20px'}),
             dcc.Input(id='db-chromosome-input', style={'width': '100px', 'marginRight': '10px'}),
@@ -193,10 +220,41 @@ def layout():
                 html.Li("The database must already be loaded."),
                 html.Li("Required indexes must be created and available in the database before loading annotations."),          ])
         ]),
+        html.Br(),
+        html.H3("Annotations files loading (it is recommended to put big annotations files directly into the /data/annotations directory)"),
+    
+        dcc.Upload(
+            id='upload-annotations-data',
+            children=html.Div([
+                'Dropdown or select ',
+                html.A('GFF or GTF files')
+            ]),
+            style={
+                'width': '50%',
+                'height': '100px',
+                'lineHeight': '100px',
+                'borderWidth': '2px',
+                'borderStyle': 'dashed',
+                'borderRadius': '5px',
+                'textAlign': 'center',
+                'margin': '10px'
+            },
+            multiple=True  # Permet l’upload de plusieurs fichiers
+        ),
+        dcc.Loading(
+            id="loading-annotations-upload",
+            type="default",
+            children=html.Div(id='upload-annotations-output'),
+        ),
+    
+        html.Br(),
         dcc.Dropdown(
             id="dropdown-genome",
             options=[{"label": genome, "value": genome} for genome in genomes],
-            placeholder="Select the reference haplotype associated to the annotations files."
+            placeholder="Select the reference haplotype associated to the annotations files.",
+            style={
+                "width": "50%"
+            }
         ),
         #Checklist of annotations files
         html.Div([
@@ -226,7 +284,7 @@ def layout():
         # --- Deleting data section ---
         html.H3("Deleting data"),
         html.Br(),
-        html.Label("This operation is possible only if data are stored in the ./data directory. Databse will be stopped before."),
+        html.Label("This operation is possible only if data are stored in the ./data directory. Database will be stopped before."),
         html.Br(),
         # Delete data button
         html.Button("Delete", title="This will delete all data and indexes in the database.", id="btn-delete", n_clicks=0),

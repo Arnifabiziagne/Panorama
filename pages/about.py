@@ -43,7 +43,13 @@ def layout():
                             html.Li("The database can be used directly from the 'http://localhost:7474' URL and data can be manipulated with cypher langages." ),
                             html.Li("The database can be used from back office python functions." ),
                         ])
-            ])
+            ]),
+            html.Button("Update Panorama", id='update-panorama-btn', n_clicks=0, style={'margin': '15px 0'}),
+            dcc.Loading(
+                id="update-panorama",
+                type="default", 
+                children=html.Div(id='update-panorama-output'),
+            )
             ], style={"marginBottom": "100px"}),
         html.Hr(),
         html.Div([
@@ -62,6 +68,7 @@ def layout():
         })
         
         
-        ], style={'width': '48%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft':'4%'})
+        ], style={'width': '48%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft':'4%'}),
+        
 
 

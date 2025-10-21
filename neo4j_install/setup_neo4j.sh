@@ -7,7 +7,6 @@ set -euo pipefail
 DOCKER_IMAGE="neo4j:2025.05-community-bullseye"
 HTTP_PORT="7474"
 BOLT_PORT="7687"
-CONF_SOURCE_FILE="./conf/neo4j.conf"
 CONF_FILE="../db_conf.json"
 NEO4J_BASE_DIR="../data"
 MAX_MEM="24g"
@@ -169,12 +168,6 @@ if docker ps -a --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
   docker rm -f $CONTAINER_NAME > /dev/null
 fi
 
-if [ -f "$CONF_SOURCE_FILE" ]; then
-  echo " Copying conf file to conf directory🔧"
-  cp "$CONF_SOURCE_FILE" "$CONF_DIR/"
-else
-  echo "⚠️ File $CONF_SOURCE_FILE doesn't exist"
-fi
 
 if [ -f "$DUMP_DEST_FILE" ]; then
   echo "📥 Preparing to import dump, max memory : $MAX_MEM."

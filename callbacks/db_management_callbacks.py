@@ -46,6 +46,33 @@ def get_container_name_no_prefix(container_name):
 ############# Data callbacks#################
 
 
+
+@app.callback(
+        Output('upload-gfa-output', 'children'),
+        Input('upload-gfa-data', 'contents'),
+        State('upload-gfa-data', 'filename'),
+        State('upload-gfa-data', 'last_modified'),
+        prevent_initial_call=True
+    )
+def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
+    if list_of_contents is not None:
+        saved_files = []
+        for content, filename in zip(list_of_contents, list_of_names):
+            if not filename.endswith(".gfa"):
+                continue
+            try:
+                data = content.encode("utf8").split(b";base64,")[1]
+                file_path = os.path.join(GFA_FOLDER, filename)
+                with open(file_path, "wb") as f:
+                    f.write(base64.b64decode(data))
+                saved_files.append(html.Li(f"File saved : {filename}"))
+            except Exception as e:
+                saved_files.append(html.Li(f"Error for saving file {filename} : {str(e)}"))
+
+        return html.Ul(saved_files)
+    return html.Div("No file.")
+
+
 @app.callback(
     Output("gfa-message", "children", allow_duplicate=True),
     Output("gfa-files-selector", "value"),
@@ -184,6 +211,31 @@ def on_click_create_index(n_clicks):
 
 ############# Annotations callbacks#################
 
+
+@app.callback(
+        Output('upload-annotations-output', 'children'),
+        Input('upload-annotations-data', 'contents'),
+        State('upload-annotations-data', 'filename'),
+        State('upload-annotations-data', 'last_modified'),
+        prevent_initial_call=True
+    )
+def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
+    if list_of_contents is not None:
+        saved_files = []
+        for content, filename in zip(list_of_contents, list_of_names):
+            if not filename.endswith(('.gff', '.gff3', '.gtf')):
+                continue
+            try:
+                data = content.encode("utf8").split(b";base64,")[1]
+                file_path = os.path.join(ANNOTATIONS_FOLDER, filename)
+                with open(file_path, "wb") as f:
+                    f.write(base64.b64decode(data))
+                saved_files.append(html.Li(f"File saved : {filename}"))
+            except Exception as e:
+                saved_files.append(html.Li(f"Error for saving file {filename} : {str(e)}"))
+
+        return html.Ul(saved_files)
+    return html.Div("No file.")
 
 @app.callback(
     Output("annotation-message", "children", allow_duplicate=True),

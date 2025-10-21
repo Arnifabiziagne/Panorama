@@ -207,8 +207,7 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                     
                     query_genome += f""")
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
-                        OPTIONAL MATCH (s:Sequence)
-                        WHERE s.name = m.ref_node
+                        OPTIONAL MATCH (s:Sequence {{name: m.ref_node}})
                         RETURN m, substring(s.sequence, 0, {max_sequence}) as sequence, collect(a.gene_name) AS annotations, collect(a.feature) AS features
                         """
 
@@ -235,11 +234,12 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                         MATCH (m:Node)
                         WHERE  m.chromosome = "{chromosome}" 
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
-                        RETURN m, collect(a.gene_name) as annotations, collect(a.feature) AS features
+                        OPTIONAL MATCH (s:Sequence {{name: m.ref_node}})
+                        RETURN m, substring(s.sequence, 0, {max_sequence}) as sequence, collect(a.gene_name) AS annotations, collect(a.feature) AS features
                             """
                         result = session.run(query_genome)
                         for record in result:
-                            nodes_data[record["m"]["name"]] = dict(record["m"]) |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
+                            nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]}  |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
                     else  :
                         print("Region too wide")
                         nodes_data = {}
@@ -580,6 +580,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
 
                 if genome_ref is None or genome_ref == "":
                     genome_position_ref = genomes_list[0]
+                    genome_ref = genomes_list[0]
                 else :
                     genome_position_ref = genome_ref
                 
@@ -814,6 +815,12 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                             else: 
                                                 region_stop += 100
                                                 region_start -= 100
+                                        #Minimal region to allow visualization
+                                        if region_stop - region_start < 200 :
+                                            min_size_region = 200
+                                            gap = int((min_size_region-region_stop - region_start)/2)
+                                            region_start = max(0, region_start-gap)
+                                            region_stop = region_stop+gap
                                         dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
                                         shared_size = size_sorted[i]
                                         shared_deleted_size = 0
@@ -841,6 +848,12 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 else: 
                                     region_stop += 100
                                     region_start -= 100   
+                            #Minimal region to allow visualization
+                            if region_stop - region_start < 200 :
+                                min_size_region = 200
+                                gap = int((min_size_region-region_stop - region_start)/2)
+                                region_start = max(0, region_start-gap)
+                                region_stop = region_stop+gap
                             dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
             print("Total number of regions : " +str(nb_regions_total))
             dic_regions_2 = {}

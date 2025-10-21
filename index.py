@@ -22,12 +22,18 @@ import callbacks.phylogenetic_callbacks
 import callbacks.gwas_callbacks
 import callbacks.sequences_callbacks
 import callbacks.db_management_callbacks
+import callbacks.about_callbacks
 
 from neo4j_requests import *
 from neo4j_container_management import *
 
 
+#Limit upload size for gfa / annotations files to 10 Go
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024 * 1024
 
+
+#Limit upload size
+app.server.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE
 
 def clean_exit(signum, frame):
     print("\nStopping docker")
@@ -156,7 +162,7 @@ def display_page(pathname):
     else:
         return html.H1("Page non trouvée")
 
-start_container()
+
 
 
 def run():
@@ -165,8 +171,10 @@ def run():
     args = parser.parse_args()
     
     port = args.port or int(8050)
+    start_container()
 
     app.run(debug=True, port = port)
+    
     
 if __name__ == "__main__":
 
