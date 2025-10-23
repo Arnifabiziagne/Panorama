@@ -281,9 +281,9 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
                 """
                 result = session.run(query, gene_id=gene_id)
             noeuds_annotes = [record["n"] for record in result]
-            if len(noeuds_annotes) > 0 :
+            if len(noeuds_annotes) > 0 and genome_position in noeuds_annotes[0] and genome_position in noeuds_annotes[-1]:
                 start = noeuds_annotes[0][genome_position]
-                stop = noeuds_annotes[-1][genome_position]
+                stop = noeuds_annotes[-1][genome_position] + noeuds_annotes[-1]["size"]
                 print(f"start : {start} - stop : {stop} - nodes number : {len(noeuds_annotes)}")
                 nodes_data = get_nodes_by_region(genome, chromosome, start, stop)
             

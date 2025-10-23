@@ -5,6 +5,7 @@ from neo4j_requests import *
 
 import dash
 from dash import Dash, dcc, html, Input, Output, State, callback_context, ctx, MATCH, ALL
+from urllib.parse import parse_qs, urlparse
 from dash.exceptions import PreventUpdate
 import dash_cytoscape as cyto
 import dash_bootstrap_components as dbc
@@ -368,6 +369,7 @@ def layout(data=None, initial_size_limit=10):
 
     return html.Div([
         dcc.Store(id='zoom_shared_storage_nodes', storage_type='memory'),
+        dcc.Store(id='update_graph_command_storage', storage_type='memory'),
         html.Div([
             html.H2("PANORAMA"),
 
@@ -819,6 +821,7 @@ def display_element_data(node_data, edge_data):
     # Input('size_slider', 'value'),
     State('home-page-store', 'data'),
     Input('search-button', 'n_clicks'),
+    Input('update_graph_command_storage', 'data'),
     State('start-input', 'value'),
     State('end-input', 'value'),
     State('genename-input', 'value'),
@@ -838,7 +841,7 @@ def display_element_data(node_data, edge_data):
 )
 def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, 
                  update_n_clicks, zoom_clicks, zoom_out_clicks, reset_zoom_bouton_clicks, 
-                 selected_nodes_data, home_data_storage, n_clicks, start, end, 
+                 selected_nodes_data, home_data_storage, n_clicks, update_graph_command_storage, start, end, 
                  gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, 
                  min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, 
                  show_exons, exons_color, layout_choice):
@@ -939,7 +942,9 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     all_genomes = data_storage["genomes"]
     all_chromosomes = data_storage["chromosomes"]
 
-    if (triggered_id== "search-button" and n_clicks > 0) or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"]:
+    if (triggered_id== "search-button" and n_clicks > 0)  \
+        or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"] \
+        or (triggered_id == "update_graph_command_storage" and update_graph_command_storage is not None) :
         if start_value is not None:
             use_anchor = True
             if triggered_id == "btn-zoom":
@@ -1043,21 +1048,29 @@ def save_slider_value(size_slider_val, data):
     Output('genomes-dropdown', 'value'),
     Output('start-input', 'value'),
     Output('end-input', 'value'),
+    Output('genename-input', 'value'),
+    Output('geneid-input', 'value'),
     Output('shared-region-color-picker', 'value'),
     Output('specific-genome_selector', 'value'),
+    Output('update_graph_command_storage', 'data'),
     Input('url', 'pathname'),
+    Input('url', 'search'),
     Input('home-page-store', 'data'),
     State('genomes-dropdown', 'options'),
     State('chromosomes-dropdown', 'options'),
     State('specific-genome_selector', 'value'),
 )
-def update_parameters_on_page_load(pathname, data, options_genomes, options_chromosomes, specifics_genomes):
+def update_parameters_on_page_load(pathname, search, data, options_genomes, options_chromosomes, specifics_genomes):
     slider_value = DEFAULT_SIZE_VALUE
     selected_genome = None
     selected_chromosome = None
     start_input = None
     end_input = None
+    gene_name = None
+    gene_id = None
     shared_regions_link_color = DEFAULT_SHARED_REGION_COLOR
+    update_graph_command_storage = dash.no_update
+    
     if specifics_genomes is not None:
         selected_shared_genomes = specifics_genomes
     else:
@@ -1066,26 +1079,61 @@ def update_parameters_on_page_load(pathname, data, options_genomes, options_chro
         data = {}
     if "slider_value" in data:
         slider_value = data["slider_value"]
-    if "selected_genome" in data:
-        selected_genome = data["selected_genome"]
-    else:
-        if options_genomes:
-            selected_genome = options_genomes[0]["value"]
-    if "selected_chromosome" in data:
-        selected_chromosome = data["selected_chromosome"]
-    else:
-        if options_chromosomes:
-            selected_chromosome = options_chromosomes[0]["value"]
-    if "start" in data:
-        start_input = data["start"]
-    if "end" in data:
-        end_input = data["end"]
     if "shared_regions_link_color" in data:
         shared_regions_link_color = data["shared_regions_link_color"]
     if "specifics_genomes" in data:
         selected_shared_genomes = data["specifics_genomes"]
+    #Get query param if setted
+    no_query_params = True
+    if search:
+        print(f"Query params {search}")
+        params = parse_qs(urlparse(search).query)
+        url_hap = params.get('haplotype', [None])[0]
+        url_chromosome = (
+            params.get('chr', [None])[0]
+            or params.get('chromosome', [None])[0]
+        )
+        url_gene_name = params.get('geneName', [None])[0]
+        url_gene_id = params.get('geneId', [None])[0]
+        url_start = params.get('start', [None])[0]
+        url_end = params.get('end', [None])[0]
+        if url_hap is not None and url_chromosome is not None and ((url_start is not None and url_end is not None) or url_gene_name is not None or url_gene_id is not None):
+            no_query_params = False
+            selected_genome = url_hap
+            selected_chromosome = url_chromosome
+            if url_gene_name is not None:
+                gene_name = url_gene_name
+            elif url_gene_id is not None:
+                gene_id = url_gene_id
+            else:
+                start_input = int(url_start)
+                end_input = int(url_end)
+            update_graph_command_storage = {"url_hap":url_hap, "url_chromosome":url_chromosome, "url_gene_name":url_gene_name, 
+                                            "url_gene_id":url_gene_id, "url_start":url_start, "url_end":url_end}
+            print(update_graph_command_storage)
+    if no_query_params :
+        print("No query params")
+        if "selected_genome" in data:
+            selected_genome = data["selected_genome"]
+        else:
+            if options_genomes:
+                selected_genome = options_genomes[0]["value"]
+        if "selected_chromosome" in data:
+            selected_chromosome = data["selected_chromosome"]
+        else:
+            if options_chromosomes:
+                selected_chromosome = options_chromosomes[0]["value"]
+        if "start" in data:
+            start_input = data["start"]
+        if "end" in data:
+            end_input = data["end"]
+        if "gene_name" in data:
+            gene_name = data["gene_name"]
+        if "gene_id" in data:
+            gene_id = data["gene_id"]
+        
 
-    return slider_value, selected_chromosome, selected_genome, start_input, end_input, shared_regions_link_color, selected_shared_genomes
+    return slider_value, selected_chromosome, selected_genome, start_input, end_input, gene_name, gene_id, shared_regions_link_color, selected_shared_genomes, update_graph_command_storage
 
 
 # Algorithm cytoscape choice
