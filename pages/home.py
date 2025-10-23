@@ -1092,6 +1092,8 @@ def update_parameters_on_page_load(pathname, search, data, options_genomes, opti
     if "specifics_genomes" in data:
         selected_shared_genomes = data["specifics_genomes"]
     #Get query param if setted
+    #Query params exemple : ?haplotype=Korso_0&chromosome=1&geneName=BolK_1g00590
+    #?haplotype=Korso_0&chromosome=1&start=100000&end=1090000
     no_query_params = True
     if search:
         print(f"Query params {search}")
