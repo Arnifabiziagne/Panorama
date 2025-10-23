@@ -875,8 +875,16 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         end_value = end
     if gene_name is not None:
         home_data_storage["gene_name"] = gene_name
+        home_data_storage["start"] = None
+        home_data_storage["end"] = None
+        start_value = None
+        end_value = None
     if gene_id is not None:
         home_data_storage["gene_id"] = gene_id
+        home_data_storage["start"] = None
+        home_data_storage["end"] = None
+        start_value = None
+        end_value = None
     if min_shared_genome is None:
         min_shared_genome = 100
     if tolerance is None:
