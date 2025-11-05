@@ -219,25 +219,6 @@ def write_config(container_name, HTTP_PORT=7474, BOLT_PORT=7687):
         logger.info("Configuration successfully written.")
     except Exception as e:
         logger.error(f"Failed to write configuration: {e}")
-
-def write_config(container_name, HTTP_PORT=7474, BOLT_PORT=7687):
-    logger.info(f"write conf {container_name}")
-    with open(CONF_FILE, "w") as f:
-        json.dump({
-            "container_name": container_name,
-            "http_port": HTTP_PORT,
-            "bolt_port": BOLT_PORT,
-            "login": NEO4J_LOGIN,
-            "password": NEO4J_PASSWORD,
-            "server_mode":"false",
-            "admin_mode":"false",
-            "admin_users":{
-                "admin": "1234"
-            },
-            "server_log_mode":"both",
-            "log_retention_days":7,
-            "log_level":"DEBUG"
-        }, f, indent=2)
         
             
 
