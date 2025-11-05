@@ -1,0 +1,20 @@
+name: panorama_graph
+channels:
+  - defaults
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.10
+  - pandas
+  - matplotlib
+  - numpy
+  - neo4j
+  - bio
+  - scipy
+  - pip
+  - pip:
+      - dash
+      - dash-cytoscape
+      - dash-bootstrap-components
+      - dash-auth
+      - gunicorn
