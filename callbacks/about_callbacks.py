@@ -68,7 +68,7 @@ def update_panorama(n_clicks):
 
             logger.info("Latest release found :", release["name"])
             logger.info("Tag :", release["tag_name"])
-            logger.info("Publication date :", release["published_at"])
+            logger.info(f"Publication date : {release["published_at"]}")
             zip_url = release.get("zipball_url")
             logger.info(f"Download zip file : {zip_url}")
             
@@ -104,5 +104,5 @@ def update_panorama(n_clicks):
             return html.Div(f"❌ Latest version {version} is not compatible with the current data. To use latest release it is required to regenerate data.")
             
     else:
-        logger.error("Error :", response.status_code)
+        logger.error(f"Error : {response.status_code}")
         return html.Div(f"❌ Error : {response.status_code}")
