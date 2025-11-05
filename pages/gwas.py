@@ -23,7 +23,7 @@ style_help = {
 def layout():
     return html.Div([
         dcc.Store(id="gwas-page-store",storage_type="session"),
-        html.H2("Shared Region Finder"),
+        html.H2("Shared Region Discovery"),
 
         html.Details([
             html.Summary("ℹ️ Click here to display help"),
@@ -176,6 +176,7 @@ def layout():
         html.Div([
             html.Button("💾 Export to CSV", title=f"Export the results in the table into a csv file in the {EXPORT_DIR} directory. Sequences won't be present.",id='save-csv-button', n_clicks=0),
             html.Button("💾 Export to CSV with sequences", title=f"Export the results in the table into a csv file in the {EXPORT_DIR} directory. Sequences will be present.", id='save-csv-with_seq-button', n_clicks=0),
+            dcc.Download(id="download-csv"),
             html.Button("📂 Load csv", title="Load a csv file generated from this page.", id='load-csv-button', n_clicks=0),
             html.Div(id='save-feedback'),
             dcc.Upload(
@@ -190,17 +191,6 @@ def layout():
                 multiple=False
             )
         ]),
-        dbc.Modal(
-            [
-                dbc.ModalHeader(dbc.ModalTitle("Help")),
-                dbc.ModalBody(id="modal-help-text"),
-                dbc.ModalFooter(
-                    dbc.Button("Close", id="close-help", className="ms-auto", n_clicks=0)
-                ),
-            ],
-            id="help-modal",
-            is_open=False,
-        ),
         # Analyse array
         dash_table.DataTable(
             id='shared-region-table',

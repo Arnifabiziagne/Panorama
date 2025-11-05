@@ -11,6 +11,13 @@ import numpy as np
 import os
 import csv
 from config import get_driver
+from auth_utils import require_authorization
+import logging
+
+
+logger = logging.getLogger("panorama_logger")
+
+
 
 #These functions allow to create databse and index from gfa and annotations files
 
@@ -85,7 +92,7 @@ logging.getLogger("neo4j").setLevel(logging.ERROR)
 #This value allow to limit complex annotations search
 ANNOTATION_SEARCH_LIMIT = 10000
 
-
+@require_authorization
 def create_nodes_batch(session, nodes_dic, node_name="Node", create = False):
 
     nb_transactions = max(1,ceil(len(nodes_dic)/batch_size_BDD))
@@ -118,7 +125,7 @@ def create_nodes_batch(session, nodes_dic, node_name="Node", create = False):
                 current_transaction += 1
     return
 
-
+@require_authorization
 def create_stats(set_genomes, set_chromosomes):
     with get_driver() as driver:
         with driver.session() as session:
@@ -140,7 +147,7 @@ def create_stats(set_genomes, set_chromosomes):
                 
     return
 
-
+@require_authorization
 def create_stats_from_nodes():
     with get_driver() as driver:
         with driver.session() as session:
@@ -176,7 +183,7 @@ def create_stats_from_nodes():
                 })
             """, genomes=all_genomes, chromosomes=all_chromosomes, version=DB_VERSION)
 
-            print("✅ Stats node created with:", all_genomes, all_chromosomes)
+            logger.info("✅ Stats node created with:", all_genomes, all_chromosomes)
 
     return
 
@@ -214,7 +221,7 @@ def check_state_index(index_name: str):
                 else:
                     return None
             except Neo4jError as e:
-                print(f"❌ Error while checking index state: {e}")
+                logger.error(f"❌ Error while checking index state: {e}")
                 return None
 
 
@@ -222,6 +229,7 @@ def check_state_index(index_name: str):
 #If base = True => create the base indexes = index on Node name and chromosome
 #If extend = True => create other indexes = index on Node flow, size, ref_node + indexes on Annotation name, chromosome, start, end, gene_id, gene_name + index on Sequence name
 #If genomes_index = True => create indexes on Node chromosome / $genome_position
+@require_authorization
 def create_indexes(base=True, extend=False, genomes_index=False):
     indexes_queries = []
     with get_driver() as driver:
@@ -269,9 +277,9 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                 for record in result:
                     all_genomes = record["all_genomes"]
                 nb_genomes = len(all_genomes)
-                print(all_genomes)
+                logger.info(all_genomes)
                 for g in all_genomes:
-                    print("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
+                    logger.info("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
                     current_genome += 1
                     indexes_queries = []
                     indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_").replace(".","_")+"_position IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_position`)")
@@ -281,7 +289,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
             
 
 
-
+@require_authorization
 def creer_index_chromosome(chromosomes_list = []):
     query_genomes = """
     MATCH (s:Stats) 
@@ -310,7 +318,9 @@ def creer_index_chromosome(chromosomes_list = []):
                     for query in indexes_queries :
                         tx.run(query)
                         
-                        
+
+
+@require_authorization                        
 def creer_index_chromosome_genomes():
     query_genomes = """
     MATCH (s:Stats) 
@@ -327,7 +337,7 @@ def creer_index_chromosome_genomes():
             nb_genomes = len(all_genomes)
             current_genome = 0
             for g in all_genomes :
-                print("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
+                logger.info("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
                 current_genome += 1
                 indexes_queries = []
                 indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_").replace(".","_")+"_position IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_position`)")
@@ -337,10 +347,10 @@ def creer_index_chromosome_genomes():
                         tx.run(query)   
                 if current_genome % 5 == 0:
                     time.sleep(60*10)
-    print("Indexes created")
+    logger.info("Indexes created")
 
 
-
+@require_authorization
 def create_labels_chromosomes(liste_chromosomes=[]):
     all_chromosomes = []
     labels_queries = []
@@ -371,11 +381,11 @@ def create_labels_chromosomes(liste_chromosomes=[]):
         with driver.session() as session:
             with session.begin_transaction() as tx:
                 for query in labels_queries:
-                    print(query)
+                    #logger.debug(query)
                     tx.run(query)
 
 
-
+@require_authorization
 def creer_relations_batch(session, liste_relations):
     
     nb_transactions = ceil(len(liste_relations)/batch_size_BDD)
@@ -404,12 +414,13 @@ def creer_relations_batch(session, liste_relations):
 This function will create the nodes and their sequences (only name and sequence) in the neo4j database.
 Then it will create the indexes: kmer and relationships with the nodes.
 '''
+@require_authorization
 def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic):
     
     nb_transactions = ceil(len(nodes_dic)/batch_size_BDD)
     current_transaction = 0
     nodes_list = list(nodes_dic.keys())
-    print("Début de création des séquences en BDD")
+    logger.info("Start to create sequence into DB")
     with tqdm(total=len(nodes_dic)) as bar :
         while len(nodes_dic)-current_transaction*batch_size_BDD > 0:
             # Démarrer une transaction
@@ -417,7 +428,7 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
                 ind_depart = current_transaction*batch_size_BDD
                 nodes_list_transaction = nodes_list[ind_depart:ind_depart+min(batch_size_BDD, len(nodes_dic)-current_transaction*10000)]
     
-                print("Transaction " + str(current_transaction))
+                logger.debug("Transaction " + str(current_transaction))
                 for t in range(min(batch_size_BDD, len(nodes_dic)-current_transaction*batch_size_BDD)):
                     nc = nodes_list_transaction[t]
                     q = """
@@ -430,9 +441,9 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
                     )
                 bar.update(min(batch_size_BDD, len(nodes_dic)-current_transaction*batch_size_BDD))
                 current_transaction += 1
-    print("Fin de création des séquences en BDD")
+    logger.info("End of sequence creation into DB")
     liste_kmer = list(dic_kmer_relation.keys())
-    print("Début de création des indexes en BDD")
+    logger.info("Start of indexes creation")
     current_transaction = 0
     with tqdm(total=len(dic_kmer_relation)) as bar :
         while len(dic_kmer_relation)-current_transaction*batch_size_BDD > 0:
@@ -441,7 +452,7 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
                 ind_depart = current_transaction*batch_size_BDD
                 liste_kmer_transaction = liste_kmer[ind_depart:ind_depart+min(batch_size_BDD, len(dic_kmer_relation)-current_transaction*10000)]
     
-                print("Transaction " + str(current_transaction))
+                logger.debug("Transaction " + str(current_transaction))
                 for t in range(min(batch_size_BDD, len(dic_kmer_relation)-current_transaction*batch_size_BDD)):
                     kmer = liste_kmer_transaction[t]
                     q = """
@@ -459,7 +470,7 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
                     )
                 bar.update(min(batch_size_BDD, len(dic_kmer_relation)-current_transaction*batch_size_BDD))
                 current_transaction += 1
-    print("Fin de création des indexes en BDD")
+    logger.info("Indexes created into DB")
     return
 
 
@@ -468,6 +479,7 @@ def creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
 This function allows you to create nodes with the node sequence and its name.
 It also creates indexes (kmers and associated nodes).
 '''
+@require_authorization
 def load_sequences_and_indexes(gfa_file_name, kmer_size=31):
     nodes_dic = {}
     file = open(gfa_file_name, "r", encoding='utf-8')
@@ -501,6 +513,7 @@ def load_sequences_and_indexes(gfa_file_name, kmer_size=31):
 '''
 This function allows you to create nodes with the node sequence and name.
 '''
+@require_authorization
 #TODO : découper en lot le chargement des noeuds
 def load_sequences(gfa_file_name, chromosome_file = None, create=False, batch_size=20000000):
     nodes_dic = {}
@@ -528,12 +541,12 @@ def load_sequences(gfa_file_name, chromosome_file = None, create=False, batch_si
                             create_nodes_batch(session, nodes_dic, node_name="Sequence", create = create)
                         nodes_dic = {}
                     ligne = file.readline()
-        print("Sequences nodes computed in " + str(time.time()-start_time))
-        print("Creating sequences in DB : " + str(len(nodes_dic)) + " sequences to create")
+        logger.info("Sequences nodes computed in " + str(time.time()-start_time))
+        logger.info("Creating sequences in DB : " + str(len(nodes_dic)) + " sequences to create")
         if len(nodes_dic) > 0 :
             with driver.session() as session:
                 create_nodes_batch(session, nodes_dic, node_name="Sequence", create = create)
-    print("Sequences created. Total time : " + str(time.time()-start_time) + " s")
+    logger.info("Sequences created. Total time : " + str(time.time()-start_time) + " s")
     file.close()
     
     
@@ -639,6 +652,7 @@ Input:
               in other cases, it is better to set it to False
     - haplotype: indicates whether the sample name should be concatenated with the haplotype
 '''
+@require_authorization
 def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
     sep = ["[,;.*]", "(<|>)"]
     batch_nb = 0
@@ -670,7 +684,7 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                     nodes_size_dic[ligne_dec[1]]=int(len(ligne_dec[2]))
                     total_nodes += 1
             if ligne.startswith(('P',"W")):
-                print(ligne[0:80])
+                logger.debug(ligne[0:80])
                 total_path += 1
                 ligne_dec = ligne.split()
                 chromosome, genome = get_chromosome_genome(ligne, haplotype = haplotype, chromosome_file=chromosome_file)
@@ -699,22 +713,22 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
             for k in range(len(chromosomes_list)):
                 if chromosomes_list[k] == first_chromosome:
                     index_first_chromosme = k
-        print("Genomes number : " + str(len(set_all_genomes)) + " - chromosomes list : " + str(set_all_chromosomes))
+        logger.info("Genomes number : " + str(len(set_all_genomes)) + " - chromosomes list : " + str(set_all_chromosomes))
         #If create_only_relations is set to True then the nodes are not processed
         if not create_only_relations :
-            print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(first_chromosome))
+            logger.info("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(first_chromosome))
             for k in range(index_first_chromosme,len(chromosomes_list)) :
                 c = chromosomes_list[k]
                 nodes_set_chromosome = set(nodes_set_next_chromosome)
                 nodes_set_next_chromosome = set()
-                print("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
+                logger.debug("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
                 batch_nb = ceil(len(nodes_set_chromosome)/batch_size)
                 current_batch = 0
                 while current_batch < batch_nb :
                     temps_0_lot = time.time()
                     nodes_batch_set = set(list(nodes_set_chromosome)[current_batch*batch_size:min(len(nodes_set_chromosome),(current_batch+1)*batch_size)])
                     current_batch += 1
-                    print("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
+                    logger.debug("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
                     file.seek(0,0)
                     ligne = file.readline()
     
@@ -877,7 +891,7 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                             ligne = file.readline() 
                     nodes_list = None
                     #Flow computing
-                    print("\nSize of elements to create into DB : " + str(len(list(nodes_dic.items()))))
+                    logger.info("\nSize of elements to create into DB : " + str(len(list(nodes_dic.items()))))
                     if len(nodes_dic) > 0:
                         for node in nodes_dic:
                             nodes_dic[node]["flow"] = len(nodes_dic[node]["genomes"])/len(set_all_genomes)
@@ -888,9 +902,9 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                                 position_mean += nodes_dic[node][g+"_position"]
                             nodes_dic[node]["position_mean"] = int(position_mean/nb_genomes)
                     
-                        print("Time of batch analysis : "+ str(time.time()-temps_0_lot) + "\nTotal time : " + str(time.time()-temps_depart))
+                        logger.info("Time of batch analysis : "+ str(time.time()-temps_0_lot) + "\nTotal time : " + str(time.time()-temps_depart))
                         #Create batch nodes in DB
-                        print("Lot " + str(current_batch) + " : Creating nodes in DB")
+                        logger.info("Batch " + str(current_batch) + " : Creating nodes in DB")
                         with get_driver() as driver:
                             with driver.session() as session:
                                 create_nodes_batch(session, nodes_dic, create=create)
@@ -900,12 +914,12 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                         
             create_stats(set_genome, set_chromosome)
             nodes_size_dic = None
-            print("Nodes creation is terminated\nTotal time : " + str(time.time()-temps_depart) + "\nGenomes analysed : " + str(set_genome) + "\nNodes number : "+str(total_nodes) )
+            logger.info("Nodes creation is terminated\nTotal time : " + str(time.time()-temps_depart) + "\nGenomes analysed : " + str(set_genome) + "\nNodes number : "+str(total_nodes) )
         
         #Relationships are processed afterwards because node splitting does not guarantee that 
         #relationships will be created between the correct nodes in the event of duplicate nodes. 
         #Relationships will therefore be processed by chromosome.
-        print("\nStart relations")
+        logger.info("\nStart relations")
         
         set_relations = set()
         liste_relations = []
@@ -918,7 +932,7 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
             file.seek(0,0)
             ligne = file.readline()
             current_batch += 1
-            print("chromosome " + str(current_batch) + " / " + str(len(chromosomes_list)-index_first_chromosme))
+            logger.info("chromosome " + str(current_batch) + " / " + str(len(chromosomes_list)-index_first_chromosme))
             with tqdm(total=total_path) as bar3 :
                 while ligne:
                     ligne_dec = ligne.split()
@@ -973,17 +987,17 @@ def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_pre
                 liste_relations.append({"depart":rel.split("->")[0],"arrivee":rel.split("->")[1]})
             set_relations = set()
         
-            print("Batch : " + str(current_batch) + " relationships creation, number to create : " + str(len(liste_relations)))
+            logger.info("Batch : " + str(current_batch) + " relationships creation, number to create : " + str(len(liste_relations)))
             with get_driver() as driver:
                 with driver.session() as session:
                     creer_relations_batch(session, liste_relations)
             liste_relations = []
-        print("End of relationships creation\nTime : " + str(time.time()-temps_depart) + "\nNumberof relationships created : " + str(len(set_relations)))
+        logger.info("End of relationships creation\nTime : " + str(time.time()-temps_depart) + "\nNumberof relationships created : " + str(len(set_relations)))
         set_relations = set()
                                                    
     file.close()
 
-    print("treatment completed\nTotal time : "+ str(time.time()-temps_depart))
+    logger.info("treatment completed\nTotal time : "+ str(time.time()-temps_depart))
     return set_genome
 
 
@@ -1005,6 +1019,7 @@ def update_csv_line(csv_fields_index, dic_node, csv_line):
 #The sequences nodes are created too by this function
 #After the creation of the csv it is necessary to import them in the database
 #Important note : if start chromosome is not None and sequences csv file already exists, the sequences csv file won't be computed
+@require_authorization
 def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, haplotype = True):
     sep = ["[,;.*]", "(<|>)"]
     batch_nb = 0
@@ -1073,7 +1088,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             pos += 1
     else:
         csv_fields_index = {"id":0,"name":1, "max":2, "ref_node":3, "size" : 4, "chromosome"  : 5, "position_min":6, "position_max":7, "genomes":8, "strandP":9, "strandM": 10, "position_mean" : 11, "flow" : 12}
-    #print("csv field index : " + str(csv_fields_index))
+    #logger.debug("csv field index : " + str(csv_fields_index))
     with file:
         
         #First file browsing to get length, nodes and haplotypes
@@ -1092,7 +1107,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                         last_node_id += 1
                     total_nodes += 1
             if ligne.startswith(('P',"W")):
-                print(ligne[0:80])
+                logger.debug(ligne[0:80])
                 total_path += 1
                 ligne_dec = ligne.split()
                 chromosome, genome = get_chromosome_genome(ligne, haplotype = haplotype, chromosome_file=chromosome_file)
@@ -1140,8 +1155,8 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             for k in range(len(chromosomes_list)):
                 if chromosomes_list[k] == first_chromosome:
                     index_first_chromosme = k
-        print("Genomes number : " + str(len(set_all_genomes)) + " - genomes list : " + str(set_all_genomes) +  "- chromosomes list : " + str(set_all_chromosomes))
-        print("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(start_chromosome) + "\nstart index : " + str(node_id))
+        logger.info("Genomes number : " + str(len(set_all_genomes)) + " - genomes list : " + str(set_all_genomes) +  "- chromosomes list : " + str(set_all_chromosomes))
+        logger.info("Start parsing, nodes number : " + str(total_nodes) + "\nstart chromosome : " + str(start_chromosome) + "\nstart index : " + str(node_id))
         for k in range(index_first_chromosme,len(chromosomes_list)) :
             c = chromosomes_list[k]
             relations_repeat_nodes = {}
@@ -1150,7 +1165,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
             set_relations = set()
             nodes_set_chromosome = set(nodes_set_next_chromosome)
             nodes_set_next_chromosome = set()
-            print("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
+            logger.info("chromosome " + str(c) + " - number of nodes : " + str(len(nodes_set_chromosome)))
             batch_nb = ceil(len(nodes_set_chromosome)/batch_size)
             current_batch = 0
             while current_batch < batch_nb :
@@ -1158,7 +1173,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                 
                 nodes_batch_set = set(list(nodes_set_chromosome)[current_batch*batch_size:min(len(nodes_set_chromosome),(current_batch+1)*batch_size)])
                 current_batch += 1
-                print("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
+                logger.info("chromosome " + c + " batch " + str(current_batch) + "/"+str(batch_nb) + " nodes number : " + str(len(nodes_batch_set)))
                 #Relations for the chromosome are computed only on the last batch
                 if current_batch == batch_nb:
                     compute_relations_batch = True
@@ -1370,7 +1385,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                         ligne = file.readline() 
                 nodes_list = None
                 #Flow computing
-                print("\nSize of elements to create into csv : " + str(len(csv_nodes_lines)))
+                logger.info("\nSize of elements to create into csv : " + str(len(csv_nodes_lines)))
                 for line in csv_nodes_lines:
                     line[csv_fields_index["flow"]] = len(line[csv_fields_index["genomes"]])/len(set_all_genomes) if len(set_all_genomes) > 0 else 0
                     for idx in [csv_fields_index["genomes"],csv_fields_index["strandP"], csv_fields_index["strandM"]]:
@@ -1387,11 +1402,11 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                     
                     
         nodes_size_dic = None
-        print("Csv creation is terminated\nTotal time : " + str(time.time()-temps_depart) + "\nGenomes analysed : " + str(set_genome) + "\nNodes number : "+str(total_nodes) +"\nRelations number : " + str(total_relations))
+        logger.info("Csv creation is terminated\nTotal time : " + str(time.time()-temps_depart) + "\nGenomes analysed : " + str(set_genome) + "\nNodes number : "+str(total_nodes) +"\nRelations number : " + str(total_relations))
         
                                                 
     file.close()
-    print("Treatment completed\nTotal time : "+ str(time.time()-temps_depart))
+    logger.info("Treatment completed\nTotal time : "+ str(time.time()-temps_depart))
     return set_genome, chromosomes_list
 
 
@@ -1414,6 +1429,7 @@ def get_chromosome_annotation(annotation):
 
 
 #This function will create the Annotation nodes in the neo4j database from a gtf file, but without creating the relationships.
+@require_authorization
 def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotation", single_chromosome = None):
     temps_depart = time.time()
     file = open(annotations_file_name, "r", encoding='utf-8')
@@ -1541,23 +1557,23 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
 
                     
            
-            print("\nSize of elements to create in DB : " + str(len(list(nodes_dic.items()))))
+            logger.info("\nSize of elements to create in DB : " + str(len(list(nodes_dic.items()))))
 
-            print("Time for batch analyzing : "+ str(time.time()-temps_depart))
+            logger.info("Time for batch analyzing : "+ str(time.time()-temps_depart))
 
 
             with get_driver() as driver:
                 with driver.session() as session:
                     create_nodes_batch(session, nodes_dic, node_name=node_name)
 
-        print("Nodes created\nTime : " + str(time.time()-temps_depart))
+        logger.info("Nodes created\nTime : " + str(time.time()-temps_depart))
         #Fin des lots, on créé toutes les relations                                               
     file.close()
     
 
-    print("Annotation load terminated.\nTotal time : "+ str(time.time()-temps_depart))
+    logger.info("Annotation load terminated.\nTotal time : "+ str(time.time()-temps_depart))
 
-
+@require_authorization
 def process_annotation_simple_batch(tx, annotations, genome_ref):
     query = f"""
         UNWIND $annotations AS annot
@@ -1574,10 +1590,11 @@ def process_annotation_simple_batch(tx, annotations, genome_ref):
         MERGE (n1)-[:annotation_link]->(a1)
     """
 
-    #print(query)
+    #logger.debug(query)
 
     tx.run(query, annotations=annotations)
-    
+
+@require_authorization    
 def process_annotation_complex_batch(tx, annotations, genome_ref, annotation_search_limit=10000):
     
 
@@ -1603,13 +1620,13 @@ def process_annotation_complex_batch(tx, annotations, genome_ref, annotation_sea
     """
 
                 
-    #print(query)
+    #logger.debug(query)
     tx.run(query, annotations=annotations)
 
 
     
     
-    
+@require_authorization    
 def process_annotation_last_complex_batch(tx, genome_ref, annotation_search_limit=10000, batch_limit=10000):
 
     query="""
@@ -1650,6 +1667,7 @@ def process_annotation_last_complex_batch(tx, genome_ref, annotation_search_limi
 #- Complex relationships, where the start/end of an annotation lies between the start/end of a node
 #Parameters : 
 #   - genome_ref : only nodes on genome_ref will be analyzed, is None all annotations will be computed
+@require_authorization
 def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
     temps_depart = time.time()
     with get_driver() as driver:
@@ -1661,7 +1679,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
         with driver.session() as session:
             #Processing simple annotations: those for which the start is between the start and end of a node
             #this is the largest volume of annotations
-            print("Processing annotations")
+            logger.info("Processing annotations")
             i = 0
             last_name = None
             last_id = -1
@@ -1681,14 +1699,14 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
             else :
                 liste_genomes = [genome_ref]
 
-            print("Haplotypes list : " + str(liste_genomes))
+            logger.info("Haplotypes list : " + str(liste_genomes))
 
             for g in liste_genomes :
-                print(f"Linking annotation for genome {g}")
+                logger.info(f"Linking annotation for genome {g}")
                 query = f"""
                 MATCH (a:Annotation) where a.genome_ref = "{g}" return min(ID(a)) as min_id, max(ID(a)) as max_id
                 """
-                #print(query)
+                #logger.debug(query)
                 result = session.run(query)
                 for record in result:
                     min_id = record["min_id"]
@@ -1701,7 +1719,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                 i = 0
                 while current_id < max_id:
                     i+=1
-                    print("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
+                    logger.info("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
                     annotations_nb = 0
                     if chromosome is None :
                         annotations = session.run(
@@ -1730,26 +1748,26 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                     total_annotations += len(annotations)
                     if annotations and len(annotations) > 0:
                         with session.begin_transaction() as tx:
-                            #print("creating annotations batch " + str(i) + "/"+str(batch_number))
+                            #logger.info("creating annotations batch " + str(i) + "/"+str(batch_number))
                             process_annotation_simple_batch(tx,annotations, g)
-                            #print("creating complexe annotations")
+                            #logger.info("creating complexe annotations")
                             #Handling complex annotations: those for which the start and end of a node are before and after the annotation
                             #the volume is much lower (less than 1%)
                             process_annotation_complex_batch(tx, annotations, g, annotation_search_limit=10000)
                             tx.commit()
                     
-                    print("Annotations nb : " + str(annotations_nb) + " - Annotations already treated : " + str(total_annotations))
+                    logger.info("Annotations nb : " + str(annotations_nb) + " - Annotations already treated : " + str(total_annotations))
                     current_id += batch_size
             
             
             for g in all_genomes:
                 with session.begin_transaction() as tx:
-                    print(f"processing complex annotations for genome {g}")
+                    logger.info(f"processing complex annotations for genome {g}")
                     process_annotation_last_complex_batch(tx, g, annotation_search_limit=10000)
                     tx.commit()
     
     
-            # print("Processing complex annotations")
+            # logger.info("Processing complex annotations")
             # #Process complex annotations for nodes > annotation_search_limit
             # total_created = 0
             
@@ -1761,16 +1779,16 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
             # batch_nb = ceil((max_id-min_id)/batch_size) 
             # last_id = min_id
             # current_batch = 0
-            # print("min id : " + str(min_id) + " - max id : " + str(max_id))
+            # logger.info("min id : " + str(min_id) + " - max id : " + str(max_id))
             # while current_batch < batch_nb :
             #     current_batch += 1
-            #     print("batch " + str(current_batch) + "/"+str(batch_nb))
+            #     logger.info("batch " + str(current_batch) + "/"+str(batch_nb))
             #     created = session.execute_write(process_annotation_complexe_batch, last_id, genome_ref, batch_size)
             #     last_id += batch_size
             #     total_created += created
-            #     print(f"{created} relations créées.")
+            #     logger.info(f"{created} relations créées.")
 
-    print("End of relationships creation. Total time : " + str(time.time()-temps_depart))
+    logger.info("End of relationships creation. Total time : " + str(time.time()-temps_depart))
     
 
 
@@ -1778,30 +1796,32 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
 #If the gfa relate to a single chromosome, chromosome_file must contains the reference of this chromosome (1, 2, X, Y, etc.)
 #batch_size value is important to limit memory usage, according to the memory available it can be necessary to reduce this value for big pangenomes graphs.
 #genome_ref is required if an annotation_file_name is present : this name is used to link the annotations nodes with the main nodes of the graph.
+@require_authorization
 def construct_DB(gfa_file_name, annotation_file_name = None, genome_ref = None, chromosome_file = None, chromosome_prefix = False, batch_size = 2000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
     start_time = time.time()
     load_sequences(gfa_file_name, chromosome_file, create=create)
     sequence_time = time.time()
-    print("Sequences loaded in " + str(sequence_time-start_time) + " s")
+    logger.info("Sequences loaded in " + str(sequence_time-start_time) + " s")
     load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = chromosome_file,  chromosome_prefix = chromosome_prefix, batch_size = batch_size, create = create, start_chromosome = start_chromosome, haplotype=haplotype, create_only_relations=create_only_relations)
     graph_time = time.time()
-    print("Graph loaded in " + str(graph_time-sequence_time) + " s")
+    logger.info("Graph loaded in " + str(graph_time-sequence_time) + " s")
     create_indexes(base=False, extend=True, genomes_index=True)
     index_time = time.time()
-    print("Indexes created in " + str(index_time-graph_time) + " s")
+    logger.info("Indexes created in " + str(index_time-graph_time) + " s")
     if annotation_file_name != None and genome_ref != None :
         load_annotations_neo4j(annotation_file_name, genome_ref = genome_ref, single_chromosome = chromosome_file)
         annotation_time = time.time()
-        print("Annotations loaded in " + str(annotation_time-index_time) + " s")
+        logger.info("Annotations loaded in " + str(annotation_time-index_time) + " s")
         creer_relations_annotations_neo4j(genome_ref)
         annotation_relation_time = time.time()
-        print("Annotations relations loaded in " + str(annotation_relation_time-annotation_time) + " s")
-    print("Process terminated. BDD construct in " + str(time.time()-start_time) + " s")
+        logger.info("Annotations relations loaded in " + str(annotation_relation_time-annotation_time) + " s")
+    logger.info("Process terminated. BDD construct in " + str(time.time()-start_time) + " s")
 
 
 #This function load multiple gfa files : each file must relate to a single chromosome
 #The files must be named so that last character before .gfa extension contains the reference of the chromosome
 #Exmples : chr1.gfa, chr01.gfa, chromosome_1.gfa, exemple_chr_X.gfa, etc.
+@require_authorization
 def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None, genome_ref = None, chromosome_file = None, start_node = 0, batch_size = 5000000, create=False):
     start_time = time.time()
     for gfa_file_name in  os.listdir(gfa_chromosomes_dir):
@@ -1813,25 +1833,26 @@ def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None,
 
             chromosome = chromosome.lower().removeprefix("chr")
             chromosome = chromosome.lstrip("0")
-            print("Loading chromosome : " + str(chromosome))
+            logger.info("Loading chromosome : " + str(chromosome))
             if chromosome != "" :
                 load_sequences(gfa_file_name, chromosome_file=chromosome, create=create)
                 load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = chromosome_file, batch_size = batch_size, start_node = start_node, create = create)
     db_time = time.time()
-    print("Sequences loaded in " + str(db_time-start_time) + " s")
+    logger.info("Sequences loaded in " + str(db_time-start_time) + " s")
     create_indexes(base=False, extend=True, genomes_index=True)
     index_time = time.time()
-    print("Indexes created in " + str(index_time-graph_time) + " s")
+    logger.info("Indexes created in " + str(index_time-graph_time) + " s")
     if annotation_file_name != None and genome_ref != None :
         load_annotations_neo4j(annotation_file_name, genome_ref = genome_ref, single_chromosome = chromosome_file)
         annotation_time = time.time()
-        print("Annotations loaded in " + str(annotation_time-index_time) + " s")
+        logger.info("Annotations loaded in " + str(annotation_time-index_time) + " s")
         creer_relations_annotations_neo4j(genome_ref)
         annotation_relation_time = time.time()
-        print("Annotations relations loaded in " + str(annotation_relation_time-annotation_time) + " s")
-    print("Process terminated. BDD construct in " + str(time.time()-start_time) + " s")
+        logger.info("Annotations relations loaded in " + str(annotation_relation_time-annotation_time) + " s")
+    logger.info("Process terminated. BDD construct in " + str(time.time()-start_time) + " s")
 
 
+@require_authorization
 def delete_nodes(nodes_label, batch_size=100000):
     if get_driver() is None :
         return None
@@ -1849,7 +1870,7 @@ def delete_nodes(nodes_label, batch_size=100000):
                 if deleted == 0:
                     break
  
-                    
+@require_authorization                    
 def delete_relations(relation_label, batch_size=100000):
     if get_driver() is None :
         return None
@@ -1866,14 +1887,16 @@ def delete_relations(relation_label, batch_size=100000):
                 deleted = result.single()["deleted"]
                 if deleted == 0:
                     break
-            
-def contruire_sequences_et_indexes_bdd(gfa_file_name, kmer_size=31):
+
+@require_authorization            
+def construct_sequences_and_indexes(gfa_file_name, kmer_size=31):
     dic_kmer_relation, nodes_dic = load_sequences(gfa_file_name, kmer_size=31)
     with get_driver() as driver:
         with driver.session() as session:
             creer_sequences_et_indexes(session, dic_kmer_relation, kmer_size, nodes_dic)
             
-            
+
+@require_authorization            
 def load_multi_annotations():
     for annot_file_name in  os.listdir("/media/fgraziani/Genotoul/BDD/Neo4J/quercus/data/annotations"):
         if annot_file_name.endswith(".gff3"):
@@ -1883,6 +1906,6 @@ def load_multi_annotations():
                 hap = "hap"+str(g.split("_")[-1])
                 file_name = os.path.splitext(annot_file_name)[0].lower()
                 if genome_ref in file_name and hap in file_name:
-                    print(f"load annotation file {file_name} for genome ref {g}")
+                    logger.info(f"load annotation file {file_name} for genome ref {g}")
                     load_annotations_neo4j(os.path.join("/media/fgraziani/Genotoul/BDD/Neo4J/quercus/data/annotations",annot_file_name), genome_ref=g, node_name="Annotation")
             

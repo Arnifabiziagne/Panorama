@@ -23,6 +23,10 @@ from config import *
 import base64
 import io
 import shutil
+import logging
+
+
+logger = logging.getLogger("panorama_logger")
 
 
 PREFIX_CONTAINER_NAME = "DB_"+ DB_VERSION + "_"
@@ -54,6 +58,7 @@ def get_container_name_no_prefix(container_name):
         State('upload-gfa-data', 'last_modified'),
         prevent_initial_call=True
     )
+@require_authorization
 def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
         saved_files = []
@@ -82,6 +87,7 @@ def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
     State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
+@require_authorization
 def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFAULT_BATCH_SIZE):
     if not gfa_file_names:
         return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), no_update
@@ -122,10 +128,10 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFA
             file_path = os.path.join(GFA_FOLDER, file_name)
             load_sequences(file_path, chromosome_file=chromosome_file, create=True)
             load_gfa_data_to_neo4j(file_path, chromosome_file = chromosome_file, batch_size = batch_size, start_chromosome = None, create = True, haplotype = True, create_only_relations = False)
-        print(f"Graph from {file_name} loaded in {time.time() - start_time:.2f} s")
+        logger.info(f"Graph from {file_name} loaded in {time.time() - start_time:.2f} s")
 
     create_indexes(base=True, extend=True, genomes_index=True)
-    print("✅ All GFA files loaded.")
+    logger.info("✅ All GFA files loaded.")
 
     return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style), []
 
@@ -139,8 +145,9 @@ def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFA
     State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
+@require_authorization
 def on_click_csv_import(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFAULT_BATCH_SIZE):
-    print("generate import csv")
+    logger.info("generate import csv")
     if not gfa_file_names:
         return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), no_update
     
@@ -178,8 +185,8 @@ def on_click_csv_import(n_clicks, gfa_file_names, chromosome_file, batch_size=DE
         if chromosome_file != "" :
             file_path = os.path.join(GFA_FOLDER, file_name)
             load_gfa_data_to_csv(file_path, import_dir="./data/import", chromosome_file = chromosome_file, chromosome_prefix = False, batch_size = batch_size, start_chromosome = None, haplotype = True)
-        print(f"CSV generation from {file_name} loaded in {time.time() - start_time:.2f} s")
-    print("✅ All GFA files loaded.")
+        logger.info(f"CSV generation from {file_name} loaded in {time.time() - start_time:.2f} s")
+    logger.info("✅ All GFA files loaded.")
 
     return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style), []
 
@@ -189,10 +196,11 @@ def on_click_csv_import(n_clicks, gfa_file_names, chromosome_file, batch_size=DE
     Input("btn-create-index", "n_clicks"),
     prevent_initial_call=True
 )
+@require_authorization
 def on_click_create_index(n_clicks):
-    print("create indexes")
+    logger.info("create indexes")
     create_indexes(base=True, extend=True, genomes_index=True)
-    print("Indexes created")
+    logger.info("Indexes created")
     return html.Div(f"✅ Indexes creation command successfully done.", style=success_style)
 
 
@@ -201,10 +209,11 @@ def on_click_create_index(n_clicks):
     Input("btn-create-stats", "n_clicks"),
     prevent_initial_call=True
 )
+@require_authorization
 def on_click_create_index(n_clicks):
-    print("create stats")
+    logger.info("create stats")
     create_stats_from_nodes()
-    print("Stats created")
+    logger.info("Stats created")
     return html.Div(f"✅ Stats creation command successfully done.", style=success_style)
 
 
@@ -219,6 +228,7 @@ def on_click_create_index(n_clicks):
         State('upload-annotations-data', 'last_modified'),
         prevent_initial_call=True
     )
+@require_authorization
 def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
         saved_files = []
@@ -242,6 +252,7 @@ def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
     Input("dropdown-genome", "value"),
     prevent_initial_call=True
 )
+@require_authorization
 def clear_genome_error_on_selection(genome):
     if genome:
         return ""
@@ -259,11 +270,12 @@ def clear_genome_error_on_selection(genome):
     State('annotations-files-selector', 'value'),
     prevent_initial_call=True
 )
+@require_authorization
 def on_click_load_annotation(n_clicks_load_all, genome, annotation_file_names):
     triggered_id = ctx.triggered_id
     annotation_time = time.time()
-    print("annotations file names : " + str(annotation_file_names))
-    print("triggered id : " + str(triggered_id))
+    logger.info("annotations file names : " + str(annotation_file_names))
+    logger.info("triggered id : " + str(triggered_id))
     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
         if not annotation_file_names:
             return html.Div("❌ Please select an annotation file before loading.", style=error_style), no_update
@@ -285,7 +297,7 @@ def on_click_load_annotation(n_clicks_load_all, genome, annotation_file_names):
             return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gff, .gff3 or gtf files.", style=error_style), no_update
 
         for f in annotation_file_names:
-            print(f"Load annotations for file {f}")
+            logger.info(f"Load annotations for file {f}")
             state_index = check_state_index("NodeIndex"+genome+"_position")
             if state_index is None:
                 return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
@@ -294,12 +306,12 @@ def on_click_load_annotation(n_clicks_load_all, genome, annotation_file_names):
             file = os.path.join(ANNOTATIONS_FOLDER, f)
             annotation_time = time.time()
             load_annotations_neo4j(file, genome_ref = genome, single_chromosome = None)
-        print("Annotations loaded in " + str(time.time()-annotation_time) + " s.")
+        logger.info("Annotations loaded in " + str(time.time()-annotation_time) + " s.")
     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-link-annotations" :
-        print("Link annotations")
+        logger.info("Link annotations")
         annotation_relation_time = time.time()
         creer_relations_annotations_neo4j(genome)
-        print("Link annotations in " + str(time.time()-annotation_relation_time) + " s.")
+        logger.info("Link annotations in " + str(time.time()-annotation_relation_time) + " s.")
     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
         return html.Div(f"✅ Annotation '{annotation_file_names}' loaded for genome '{genome}'.", style=success_style), []
     else:
@@ -312,6 +324,7 @@ def on_click_load_annotation(n_clicks_load_all, genome, annotation_file_names):
     Input("btn-delete", "n_clicks"),
     prevent_initial_call=True
 )
+@require_authorization
 def delete_data_ask_confirmation(n_clicks):
     data_dir =  os.path.join(DATA_FOLDER, "databases/neo4j")
     transactions_dir = os.path.join(DATA_FOLDER,"transactions/neo4j")
@@ -328,14 +341,15 @@ def delete_data_ask_confirmation(n_clicks):
     Input("btn-confirm-delete", "n_clicks"),
     prevent_initial_call=True
 )
+@require_authorization
 def confirm_delete_data(n_clicks):
     if not n_clicks:
         raise exceptions.PreventUpdate
     data_dir =  os.path.join(DATA_FOLDER, "databases/neo4j")
     transactions_dir = os.path.join(DATA_FOLDER,"transactions/neo4j")
     stop_container()
-    print("Deleting " + str(data_dir) + " and " + str(transactions_dir) + " directories.")
-    print("exists : " +str(os.path.exists(data_dir)))
+    logger.info("Deleting " + str(data_dir) + " and " + str(transactions_dir) + " directories.")
+    logger.info("exists : " +str(os.path.exists(data_dir)))
     try:
         if os.path.exists(data_dir):
             shutil.rmtree(data_dir)
@@ -356,6 +370,7 @@ def confirm_delete_data(n_clicks):
     Output('db-management-page-store', 'data'),
     Input('db-management-page-store', 'data')
 )
+@require_authorization
 def update_label(data):
     if data is None :
         data = {}
@@ -378,6 +393,7 @@ def update_label(data):
 
     prevent_initial_call=True
 )
+@require_authorization
 def create_db_ask_confirmation(n_clicks):
     if n_clicks > 0:
         return html.Div([
@@ -398,8 +414,9 @@ def create_db_ask_confirmation(n_clicks):
     State('dropdown-genome', 'options'),
     prevent_initial_call=True
 )
+@require_authorization
 def confirm_create_db(n_clicks,container_name, docker_image, data, options):
-    print("container name : " + container_name)
+    logger.info("container name : " + container_name)
     if not n_clicks:
         raise exceptions.PreventUpdate
     if container_name is None or container_name == "":
@@ -414,16 +431,16 @@ def confirm_create_db(n_clicks,container_name, docker_image, data, options):
         creation_mode = create_db(container_name, docker_image)
         #If creation by importing csv files it is necessary to create stats and indexes
         if creation_mode == "csv" :
-            print("creating base indexes")
+            logger.info("creating base indexes")
             create_indexes(base=True, extend=True, genomes_index=False)
             if check_state_index("NodeIndexChromosome") is not None:
                 t = 0
                 while int(check_state_index("NodeIndexChromosome")) < 100 and t < MAX_TIME_INDEX:
                     time.sleep(10)
                     t+=10
-                print("creating stats")
+                logger.info("creating stats")
                 create_stats_from_nodes()
-            print("creating other indexes")    
+            logger.info("creating other indexes")    
             create_indexes(base=False, extend=False, genomes_index=True)
         genomes = get_genomes()
         options = []
@@ -441,6 +458,7 @@ def confirm_create_db(n_clicks,container_name, docker_image, data, options):
     State('db-management-page-store', 'data'),
     prevent_initial_call=True
 )
+@require_authorization
 def dump_db_callback(n_clicks, docker_image, data):
     if not n_clicks:
         raise exceptions.PreventUpdate

@@ -17,4 +17,5 @@ dependencies:
       - dash
       - dash-cytoscape
       - dash-bootstrap-components
+      - dash-auth
       - gunicorn

@@ -37,15 +37,52 @@ It allows the following functionalities :
   - For big pangenome, it is recommended to generate csv files before creation the database. In this case, on the DB management page, select the gfa file and click on "Generate CSV Import file". Once the csv are generated, click on "Create new DB".
   - To launch multiple neo4j instance, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
 
+### Logs
+
+Logs are displayed by default in the console and in file in the ./logs directory. To set the logs parameters, modify the following parameters in the ./conf.json file :
+    - "log_retention_days": define the number of days to keep the logs.
+    - "log_level":  set to DEBUG, INFO, WARNING or ERROR to display only the desired level of logs.
+    - "log_server": "console" (log only in console), "file" (log only in log file) or "both" (log in console and lof file, this is the default value).
+
 
 ## Quick pages description
   The menu allow to navigate on differents pages :
 
-  - DB management : this page is used only on the start to create DB and load data.
+  - DB management (available only in admin mode for server mode installation) : this page is used only on the start to create DB and load data.
   - Home page : page to vizualise data (by defining the chromosome, start and stop or genome and gene_name / gene_id).
   - GWAS : page to detect the nodes shared by a selection of haplotypes. It computes the list of identified regions that can be exported in csv. Sequence associated to a region can be seen by clicking on "size" column.
   - Phylogenetic : on left it is possible to load a reference phylogenetic tree. On right, by clicking on the "Plot tree..." button it computes the tree of the region defined in the Home page.
   - Sequences : by clicking on the button it computes the sequence for each haplotype of the region selected in the home page.
+
+
+## Server Mode Configuration
+
+In server mode, if the server is publicly accessible, it may be necessary to restrict access and disable administration and file upload features.  
+
+To do so, modify the configuration file (`./conf.json`):
+
+- Set the `"server_mode"` parameter to `true`.  
+- If temporary administration functions are needed (for example, for the initial data upload):  
+  - Set the `"admin_mode"` parameter to `true`.  
+  - In this case, the application will prompt for a username and password to access it.  
+  - This login information is defined in the `"admin_users"` field — you should update it with the desired credentials.  
+  - Once the data has been loaded, set `"admin_mode"` back to `false` to allow open access for all users.
+- To launch application, use the ./launch_gunicorn.sh (linux) script or launch_gunicorn.bat (windows)
+
+
+## Parameters file
+The parameter file is named ./conf.json. It contained the following parameters :
+    - "container_name": set by the application, it is the name of the docker container containing the neo4j DB.
+    - "http_port": the http port for the neo4j DB (by default : 7474).
+    - "bolt_port": the bolt port for the neo4j DB (by default 7687).
+    - "login": login to access neo4j DB (by default "neo4j"). If this value must be modify it is necessary to modify it first in neo4j configuration file.
+    - "password": password to access neo4j DB (by default "Administrateur"). If this value must be modify it is necessary to modify it first in neo4j.
+    - "server_mode": set to false for local installation and true for server installation. This will block the administration functionnalities and the upload file features.
+    - "admin_mode": only use in server mode. Set to false to block all administration functionnalities. If set to true then a login / password will be asked to access application.
+    - "admin_users": set the login / password to access application when admin_mode is set to true.
+    - "server_log_mode": "console", "file" or "both" to log into console, file or both.
+    - "log_retention_days": number of days to keep the log (7 days by default)
+    - "log_level": "DEBUG","INFO", "WARNING", "ERROR" => logs will be displayed only if their level is upper than this level.
 
 
 ## Manual installation

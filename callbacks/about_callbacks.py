@@ -15,6 +15,11 @@ from dash import html, Input, Output, callback, State, dcc
 from Bio.Seq import Seq
 from app import *
 from neo4j_requests import *
+from auth_utils import require_authorization
+import logging
+
+
+logger = logging.getLogger("panorama_logger")
 
 
 # Dépôt cible (format : "owner/repo")
@@ -25,7 +30,7 @@ panorama_dir = "."
 # URL de l'API pour la dernière release
 url = f"https://api.github.com/repos/{repo}/releases/latest"
 
-
+@require_authorization
 def copy_update_to_root():
     for root, dirs, files in os.walk(update_dir):
         rel_path = os.path.relpath(root, update_dir)
@@ -40,7 +45,7 @@ def copy_update_to_root():
 
     if os.path.exists(update_dir):
         shutil.rmtree(update_dir)
-    print("✅ The panorama update has been successfully completed. It is required to restart the server.")
+    logger.info("✅ The panorama update has been successfully completed. It is required to restart the server.")
 
 
 @app.callback(
@@ -48,6 +53,7 @@ def copy_update_to_root():
     Input('update-panorama-btn', 'n_clicks'),
     prevent_initial_call=True
 )
+@require_authorization
 def update_panorama(n_clicks):
 
     # Requête GET
@@ -60,15 +66,15 @@ def update_panorama(n_clicks):
         major_version = version.split(".")[0]
         if major_version == DB_VERSION.split(".")[0]:
 
-            print("Latest release found :", release["name"])
-            print("Tag :", release["tag_name"])
-            print("Publication date :", release["published_at"])
+            logger.info("Latest release found :", release["name"])
+            logger.info("Tag :", release["tag_name"])
+            logger.info("Publication date :", release["published_at"])
             zip_url = release.get("zipball_url")
-            print(f"Download zip file : {zip_url}")
+            logger.info(f"Download zip file : {zip_url}")
             
             r = requests.get(zip_url)
             if r.status_code != 200:
-                print(f"Error {r.status_code} while downloading")
+                logger.error(f"Error {r.status_code} while downloading")
                 exit(1)
             
             # Créer dossier update s'il n'existe pas
@@ -94,9 +100,9 @@ def update_panorama(n_clicks):
             copy_update_to_root()
             return html.Div(f"✅ The panorama update has been successfully completed. It is required to restart the server.")
         else:
-            print(f"Latest version {version} is not compatible with the current data. To use latest release it is required to regenerate data.")
+            logger.info(f"Latest version {version} is not compatible with the current data. To use latest release it is required to regenerate data.")
             return html.Div(f"❌ Latest version {version} is not compatible with the current data. To use latest release it is required to regenerate data.")
             
     else:
-        print("Error :", response.status_code)
+        logger.error("Error :", response.status_code)
         return html.Div(f"❌ Error : {response.status_code}")

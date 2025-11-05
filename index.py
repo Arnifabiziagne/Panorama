@@ -7,7 +7,8 @@ Created on Wed Jul  2 12:06:35 2025
 """
 
 from dash import dcc, html, Input, Output, State, ctx
-from app import app
+import dash_auth
+from app import *
 from sidebar import sidebar
 import signal
 import sys
@@ -26,26 +27,52 @@ import callbacks.about_callbacks
 
 from neo4j_requests import *
 from neo4j_container_management import *
+from config import *
+import logging
 
+
+logger = logging.getLogger("panorama_logger")
 
 #Limit upload size for gfa / annotations files to 10 Go
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024 * 1024
 
 
+
 #Limit upload size
 app.server.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE
+app.server.secret_key = "KEY_PANORAMA_96598421_CDEYUJH"
 
 def clean_exit(signum, frame):
-    print("\nStopping docker")
+    logger.info("\nStopping docker")
     stop_container()
     time.sleep(10)
-    print("\nPanorama stopped")
+    logger.info("\nPanorama stopped")
     sys.exit(0)
 
 # Close docker when quitting app
 signal.signal(signal.SIGINT, clean_exit)
 signal.signal(signal.SIGTERM, clean_exit)
 
+logger.info(f"Server mode : {SERVER_MODE} - Admin mode : {ADMIN_MODE}")
+
+if SERVER_MODE and ADMIN_MODE:
+    USERS = get_users()
+    auth = dash_auth.BasicAuth(app, USERS)
+    logger.info("🔒 Admin functionnalities and server mode = True → credentials needed")
+else:
+    logger.info("🔓 No Admin functionnalities or no server mode → public access")
+
+
+tabs = [
+    dcc.Tab(label='Home', value='/', className='custom-tab', selected_className='custom-tab--selected'),
+    dcc.Tab(label='Shared regions discovery', value='/gwas', className='custom-tab', selected_className='custom-tab--selected'),
+    dcc.Tab(label='Phylogenetic', value='/phylogenetic', className='custom-tab', selected_className='custom-tab--selected'),
+    dcc.Tab(label='Sequences', value='/sequences', className='custom-tab', selected_className='custom-tab--selected'),
+    dcc.Tab(label='About', value='/about', className='custom-tab', selected_className='custom-tab--selected'),
+]
+
+if not BLOCK_ADMIN_FUNCTIONNALITIES:
+    tabs.insert(-1, dcc.Tab(label='DB management', value='/db_management', className='custom-tab', selected_className='custom-tab--selected'))
 
 
 app.layout = html.Div([
@@ -60,14 +87,7 @@ app.layout = html.Div([
             dcc.Tabs(
                 id="tabs-navigation",
                 value="/",  # valeur par défaut (la page affichée au lancement)
-                children=[
-                    dcc.Tab(label='Home', value='/', className='custom-tab', selected_className='custom-tab--selected'),
-                    dcc.Tab(label='Shared regions finder', value='/gwas', className='custom-tab', selected_className='custom-tab--selected'),
-                    dcc.Tab(label='Phylogenetic', value='/phylogenetic', className='custom-tab', selected_className='custom-tab--selected'),
-                    dcc.Tab(label='Sequences', value='/sequences', className='custom-tab', selected_className='custom-tab--selected'),
-                    dcc.Tab(label='DB management', value='/db_management', className='custom-tab', selected_className='custom-tab--selected'),
-                    dcc.Tab(label='About', value='/about', className='custom-tab', selected_className='custom-tab--selected'),
-                ],
+                children=tabs,
             )
         ],
         style={"marginBottom": "20px"}
@@ -125,7 +145,7 @@ def init_data(pathname):
     new_data = {}
     all_genomes = get_genomes()
     all_genomes.sort()
-    #print("all genomes : " + str(all_genomes))
+    #logger.info("all genomes : " + str(all_genomes))
     new_data["genomes"] = all_genomes
     new_data["chromosomes"]  = get_chromosomes()
     return new_data
@@ -146,7 +166,7 @@ def update_url_from_tab(tab_value):
     Input("url", "pathname")
 )
 def display_page(pathname):
-    #print("callback routing " + str(pathname))
+    #logger.info("callback routing " + str(pathname))
     if pathname in ["/", "", None]:
         return home.layout()
     elif pathname == "/phylogenetic":
@@ -154,6 +174,8 @@ def display_page(pathname):
     elif pathname == "/gwas":
         return gwas.layout()
     elif pathname == "/db_management":
+        if BLOCK_ADMIN_FUNCTIONNALITIES:
+            return html.H3("🚫 Access denied — administration is disabled.", style={"color": "red"})
         return db_management.layout()
     elif pathname == "/sequences":
         return sequences.layout()

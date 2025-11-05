@@ -32,7 +32,10 @@ import numpy as np
 from Bio import Phylo
 from Bio.Seq import Seq
 import statistics
+import logging
 
+
+logger = logging.getLogger("panorama_logger")
 
 
 
@@ -44,7 +47,6 @@ max_bp_seeking = 800000
 max_nodes_number = 100000
 
 logging.getLogger("neo4j").setLevel(logging.ERROR)
-
 
 
 def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
@@ -171,7 +173,7 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
             # Step 1 : find the region
             if start is not None and end is not None :
                 genome_position = genome+"_position"
-                print("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome) + " - genome : " + str(genome))
+                logger.info("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome) + " - genome : " + str(genome))
 
                 anchor_start = get_anchor(genome, chromosome, start, before = True, use_anchor=use_anchor)
                 anchor_stop = get_anchor(genome, chromosome, end, before = False, use_anchor=use_anchor)
@@ -181,9 +183,9 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                         anchor_start_tmp = anchor_start
                         anchor_start = anchor_stop
                         anchor_stop = anchor_start_tmp
-                    print("Anchor start name : " + str(anchor_start["name"]))
-                    print("Anchor stop name : " + str(anchor_stop["name"]))
-                    print("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
+                    logger.debug("Anchor start name : " + str(anchor_start["name"]))
+                    logger.debug("Anchor stop name : " + str(anchor_stop["name"]))
+                    logger.debug("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
                 
                 if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] < max_bp_seeking and anchor_stop[genome_position] - anchor_start[genome_position] > 0 and len(anchor_start['genomes']) > 0 :
 
@@ -213,15 +215,15 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
 
                     
                     
-                    #print(query_genome)
+                    #logger.info(query_genome)
                     result = session.run(query_genome, start=start, end=end)
                     for record in result :
                         nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]} |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
                 else:
                     if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] >= max_bp_seeking :
-                        print(f"Region too wide : {anchor_stop[genome_position] - anchor_start[genome_position]}" )
+                        logger.warning(f"Region too wide : {anchor_stop[genome_position] - anchor_start[genome_position]}" )
                     else:
-                        print("Region not found")
+                        logger.warning("Region not found")
                     nodes_data = {}
 
             else:
@@ -241,13 +243,13 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                         for record in result:
                             nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]}  |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
                     else  :
-                        print("Region too wide")
+                        logger.warning("Region too wide")
                         nodes_data = {}
             if len(nodes_data) > 0 :
                 for elt in nodes_data:
                     nodes_data[elt]["annotations"] = list(nodes_data[elt]["annotations"])
                     nodes_data[elt]["features"] = list(nodes_data[elt]["features"])
-        print("Total time : " + str(time.time() - temps_depart))
+        logger.debug("Total time : " + str(time.time() - temps_depart))
         return nodes_data
 
 
@@ -265,14 +267,14 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
             genome_position = genome+"_position"
             # Step 1 : find nodes with gene annotation
             if gene_name is not None :
-                print("Looking for gene name : " + str(gene_name))
+                logger.info("Looking for gene name : " + str(gene_name))
                 query = f"""
                 MATCH (a:Annotation {{chromosome:"{chromosome}", gene_name: $gene_name}})<-[]-(n:Node)
                 RETURN DISTINCT n
                 ORDER BY n.`{genome_position}` ASC
                 """
                 result = session.run(query, gene_name=gene_name)
-                #print(query)
+                #logger.debug(query)
             else:
                 query = f"""
                 MATCH (a:Annotation {{chromosome:"{chromosome}", gene_id: $gene_id}})<-[]-(n:Node)
@@ -284,7 +286,7 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
             if len(noeuds_annotes) > 0 and genome_position in noeuds_annotes[0] and genome_position in noeuds_annotes[-1]:
                 start = noeuds_annotes[0][genome_position]
                 stop = noeuds_annotes[-1][genome_position] + noeuds_annotes[-1]["size"]
-                print(f"start : {start} - stop : {stop} - nodes number : {len(noeuds_annotes)}")
+                logger.debug(f"start : {start} - stop : {stop} - nodes number : {len(noeuds_annotes)}")
                 nodes_data = get_nodes_by_region(genome, chromosome, start, stop)
             
         return nodes_data
@@ -335,7 +337,7 @@ def get_annotations_in_position_range(genome_ref, chromosome="1", start_position
         # WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome_ref)+"""_position` >= $start AND n.`"""+str(genome_ref)+"""_position` <= $end and a.gene_name is not null and a.genome_ref = $genome_ref 
         # RETURN DISTINCT a.gene_id AS gene_id, a.gene_name AS gene_name, a.feature as feature
         # """
-        #print("Query : " + query)
+        #logger.info("Query : " + query)
         with driver.session() as session:
             result = session.run(query, start=start_position, end=end_position, genome_ref=genome_ref)
             annotations = [dict(record) for record in result]
@@ -443,7 +445,7 @@ def get_sequence_from_position(genome, chromosome, start, end):
                "{genome}" IN coalesce(n.strandM, []) AS strandM
                order by n.`{position_key}` ASC
             """
-            #print(query)
+            #logger.info(query)
             with driver.session() as session:
                 result = session.run(query)
                 sorted_names = []
@@ -512,7 +514,7 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
             WHERE n.chromosome = "{chromosome}" and n.`"""+str(genome)+"""_position` >= $genome_position AND $genome_ref in n.genomes
             return min(n.`"""+str(genome_ref)+"""_position`) as ref_position
             """
-        #print("Query : " + query)
+        #logger.info("Query : " + query)
         with driver.session() as session:
             result = session.run(query, genome_ref=genome_ref, genome_position=genome_position)
             for record in result :
@@ -539,10 +541,10 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
         tolerance_percentage = 100
     if min_deletion_percentage > 100:
         min_deletion_percentage = 100
-    print("node_min_size : " + str(node_min_size) + " node_max_size : " + str(node_max_size) + " deletion : " + str(deletion) + " min_percent_selected_genomes : "+ str(min_percent_selected_genomes) + " tolerance_percentage : " + str(tolerance_percentage) + " min deletion percentage : " + str(min_deletion_percentage))
+    logger.debug("node_min_size : " + str(node_min_size) + " node_max_size : " + str(node_max_size) + " deletion : " + str(deletion) + " min_percent_selected_genomes : "+ str(min_percent_selected_genomes) + " tolerance_percentage : " + str(tolerance_percentage) + " min deletion percentage : " + str(min_deletion_percentage))
     temps_depart = time.time()
     if (len(genomes_list) > 1):
-        print("finding shared regions for " + str(genomes_list))
+        logger.info("finding shared regions for " + str(genomes_list))
         with get_driver() as driver:
             with driver.session() as session:
                 query = """
@@ -565,13 +567,13 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 max_flow = nb_associated_genomes*(1+tolerance_percentage/100)/nb_genomes + 0.00000001
                 
 
-                print(f"genomes number : {nb_genomes} - min flow : {min_flow} - max flow : {max_flow} - min associated genomes : {min_associated_genomes}")
+                logger.debug(f"genomes number : {nb_genomes} - min flow : {min_flow} - max flow : {max_flow} - min associated genomes : {min_associated_genomes}")
                 if deletion:
                         min_unselected_genomes = max(1,int((nb_genomes - nb_associated_genomes) * min_deletion_percentage / 100))
                         global_min_flow_deletion = min(min_associated_genomes + min_unselected_genomes,nb_genomes)/nb_genomes - 0.00000001 
                         min_flow_deletion = min(1,((nb_genomes - nb_associated_genomes) * min_deletion_percentage / 100)/nb_genomes - 0.00000001)
                         max_flow_deletion = min(1, (nb_genomes - nb_associated_genomes)/nb_genomes) + 0.00000001
-                        print(f"Look for deletions with parameters : global min flow : {global_min_flow_deletion} - min flow : {min_flow_deletion} - max flow :  {max_flow_deletion}")
+                        logger.debug(f"Look for deletions with parameters : global min flow : {global_min_flow_deletion} - min flow : {min_flow_deletion} - max flow :  {max_flow_deletion}")
                 
                 if chromosomes != None :
                     chromosome_list = chromosomes
@@ -584,9 +586,9 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                 else :
                     genome_position_ref = genome_ref
                 
-                print(f"ref genome : {genome_ref}")
+                logger.debug(f"ref genome : {genome_ref}")
                 for c in chromosome_list :
-                    print("chromosome : " + str(c))
+                    logger.debug("chromosome : " + str(c))
                     dic_regions[c] = {}
                     #Looking for shared nodes
                     if node_max_size == 0:
@@ -614,7 +616,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                               AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
                             RETURN n AS nodes order by n.`{genome_position_ref}_position` ASC
                         """
-                    #print(query)
+                    #logger.debug(query)
                     dic_number_to_position = {}  
                     dic_number_to_size = {}
                     for g in genomes_list :
@@ -623,9 +625,9 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         dic_number_to_size[g] = {}
                         #query += ' AND "' + str(g) + '" IN n.genomes'
 
-                    #print(query)
+                    #logger.debug(query)
                     result1 = list(session.run(query, genomes_list=genomes_list))
-                    print("Nodes selected for chromosomes " + str(c) + " : " + str(len(result1)) + "\nTime : " + str(time.time()-time_0))
+                    logger.debug("Nodes selected for chromosomes " + str(c) + " : " + str(len(result1)) + "\nTime : " + str(time.time()-time_0))
                     if deletion :
 
                         # query = f"""
@@ -699,7 +701,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         
                         result2 = list(session.run(query, genomes_list=genomes_list))
                         result = result1 + result2
-                        print("Total Nodes selected for chromosome " + str(c) + " : " + str(len(result)) + "\nTime : " + str(time.time()-time_0))
+                        logger.debug("Total Nodes selected for chromosome " + str(c) + " : " + str(len(result)) + "\nTime : " + str(time.time()-time_0))
                     else:
                         result = result1
                     nb_regions_total += len(result)
@@ -855,7 +857,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 region_start = max(0, region_start-gap)
                                 region_stop = region_stop+gap
                             dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
-            print("Total number of regions : " +str(nb_regions_total))
+            logger.debug("Total number of regions : " +str(nb_regions_total))
             dic_regions_2 = {}
             for c, genomes in dic_regions.items():
                 for genome, valeur in genomes.items():
@@ -864,19 +866,19 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     dic_regions_2[genome][c] = valeur
 
             analyse = {}
-            print(f"genomes : {dic_regions_2.keys()}")
+            logger.debug(f"genomes : {dic_regions_2.keys()}")
             for g in tqdm(dic_regions_2):
-                print(f"genome : {g}")
+                logger.debug(f"genome : {g}")
                 analyse[g] = []
                 for c in dic_regions_2[g]:
-                    #print(f"genome : {g} - chromosome : {c} - regions number : {len(dic_regions_2[g][c]['regions'])}")
+                    #logger.debug(f"genome : {g} - chromosome : {c} - regions number : {len(dic_regions_2[g][c]['regions'])}")
                     for r in dic_regions_2[g][c]['regions']:
                         r["chromosome"] = c
                         r["genome"] = g
                         if (genome_ref is not None and g == genome_ref) or (genome_ref is None and g == genomes_list[0]) :
-                            #print("Search annotations")
+                            #logger.debug("Search annotations")
                             r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
-                            #print("Search annotation before")
+                            #logger.debug("Search annotation before")
                             annot_before_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["start"], before=True)
                             annot_tmp = {}
                             if annot_before_tmp is not None and "gene_name" in annot_before_tmp :
@@ -884,7 +886,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
                             r["annotation_before"] = annot_tmp
                             
-                            #print("Search annotation after")
+                            #logger.debug("Search annotation after")
                             annot_after_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["stop"], before=False)
                             annot_tmp = {}
                             if annot_after_tmp is not None and "gene_name" in annot_after_tmp :
@@ -930,7 +932,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
             for g in analyse:
                 analyse[g] = sorted(analyse[g], key=lambda d: d['shared_size'], reverse=True)
             
-            print("Total time : "+ str(time.time()-temps_depart))
+            logger.debug("Total time : "+ str(time.time()-temps_depart))
     return dic_regions_2, analyse
 
 
@@ -953,7 +955,7 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
             chromosomes = chromosome_list
   
         for chromosome in chromosomes:
-            print("Compute variability on chromosome " + str(chromosome))
+            logger.info("Compute variability on chromosome " + str(chromosome))
             query = f"""
             MATCH (n:Node)
             WHERE n.chromosome = "{chromosome}"
@@ -977,7 +979,7 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
         
             df = pd.DataFrame(data)
             if df.empty:
-                print(f"No data found for chromosome {chromosome}.")
+                logger.warning(f"No data found for chromosome {chromosome}.")
                 continue
         
             # Add window size and hover text
@@ -1011,7 +1013,7 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
             html_parts.append(pio.to_html(fig, include_plotlyjs='cdn', full_html=False))
         
         if not html_parts:
-            print("No graph computed.")
+            logger.warning("No graph computed.")
             return
         
         # Combine all graphs into a single HTML file
@@ -1021,7 +1023,7 @@ def calculer_variabilite(chromosome_list=None, ref_genome=None, window_size=1000
                 f.write(part + "<hr>\n")
             f.write("</body></html>")
         
-        print(f"Graphs stored into {output_html}")
+        logger.info(f"Graphs stored into {output_html}")
         file_path = os.path.abspath(output_html)
         webbrowser.open(f'file://{file_path}')
 
@@ -1111,7 +1113,7 @@ def compute_phylo_tree_from_nodes(nodes_data,output_dir = "", weighted=False):
     
     
     newick_tree = tree.format('newick')
-    #print(newick_tree)
+    #logger.debug(newick_tree)
     return newick_tree
             
 
@@ -1176,7 +1178,7 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
             return count(*) as total_nodes_number
             """
         else:
-            print(f"Chromosome : {chromosome}")
+            logger.debug(f"Chromosome : {chromosome}")
             query = f"""
             MATCH (n:Node)
             where n.chromosome = '{chromosome}'
@@ -1233,7 +1235,7 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
                 nodes_list.append(dict(record["nodes"]))
         
         
-        print(f"Number of sampled nodes : {sample_nodes_number} - Total node {total_nodes_number}")
+        logger.info(f"Number of sampled nodes : {sample_nodes_number} - Total node {total_nodes_number}")
         sample_size = len(nodes_list)
         if sample_size >= min_sample_size :
             #Prepare PAV matrix
@@ -1379,7 +1381,7 @@ def compute_distance_matrix(distance_matrix_filename = "distances.csv", chromoso
             
         for r in result_size_genomes:
             dic_size_genome[r["genome"]] = r["total_size"]
-        print(dic_size_genome)
+        logger.debug(dic_size_genome)
         for r in result_intersection:
             g1 = r["g1"]
             g2 = r["g2"]
@@ -1389,7 +1391,7 @@ def compute_distance_matrix(distance_matrix_filename = "distances.csv", chromoso
                 
                 
         distance_matrix.to_csv(distance_matrix_filename)   
-        print("Total time : "+ str(time.time()-temps_depart))
+        logger.debug("Total time : "+ str(time.time()-temps_depart))
     return distance_matrix
 
 

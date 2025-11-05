@@ -9,7 +9,10 @@ Created on Wed Jul  2 13:52:04 2025
 
 import dash_cytoscape as cyto
 from dash import Dash, html,callback, dcc
+import logging
 
+
+logger = logging.getLogger("panorama_logger")
 
 stylesheet = [
     {
@@ -133,6 +136,7 @@ def layout():
         html.Div([
             html.Button("Plot tree of selected region", title="Before using this button, data must be displayed on home page. If data are displayed, then this will computes the phylogenetic tree of displayed haplotypes (see help for details).",style={'margin-right': '15px'}, id="btn-plot-region"),
             html.Button("Save tree", title="Tree will be saved into newick format.", id="btn-save-tree"),
+            dcc.Download(id="download-tree"),
             dcc.Loading(
                 id="loading-phylogenetic-msg",
                 type="circle",

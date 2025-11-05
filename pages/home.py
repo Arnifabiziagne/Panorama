@@ -19,7 +19,12 @@ import json
 from app import *
 
 import os
+from io import BytesIO
 import base64
+import logging
+
+
+logger = logging.getLogger("panorama_logger")
 
 cyto.load_extra_layouts()
 
@@ -148,7 +153,7 @@ def get_color_palette(n):
 
 
 def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_genomes, all_chromosomes, specifics_genomes=None, color_genomes=[], x_max=1000, y_max=1000, labels=True, min_shared_genome=100, tolerance=0, color_shared_regions=DEFAULT_SHARED_REGION_COLOR, exons=False, exons_color=DEFAULT_EXONS_COLOR):
-    print(f"Ref genome {ref_genome}")
+    logger.debug(f"Ref genome {ref_genome}")
     if data != None and len(data) > 0:
         if ref_genome is not None and ref_genome != "":
             position_field = ref_genome+"_position"
@@ -349,7 +354,7 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
                             }
                         })
                         i += 1
-        print("nb nodes : " + str(len(nodes)) +
+        logger.debug("nb nodes : " + str(len(nodes)) +
               " - nb edges : " + str(len(edges)))
         return nodes + edges
     else:
@@ -535,6 +540,7 @@ def layout(data=None, initial_size_limit=10):
                                     style={"marginLeft": "10px"}),
                         html.Button("as png", id="btn-save-png",
                                     style={"marginLeft": "10px"}),
+                        dcc.Download(id="download-graph"),
                         # html.Button("as svg", id="btn-save-svg", style={"marginLeft":"10px"}),
                         html.Div(id="dummy-output")
                     ]),
@@ -851,7 +857,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     start_value = None
     end_value = None
     triggered_id = ctx.triggered_id
-    print(f"{triggered_id} update")
+    logger.debug(f"{triggered_id} update")
     if home_data_storage is None:
         home_data_storage = {}
     if home_data_storage is not None and 'slider_value' in home_data_storage:
@@ -870,16 +876,21 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     if start is not None:
         home_data_storage["start"] = start
         start_value = start
+    # elif "start" in home_data_storage:
+    #     start_value = home_data_storage["start"] 
     if end is not None:
         home_data_storage["end"] = end
         end_value = end
-    if gene_name is not None:
+    # elif "end" in home_data_storage:
+    #     end_value = home_data_storage["end"]
+        
+    if gene_name is not None and gene_name != "":
         home_data_storage["gene_name"] = gene_name
         home_data_storage["start"] = None
         home_data_storage["end"] = None
         start_value = None
         end_value = None
-    if gene_id is not None:
+    if gene_id is not None and gene_id != "":
         home_data_storage["gene_id"] = gene_id
         home_data_storage["start"] = None
         home_data_storage["end"] = None
@@ -912,9 +923,9 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             home_data_storage["start"] = start_value
             end_value = max(selected_positions)
             home_data_storage["end"] = end_value
-            print(f"Zoom - start : {start_value} - end : {end_value}")
+            logger.debug(f"Zoom - start : {start_value} - end : {end_value}")
         else:
-            print(f"No position found in the selected nodes for the reference genome {genome}")
+            logger.debug(f"No position found in the selected nodes for the reference genome {genome}")
 
     if triggered_id == "btn-zoom-out":
         if "start" in home_data_storage and home_data_storage["start"] is not None \
@@ -925,14 +936,14 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             home_data_storage["end"] = end_value
     if triggered_id == "btn-reset-zoom":
         if len(zoom_shared_storage_out) > 0:
-            print(f"reset zoom to {zoom_shared_storage_out['start']} - {zoom_shared_storage_out['end']}")
+            logger.debug(f"reset zoom to {zoom_shared_storage_out['start']} - {zoom_shared_storage_out['end']}")
             start_value = zoom_shared_storage_out["start"]
             end_value = zoom_shared_storage_out["end"]
             zoom_shared_storage_out = {}
             home_data_storage["start"] = start_value
             home_data_storage["end"] = end_value
 
-    print("update graph : " + str(ctx.triggered[0]['prop_id']))
+    logger.debug("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
     if shared_mode and 'shared' in shared_mode:
         specifics_genomes_list = specifics_genomes
@@ -960,7 +971,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             new_data = get_nodes_by_region(
                     genome, chromosome=chromosome, start=start_value, end=end_value, use_anchor=use_anchor)
             data_storage_nodes = new_data
-            print("len new_data : " + str(len(new_data)))
+            logger.debug("len new_data : " + str(len(new_data)))
         else:
             if ((gene_name is not None and gene_name != "") or (gene_id is not None and gene_id != "")) and chromosome is not None:
                 if gene_name is not None and gene_name != "":
@@ -982,7 +993,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             message=html.Div("❌ No data found.", style=warning_style)
 
     else:
-        print(f"min node size : {size_slider_val}")
+        logger.debug(f"min node size : {size_slider_val}")
         elements = compute_graph_elements(data_storage_nodes, genome, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
                                           color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
                                           tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
@@ -1096,7 +1107,7 @@ def update_parameters_on_page_load(pathname, search, data, options_genomes, opti
     #?haplotype=Korso_0&chromosome=1&start=100000&end=1090000
     no_query_params = True
     if search:
-        print(f"Query params {search}")
+        logger.debug(f"Query params {search}")
         params = parse_qs(urlparse(search).query)
         url_hap = params.get('haplotype', [None])[0]
         url_chromosome = (
@@ -1120,9 +1131,9 @@ def update_parameters_on_page_load(pathname, search, data, options_genomes, opti
                 end_input = int(url_end)
             update_graph_command_storage = {"url_hap":url_hap, "url_chromosome":url_chromosome, "url_gene_name":url_gene_name, 
                                             "url_gene_id":url_gene_id, "url_start":url_start, "url_end":url_end}
-            print(update_graph_command_storage)
+            logger.debug(update_graph_command_storage)
     if no_query_params :
-        print("No query params")
+        logger.debug("No query params")
         if "selected_genome" in data:
             selected_genome = data["selected_genome"]
         else:
@@ -1180,11 +1191,13 @@ def toggle_layout(layout_choice):
 ######## download graph callbacks ###############
 @app.callback(
     Output('dummy-output', 'children'),
+    Output("download-graph", "data", allow_duplicate=True),
     Input('graph', 'imageData'),
     State('chromosomes-dropdown', 'value'),
     State('genomes-dropdown', 'value'),
     State('start-input', 'value'),
-    State('end-input', 'value')
+    State('end-input', 'value'),
+    prevent_initial_call=True
 )
 def save_image_to_file(image_data, chromosome, genome, start, end):
     if not image_data:
@@ -1207,15 +1220,15 @@ def save_image_to_file(image_data, chromosome, genome, start, end):
 
     file_name = "graph_"+str(genome)+"_chr_"+str(chromosome) + \
         "_start_"+str(start)+"_end_"+str(end)+"."+ext
-    save_path = os.path.join(os.getcwd(), EXPORT_DIR, file_name)
-    # Décode les données base64 en bytes
     image_bytes = base64.b64decode(base64_data)
-
-    # Enregistre dans un fichier
-    with open(save_path, 'wb') as f:
-        f.write(image_bytes)
-
-    return f"Image downloaded in {save_path}"
+    if not SERVER_MODE:
+        save_path = os.path.join(os.getcwd(), EXPORT_DIR, file_name)
+        with open(save_path, 'wb') as f:
+            f.write(image_bytes)
+    
+        return f"Image downloaded in {save_path}", None
+    else:
+        return "File downloaded.", dcc.send_bytes(lambda io: io.write(image_bytes), file_name)
 
 
 @app.callback(

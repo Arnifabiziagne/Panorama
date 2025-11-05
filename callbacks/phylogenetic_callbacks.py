@@ -22,6 +22,10 @@ if root_path not in sys.path:
     sys.path.append(root_path)
 from app import *
 from neo4j_requests import *
+import logging
+
+
+logger = logging.getLogger("panorama_logger")
 
 EXPORT_DIR = "./export/phylo/"
 
@@ -210,14 +214,14 @@ def update_phylo_graph(contents, n_clicks_global_tree, filename, chromosome, pĥ
         if contents is None:
             return [], "Aucun fichier chargé.","", pĥylo_data
     
-            content_type, content_string = contents.split(',')
-            decoded = base64.b64decode(content_string)
-            
-            try:
-                newick_str = decoded.decode('utf-8')
-                status = f"File '{filename}' successfully load."
-            except Exception as e:
-                return [], f"Parsing error : {str(e)}"
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+        
+        try:
+            newick_str = decoded.decode('utf-8')
+            status = f"File '{filename}' successfully load."
+        except Exception as e:
+            return [], f"Parsing error : {str(e)}"
     if newick_str is not None and newick_str != "":
         elements = generate_elements(newick_str)
         if pĥylo_data is None:
@@ -285,7 +289,7 @@ def plot_region(n_clicks, stored_data, phylo_data):
         return elements, "", phylo_data
     
     except Exception as e:
-        print(f"Error while computing tree : {e}")
+        logger.error(f"Error while computing tree : {e}")
         return [], html.Div(f"❌ Error while computing tree : {e}", style=error_style), phylo_data
     
     
@@ -293,20 +297,24 @@ def plot_region(n_clicks, stored_data, phylo_data):
 
 @app.callback(
     Output("phylogenetic-message", "children", allow_duplicate=True),
+    Output("download-tree", "data", allow_duplicate=True),
     Input('btn-save-tree', 'n_clicks'),
     State("phylogenetic-page-store", "data"),
     prevent_initial_call=True
 )
 def save_tree(n_clicks, phylo_data):
-    if len(phylo_data):
+    if not phylo_data or "newick_region" not in phylo_data or not phylo_data["newick_region"]:
+        return "No data to save", None
+
+    newick_content = phylo_data["newick_region"]
+    if not SERVER_MODE:
         save_path = os.path.join(os.getcwd(), EXPORT_DIR, "tree.nwk")
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         with open(save_path, "w", encoding="utf-8") as f:
-            f.write(phylo_data["newick_region"])
-    
-        return f"File saved : {save_path}"
+            f.write(newick_content)
+        return f"File saved : {save_path}", None
     else:
-        return f"No data to save"
+        return "File downloaded.", dcc.send_string(newick_content, "tree.nwk")
     
     
 @app.callback(

@@ -13,13 +13,17 @@ import json
 import time
 
 from config import *
+from auth_utils import require_authorization
+import logging
 
+
+logger = logging.getLogger("panorama_logger")
 
 # --- CONSTANTES ---
 DOCKER_IMAGE = "neo4j:2025.05-community-bullseye"
 NEO4J_BASE_DIR = os.path.abspath("./data")
 CONF_SOURCE_FILE = os.path.abspath("./neo4j_install/conf/neo4j.conf")
-CONF_FILE = os.path.abspath("./db_conf.json")
+CONF_FILE = os.path.abspath("./conf.json")
 DOCKER_COMPOSE_CONF_PATH = os.path.abspath("./docker-compose.yml")
 IMPORT_DIR = os.path.abspath("./data/import")
 DUMP_FILE = os.path.join(IMPORT_DIR, "neo4j.dump")
@@ -37,11 +41,12 @@ NEO4J_PASSWORD = "Administrateur"
 
 MAX_TIME_INDEX = 7200
 
+@require_authorization
 def prepare_data_directories_in_container():
     """
     Ensure /data/databases/neo4j exists inside the container (run as root to avoid permission issues).
     """
-    print("🛠️ Preparing data directories inside container...")
+    logger.info("🛠️ Preparing data directories inside container...")
     subprocess.run([
         "docker", "run", "--rm",
         "--user=root",  # 👈 important
@@ -50,14 +55,16 @@ def prepare_data_directories_in_container():
         "bash", "-c", "mkdir -p /data/databases/neo4j"
     ], check=True)
 
+@require_authorization
 def remove_directories():
     for folder in ["data", "logs", "plugins"]:
         path = os.path.join(NEO4J_BASE_DIR, folder)
         if os.path.exists(path):
             shutil.rmtree(path)
 
+@require_authorization
 def import_dump():
-    print("📂 Importing dump...")
+    logger.info("📂 Importing dump...")
     prepare_data_directories_in_container()
     subprocess.run([
         "docker", "run", "--rm",
@@ -74,9 +81,9 @@ def import_dump():
     ], check=True)
 
 
-
+@require_authorization
 def import_csv():
-    print(f"📂 Importing CSV - data dir : {NEO4J_BASE_DIR}/data ...")
+    logger.info(f"📂 Importing CSV - data dir : {NEO4J_BASE_DIR}/data ...")
     prepare_data_directories_in_container()
     subprocess.run([
         "docker", "run", "--rm",
@@ -96,6 +103,8 @@ def import_csv():
 
 
 def start_container():
+    if not os.path.exists(CONF_FILE):
+        check_conf_file()
     if os.path.exists(CONF_FILE):
         with open(CONF_FILE) as f:
             conf = json.load(f)
@@ -119,7 +128,7 @@ def start_container():
         HTTP_PORT = int(conf["http_port"])
         BOLT_PORT = int(conf["bolt_port"])
         NEO4J_AUTH = conf["login"]+"/"+conf["password"]
-        print("🚀 Starting Neo4j container...")
+        logger.info("🚀 Starting Neo4j container...")
         subprocess.run([
             "docker", "run", "-d",
             "--name", container_name,
@@ -140,26 +149,37 @@ def start_container():
         ], check=True)
     
         time.sleep(10)
-        print(f"✅ Neo4j {container_name} is ready!")
-        print(f"🌍 HTTP: http://localhost:{HTTP_PORT}")
-        print(f"🔗 BOLT: bolt://localhost:{BOLT_PORT}")
+        logger.info(f"✅ Neo4j {container_name} is ready!")
+        logger.info(f"🌍 HTTP: http://localhost:{HTTP_PORT}")
+        logger.info(f"🔗 BOLT: bolt://localhost:{BOLT_PORT}")
         return True
 
+@require_authorization
 def write_config(container_name, HTTP_PORT=7474, BOLT_PORT=7687):
-    print(f"write conf {container_name}")
+    logger.info(f"write conf {container_name}")
     with open(CONF_FILE, "w") as f:
         json.dump({
             "container_name": container_name,
             "http_port": HTTP_PORT,
             "bolt_port": BOLT_PORT,
             "login": NEO4J_LOGIN,
-            "password": NEO4J_PASSWORD
+            "password": NEO4J_PASSWORD,
+            "server_mode":"false",
+            "admin_mode":"false",
+            "admin_users":{
+                "admin": "1234"
+            },
+            "server_log_mode":"both",
+            "log_retention_days":7,
+            "log_level":"DEBUG"
         }, f, indent=2)
         
             
 
 
 def stop_container(container_name=None):
+    if not os.path.exists(CONF_FILE):
+        check_conf_file()
     if container_name == None:
         with open(CONF_FILE) as f:
             conf = json.load(f)
@@ -178,13 +198,12 @@ def stop_container(container_name=None):
         existing_containers = result.stdout.strip().splitlines()
 
         if container_name in existing_containers:
-            print(f"🛑 Stopping existing container: {container_name}")
+            logger.info(f"🛑 Stopping existing container: {container_name}")
             subprocess.run(["docker", "stop", container_name], check=True)
         else:
-            print(f"ℹ️ Container '{container_name}' does not exist. Nothing to do.")
+            logger.info(f"ℹ️ Container '{container_name}' does not exist. Nothing to do.")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error while stopping/removing container: {e}")
-
+        logger.error(f"❌ Error while stopping/removing container: {e}")
 
 
 
@@ -202,22 +221,23 @@ def remove_container(container_name: str):
         existing_containers = result.stdout.strip().splitlines()
 
         if container_name in existing_containers:
-            print(f"Stopping and removing existing container: {container_name}")
+            logger.info(f"Stopping and removing existing container: {container_name}")
             subprocess.run(["docker", "rm", "-f", container_name], check=True)
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error while stopping/removing container: {e}")
+        logger.error(f"❌ Error while stopping/removing container: {e}")
 
 #This function create a docker neo4j database
 #If a dump file exists in ./data/import directory it will load the data into database
 #If no dump but nodes.csv, sequences.csv and relations.csv exists in ./data/import directory it will load these data into database
 #In other cases it will create an empty database
+@require_authorization
 def create_db(container_name, docker_image=DOCKER_IMAGE):
     creation_mode = "empty" 
     csv_import_mode = False
     
     if docker_image is not None :
         DOCKER_IMAGE = docker_image
-    print(f"🔧 Creating database for container '{container_name}' with {DOCKER_IMAGE} neo4j image")
+    logger.info(f"🔧 Creating database for container '{container_name}' with {DOCKER_IMAGE} neo4j image")
     
     
     
@@ -237,18 +257,18 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
     # copy conf file
     if os.path.isfile(CONF_SOURCE_FILE):
         shutil.copy(CONF_SOURCE_FILE, os.path.join(NEO4J_BASE_DIR, "conf"))
-        print("🔧 Config file copied")
+        logger.info("🔧 Config file copied")
     else:
-        print(f"⚠️ Config file {CONF_SOURCE_FILE} not found")
+        logger.warning(f"⚠️ Config file {CONF_SOURCE_FILE} not found")
     
     # --- Import via dump ---
     if os.path.isfile(DUMP_FILE):
-        print("📥 Detected dump file for import")
+        logger.info("📥 Detected dump file for import")
         import_dump()
     
     # --- Import via CSV ---
     elif os.path.isfile(csv_nodes) and os.path.isfile(csv_relations) and os.path.isfile(csv_sequences):
-        print("📥 Detected CSV files for import")
+        logger.info("📥 Detected CSV files for import")
         import_csv()
         csv_import_mode = True
     # --- New databse creation --- #
@@ -260,7 +280,7 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
     
     
     # Save container conf in db_conj.json
-    print(f"writing conf for container name : {container_name}")
+    logger.info(f"writing conf for container name : {container_name}")
     write_config(container_name)
     
     # Launch the container
@@ -273,11 +293,9 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
     return creation_mode
 
 
-    
-    
-    
+@require_authorization    
 def dump_db(container_name, docker_image=DOCKER_IMAGE):
-    print("📦 Creating Neo4j dump...")
+    logger.info("📦 Creating Neo4j dump...")
     if docker_image is not None :
         DOCKER_IMAGE = docker_image
     # Stop container
@@ -298,8 +316,8 @@ def dump_db(container_name, docker_image=DOCKER_IMAGE):
             f"--to-path=/import"
         ], check=True)
 
-        print(f"✅ Dump successfully created at: {os.path.join(IMPORT_DIR, 'neo4j.dump')}")
+        logger.info(f"✅ Dump successfully created at: {os.path.join(IMPORT_DIR, 'neo4j.dump')}")
         start_container()
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to create dump: {e}")
+        logger.error(f"❌ Failed to create dump: {e}")

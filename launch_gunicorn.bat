@@ -51,7 +51,8 @@ IF ERRORLEVEL 1 (
 
 :: --- Lancer l'application Dash ---
 echo Launching Panorama on port %DASH_PORT%...
-python index.py --port %DASH_PORT%
+python -m gunicorn wsgi:application -w 4 -b 0.0.0.0:%DASH_PORT% --timeout 260000 --config gunicorn_config.py --preload
+
 IF ERRORLEVEL 1 (
     echo Error when executing index.py
     EXIT /B 1

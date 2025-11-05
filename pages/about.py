@@ -10,7 +10,7 @@ Created on Wed Jul  2 13:52:04 2025
 import dash_cytoscape as cyto
 from dash import Dash, html,callback, dcc
 
-from app import DB_VERSION
+from app import DB_VERSION, BLOCK_ADMIN_FUNCTIONNALITIES
 
 
 
@@ -44,7 +44,7 @@ def layout():
                             html.Li("The database can be used from back office python functions." ),
                         ])
             ]),
-            html.Button("Update Panorama", id='update-panorama-btn', n_clicks=0, style={'margin': '15px 0'}),
+            None if BLOCK_ADMIN_FUNCTIONNALITIES else html.Button("Update Panorama", id='update-panorama-btn', n_clicks=0, style={'margin': '15px 0'}),
             dcc.Loading(
                 id="update-panorama",
                 type="default", 

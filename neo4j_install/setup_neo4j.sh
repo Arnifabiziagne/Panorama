@@ -7,7 +7,7 @@ set -euo pipefail
 DOCKER_IMAGE="neo4j:2025.05-community-bullseye"
 HTTP_PORT="7474"
 BOLT_PORT="7687"
-CONF_FILE="../db_conf.json"
+CONF_FILE="../conf.json"
 NEO4J_BASE_DIR="../data"
 MAX_MEM="24g"
 MAX_SWAP="25g"

@@ -15,10 +15,14 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-from app import app
+from app import *
 from neo4j_requests import *
 import base64
 import io
+import logging
+
+
+logger = logging.getLogger("panorama_logger")
 
 EXPORT_DIR = "./export/gwas/"
 
@@ -31,7 +35,7 @@ def update_genome_checkboxes(data):
     
     if not data or "genomes" not in data:
         return []
-    #print("update data : " + str(data))
+    #logger.info("update data : " + str(data))
     return [{'label': genome, 'value': genome} for genome in data['genomes']]
 
 
@@ -121,10 +125,10 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         #             r += 1
         #         i += 1
         # else:
-            #print(f"Genome ref : {ref_genome}")
+            #logger.info(f"Genome ref : {ref_genome}")
         analyse_to_plot = analyse[ref_genome]
                 
-        #print("analyse to plot : " + str(analyse_to_plot))
+        #logger.info("analyse to plot : " + str(analyse_to_plot))
         
         for r in range(len(analyse_to_plot)):
             annotation = ""
@@ -171,14 +175,14 @@ def handle_row_selection(selected_rows, table_data, data, home_page_data):
         home_page_data = {}
     if not selected_rows:
         return no_update, data, redirect, home_page_data, "",redirect
-    print(table_data[selected_rows[0]])
+    logger.debug(table_data[selected_rows[0]])
     row = table_data[selected_rows[0]]
-    print("selected row to plot : " +str(row))
+    logger.debug("selected row to plot : " +str(row))
     start = int(row['start'])
     stop = int(row['stop'])
     chromosome = row['chromosome']
     genome = row['genome']
-    print("search region genome " +str(genome) + " chromosome " + str(chromosome) + " start " + str(start) + " stop " + str(stop))
+    logger.debug("search region genome " +str(genome) + " chromosome " + str(chromosome) + " start " + str(start) + " stop " + str(stop))
     try:
         nodes = get_nodes_by_region(genome, str(chromosome), start, stop)
         home_page_data["selected_genome"]=genome
@@ -217,13 +221,14 @@ def restore_checklist_state(ts, data, table_data):
 @app.callback(
     Output('save-feedback', 'children'),
     Output("load_spinner_zone", "children", allow_duplicate=True),
+    Output("download-csv", "data", allow_duplicate=True),
     Input('save-csv-button', 'n_clicks'),
     Input('save-csv-with_seq-button', 'n_clicks'),
     State('shared-region-table', 'data'),
     prevent_initial_call=True
 )
 def save_csv(n_clicks, n_clicks_seq, table_data):
-    #print(f"Callback triggered: n_clicks={n_clicks}, table_data={table_data}")
+    #logger.info(f"Callback triggered: n_clicks={n_clicks}, table_data={table_data}")
     triggered_id = ctx.triggered_id
     export_sequences = False
     if triggered_id == 'save-csv-with_seq-button':
@@ -236,11 +241,15 @@ def save_csv(n_clicks, n_clicks_seq, table_data):
         for row in tqdm(table_data):
             sequences.append(get_sequence_from_position(row['genome'], row['chromosome'], row['start'], row['stop']))
         df["sequence"] = sequences
-    save_path = os.path.join(os.getcwd(), EXPORT_DIR, "shared_regions.csv")
-    print("save path : " + str(save_path))
-    df.to_csv(save_path, index=False)
-    
-    return f"File saved : {save_path}",""
+    if not SERVER_MODE:
+        save_path = os.path.join(os.getcwd(), EXPORT_DIR, "shared_regions.csv")
+        logger.info("save path : " + str(save_path))
+        df.to_csv(save_path, index=False)
+        
+        return f"File saved : {save_path}","", no_update
+    else:
+        logger.info("🌐 Server mode active — file will be downloaded by user.")
+        return "File ready for download.", "", dcc.send_data_frame(df.to_csv, "shared_regions.csv", index=False)
 
 #Callback to loads csv file into data table
 @app.callback(
@@ -253,7 +262,7 @@ def save_csv(n_clicks, n_clicks_seq, table_data):
     prevent_initial_call=True
 )
 def load_csv(contents, filename, gwas_page_store):
-    print("load csv file")
+    logger.info("load csv file")
     if contents is None:
         return None, None, gwas_page_store
     if gwas_page_store is None:
@@ -264,10 +273,10 @@ def load_csv(contents, filename, gwas_page_store):
         df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         analyse = df[[c for c in df.columns if c!= "sequence"]].to_dict('records')
         gwas_page_store["analyse"] = analyse
-        print("csv file loaded")
+        logger.info("csv file loaded")
         return f"{len(analyse)} shared regions found.", analyse, gwas_page_store
     except Exception as e:
-        print(f"Error while loading file : {e}")
+        logger.info(f"Error while loading file : {e}")
         return None, None, gwas_page_store
     
 
@@ -303,41 +312,6 @@ def display_sequence_on_button_click(active_cell, table_data):
     return None
 
 
-# #Help callback
-# @app.callback(
-#     Output("help-modal", "is_open"),
-#     Output("modal-help-text", "children"),
-#     Input("help-min-node-size", "n_clicks"),
-#     Input("help-min-selected", "n_clicks"),
-#     Input("help-tolerance", "n_clicks"),
-#     Input("help-region-gap", "n_clicks"),
-#     Input("help-deletion", "n_clicks"),
-#     Input("help-genome_ref-dropdown", "n_clicks"),
-#     Input("close-help", "n_clicks"),
-#     State("help-modal", "is_open"),
-# )
-# def toggle_help_modal(n1, n2, n3, n4, n5, n6, n_close, is_open):
-#     ctx = callback_context
-
-#     if not ctx.triggered:
-#         return is_open, ""
-
-#     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-
-#     help_messages = {
-#         "help-min-node-size": "The nodes with a size below this value won't be detect by the process.",
-#         "help-min-selected": "To detect a node as shared, the process requires that a node contains at least [this value * selected haplotypes number / 100] (rounded at tge bottom) haplotypes in the selected haplotypes list. If set to zéro, it will require at least one of the selected haplotypes.",
-#         "help-tolerance": "Nodes that contains more than [this value * number of haplotypes sharing the node / 100] (rounded up) haplotypes not in the selected list won't be detected.",
-#         "help-region-gap": "All the nodes detected will be grouped in larger regions. If two nodes are separated by less thant this value (in bp) they will be grouped in the same region.",
-#         "help-deletion": "If checked, the process will look for deletion : it looks for nodes with minimal size and with the minimum haplotypes (defined by min percent) of the selected list. For these nodes it will look for a following node containing all the haplotypes of the previous node excepted the nodes selected and another following node with all the haplotypes of the previous node.",
-#         "help-genome_ref-dropdown": "Select the genome for which you want to view the results and obtain annotations. If no genome is selected, the result will be the first genome found with annotations. If there are no annotations, it will be the first genome found."
-#     }
-
-#     if trigger_id == "close-help":
-#         return False, ""
-
-#     help_text = help_messages.get(trigger_id, "No help for this element.")
-#     return True, help_text
 
 
 
