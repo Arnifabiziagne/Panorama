@@ -36,8 +36,8 @@ jobs:
           name: Release ${{ github.ref_name }}
           body: Automated release for tag ${{ github.ref_name }}
           files: dist/${{ env.ZIP_NAME }}
-          draft:false
-          prerelease:false
-          make_latest:true
+          draft: false
+          prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
