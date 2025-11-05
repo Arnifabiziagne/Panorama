@@ -74,7 +74,7 @@ To do so, modify the configuration file (`./conf.json`):
 The parameter file is named ./conf.json. It contained the following parameters :
     - "container_name": set by the application, it is the name of the docker container containing the neo4j DB.
     - "http_port": the http port for the neo4j DB (by default : 7474).
-    - "bolt_port": the bolt port for the neo4j DB (by default 7687).
+    - "bolt_port": the bolt port for the neo4j DB (by default 7687).   
     - "login": login to access neo4j DB (by default "neo4j"). If this value must be modify it is necessary to modify it first in neo4j configuration file.
     - "password": password to access neo4j DB (by default "Administrateur"). If this value must be modify it is necessary to modify it first in neo4j.
     - "server_mode": set to false for local installation and true for server installation. This will block the administration functionnalities and the upload file features.
