@@ -75,7 +75,7 @@ To do so, modify the configuration file (`./conf.json`):
   - This login information is defined in the `"admin_users"` field — you should update it with the desired credentials.  
   - Once the data has been loaded, set `"admin_mode"` back to `false` to allow open access for all users.
 - To launch application, use the ./launch_gunicorn.sh (server gunicorn is available only for linux) script.
-
+- To stop application, use the ./stop_server.sh script.
 
 ## Parameters file
 
