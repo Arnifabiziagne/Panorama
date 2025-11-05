@@ -30,6 +30,10 @@ def get_log_parameters():
             log_mode = str(conf.get("server_log_mode","both"))
             log_level_str = str(conf.get("log_level","INFO"))
             log_level = valid_levels.get(str(conf.get("log_level","INFO")).upper(), logging.INFO)
+    else:
+        #Data are not yet loaded => DEBUG log while the conf file is created
+        log_level = logging.DEBUG
+        log_level_str = "DEBUG"
 
     return log_retention,log_mode,log_level,log_level_str
 
