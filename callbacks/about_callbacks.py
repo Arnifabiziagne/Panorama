@@ -66,9 +66,9 @@ def update_panorama(n_clicks):
         major_version = version.split(".")[0]
         if major_version == DB_VERSION.split(".")[0]:
 
-            logger.info(f"Latest release found : {release["name"]}")
-            logger.info(f"Tag : {release["tag_name"]}")
-            logger.info(f"Publication date : {release["published_at"]}")
+            logger.info(f"Latest release found : {release['name']}")
+            logger.info(f"Tag : {release['tag_name']}")
+            logger.info(f"Publication date : {release['published_at']}")
             zip_url = release.get("zipball_url")
             logger.info(f"Download zip file : {zip_url}")
             
