@@ -71,19 +71,20 @@ To do so, modify the configuration file (`./conf.json`):
 
 
 ## Parameters file
-The parameter file is named ./conf.json. It contained the following parameters :
-    - "container_name": set by the application, it is the name of the docker container containing the neo4j DB.
-    - "http_port": the http port for the neo4j DB (by default : 7474).
-    - "bolt_port": the bolt port for the neo4j DB (by default 7687).   
-    - "login": login to access neo4j DB (by default "neo4j"). If this value must be modify it is necessary to modify it first in neo4j configuration file.
-    - "password": password to access neo4j DB (by default "Administrateur"). If this value must be modify it is necessary to modify it first in neo4j.
-    - "server_mode": set to false for local installation and true for server installation. This will block the administration functionnalities and the upload file features.
-    - "admin_mode": only use in server mode. Set to false to block all administration functionnalities. If set to true then a login / password will be asked to access application.
-    - "admin_users": set the login / password to access application when admin_mode is set to true.
-    - "server_log_mode": "console", "file" or "both" to log into console, file or both.
-    - "log_retention_days": number of days to keep the log (7 days by default)
-    - "log_level": "DEBUG","INFO", "WARNING", "ERROR" => logs will be displayed only if their level is upper than this level.
 
+The parameter file is named `./conf.json`. It contains the following parameters:
+
+- `"container_name"`: set by the application, it is the name of the Docker container containing the Neo4j DB.  
+- `"http_port"`: the HTTP port for the Neo4j DB (default: `7474`).  
+- `"bolt_port"`: the Bolt port for the Neo4j DB (default: `7687`).  
+- `"login"`: login to access the Neo4j DB (default: `"neo4j"`). If this value needs to be changed, it must first be modified in the Neo4j configuration file.  
+- `"password"`: password to access the Neo4j DB (default: `"Administrateur"`). If this value needs to be changed, it must first be modified in Neo4j.  
+- `"server_mode"`: set to `false` for local installation and `true` for server installation. This will block administration and file upload features.  
+- `"admin_mode"`: only used in server mode. Set to `false` to block all administration features. If set to `true`, a login/password will be required to access the application.  
+- `"admin_users"`: defines the login/password to access the application when `admin_mode` is set to `true`.  
+- `"server_log_mode"`: `"console"`, `"file"`, or `"both"` — determines where logs are written.  
+- `"log_retention_days"`: number of days to keep logs (default: `7`).  
+- `"log_level"`: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"` — logs are displayed only if their level is equal to or higher than this setting.  
 
 ## Manual installation
 ### Install neo4
