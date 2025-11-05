@@ -40,11 +40,17 @@ It allows the following functionalities :
 
 ### Logs
 
-Logs are displayed by default in the console and in file in the ./logs directory. To set the logs parameters, modify the following parameters in the ./conf.json file :
-    - "log_retention_days": define the number of days to keep the logs.
-    - "log_level":  set to DEBUG, INFO, WARNING or ERROR to display only the desired level of logs.
-    - "log_server": "console" (log only in console), "file" (log only in log file) or "both" (log in console and lof file, this is the default value).
 
+Logs are displayed by default in the console and in log files located in the `./logs` directory.  
+
+To configure logging behavior, modify the following parameters in the `./conf.json` file:
+
+- **`log_retention_days`** — Defines the number of days to keep log files.  
+- **`log_level`** — Set to `DEBUG`, `INFO`, `WARNING`, or `ERROR` to display only logs at or above the selected level.  
+- **`log_server`** — Determines where logs are written:  
+  - `"console"` — Log only to the console.  
+  - `"file"` — Log only to a file.  
+  - `"both"` — Log to both the console and file *(default value)*.  
 
 ## Quick pages description
   The menu allow to navigate on differents pages :
