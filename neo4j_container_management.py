@@ -31,9 +31,9 @@ DUMP_FILE = os.path.join(IMPORT_DIR, "neo4j.dump")
 # it limits the line's size (by default 4 * 1024 * 1024) : for long nodes sequences it could be necessary to improve this value
 READ_BUFFER_SIZE = 33554432
 
-MAX_MEM = "24g"
+#MAX_MEM = "24g"
 MAX_SWAP = "25g"
-MAX_CPU = "8"
+#MAX_CPU = "8"
 
 NEO4J_AUTH = "neo4j/Administrateur"
 NEO4J_LOGIN = "neo4j"
@@ -68,11 +68,11 @@ def import_dump():
     prepare_data_directories_in_container()
     subprocess.run([
         "docker", "run", "--rm",
-        f"--cpus={MAX_CPU}",
-        f"--memory={MAX_MEM}",
+        #f"--cpus={MAX_CPU}",
+        #f"--memory={MAX_MEM}",
         f"--memory-swap={MAX_SWAP}",
-        "-e", f"JAVA_OPTS=-Xmx{MAX_MEM} -Xms1g",
-        "-e", f"NEO4J_dbms.memory.heap.max_size={MAX_MEM}",
+        #"-e", f"JAVA_OPTS=-Xmx{MAX_MEM} -Xms1g",
+        #"-e", f"NEO4J_dbms.memory.heap.max_size={MAX_MEM}",
         "-v", f"{IMPORT_DIR}:/import",
         "-v", f"{NEO4J_BASE_DIR}/data:/data",
         DOCKER_IMAGE,
@@ -87,7 +87,7 @@ def import_csv():
     prepare_data_directories_in_container()
     subprocess.run([
         "docker", "run", "--rm",
-        f"--cpus={MAX_CPU}",
+        #f"--cpus={MAX_CPU}",
         "-v", f"{NEO4J_BASE_DIR}/data:/data",
         "-v", f"{IMPORT_DIR}:/import",
         "-e", f"NEO4J_AUTH={NEO4J_AUTH}",
@@ -95,7 +95,7 @@ def import_csv():
         "neo4j-admin", "database", "import", "full",
         "--verbose",
         f"--read-buffer-size={READ_BUFFER_SIZE}",
-        f"--max-off-heap-memory={MAX_MEM}",
+        #f"--max-off-heap-memory={MAX_MEM}",
         "--nodes=Sequence=/import/sequences.csv",
         "--nodes=Node=/import/nodes.csv",
         "--relationships=/import/relations.csv"
@@ -108,53 +108,118 @@ def start_container():
     if os.path.exists(CONF_FILE):
         with open(CONF_FILE) as f:
             conf = json.load(f)
-        container_name = str(conf["container_name"])
-        result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{.Names}} {{.Status}}"],
-            capture_output=True, text=True, check=True
-        )
-        lines = result.stdout.strip().splitlines()
-    
-        for line in lines:
-            name, *status_parts = line.split()
-            status = " ".join(status_parts)
-    
-            if name == container_name:
-                if status.startswith("Up"):
-                    return True
-        
-        remove_container(container_name)
-        
-        HTTP_PORT = int(conf["http_port"])
-        BOLT_PORT = int(conf["bolt_port"])
-        NEO4J_AUTH = conf["login"]+"/"+conf["password"]
-        logger.info("🚀 Starting Neo4j container...")
-        subprocess.run([
-            "docker", "run", "-d",
-            "--name", container_name,
-            "-e", f"NEO4J_AUTH={NEO4J_AUTH}",
-            "-e", "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes",
-            "-e", "NEO4J_apoc_export_file_enabled=true",
-            "-e", "NEO4J_apoc_import_file_enabled=true",
-            "-e", "NEO4J_apoc_import_file_use__neo4j__config=true",
-            "-e", "NEO4J_PLUGINS=[\"apoc\"]",
-            "-p", f"{HTTP_PORT}:7474",
-            "-p", f"{BOLT_PORT}:7687",
-            "-v", f"{NEO4J_BASE_DIR}/data:/data",
-            "-v", f"{NEO4J_BASE_DIR}/logs:/logs",
-            "-v", f"{NEO4J_BASE_DIR}/conf:/conf",
-            "-v", f"{NEO4J_BASE_DIR}/import:/import",
-            "-v", f"{NEO4J_BASE_DIR}/plugins:/plugins",
-            DOCKER_IMAGE
-        ], check=True)
-    
-        time.sleep(10)
-        logger.info(f"✅ Neo4j {container_name} is ready!")
-        logger.info(f"🌍 HTTP: http://localhost:{HTTP_PORT}")
-        logger.info(f"🔗 BOLT: bolt://localhost:{BOLT_PORT}")
-        return True
+        if "container_name" in conf :
+            container_name = str(conf["container_name"])
+            result = subprocess.run(
+                ["docker", "ps", "-a", "--format", "{{.Names}} {{.Status}}"],
+                capture_output=True, text=True, check=True
+            )
+            lines = result.stdout.strip().splitlines()
+
+            for line in lines:
+                name, *status_parts = line.split()
+                status = " ".join(status_parts)
+
+                if name == container_name:
+                    if status.startswith("Up"):
+                        return True
+
+            remove_container(container_name)
+
+            HTTP_PORT = int(conf["http_port"])
+            BOLT_PORT = int(conf["bolt_port"])
+            NEO4J_AUTH = conf["login"]+"/"+conf["password"]
+            logger.info("🚀 Starting Neo4j container...")
+            subprocess.run([
+                "docker", "run", "-d",
+                "--name", container_name,
+                "-e", f"NEO4J_AUTH={NEO4J_AUTH}",
+                "-e", "NEO4J_ACCEPT_LICENSE_AGREEMENT=yes",
+                "-e", "NEO4J_apoc_export_file_enabled=true",
+                "-e", "NEO4J_apoc_import_file_enabled=true",
+                "-e", "NEO4J_apoc_import_file_use__neo4j__config=true",
+                "-e", "NEO4J_PLUGINS=[\"apoc\"]",
+                "-p", f"{HTTP_PORT}:7474",
+                "-p", f"{BOLT_PORT}:7687",
+                "-v", f"{NEO4J_BASE_DIR}/data:/data",
+                "-v", f"{NEO4J_BASE_DIR}/logs:/logs",
+                "-v", f"{NEO4J_BASE_DIR}/conf:/conf",
+                "-v", f"{NEO4J_BASE_DIR}/import:/import",
+                "-v", f"{NEO4J_BASE_DIR}/plugins:/plugins",
+                DOCKER_IMAGE
+            ], check=True)
+
+            time.sleep(10)
+            logger.info(f"✅ Neo4j {container_name} is ready!")
+            logger.info(f"🌍 HTTP: http://localhost:{HTTP_PORT}")
+            logger.info(f"🔗 BOLT: bolt://localhost:{BOLT_PORT}")
+            return True
 
 @require_authorization
+def write_config(container_name, HTTP_PORT=7474, BOLT_PORT=7687):
+    """
+    Create or update the configuration file.
+    If the file already exists, only update specific fields:
+        - container_name
+        - http_port
+        - bolt_port
+        - login
+        - password
+    Otherwise, create a new configuration file with default fields.
+    """
+    logger.info(f"Writing configuration for container: {container_name}")
+
+    # Default configuration structure
+    default_config = {
+        "container_name": container_name,
+        "http_port": HTTP_PORT,
+        "bolt_port": BOLT_PORT,
+        "login": NEO4J_LOGIN,
+        "password": NEO4J_PASSWORD,
+        "server_mode": False,
+        "admin_mode": False,
+        "admin_users": {
+            "admin": "1234"
+        },
+        "server_log_mode": "both",
+        "log_retention_days": 7,
+        "log_level": "DEBUG"
+    }
+
+    # If the configuration file exists, load and update it
+    if os.path.exists(CONF_FILE):
+        logger.info(f"Configuration file {CONF_FILE} already exists. Updating specific fields...")
+        try:
+            with open(CONF_FILE, "r") as f:
+                config = json.load(f)
+        except json.JSONDecodeError:
+            logger.warning(f"Existing config file {CONF_FILE} is invalid. Recreating it.")
+            config = default_config.copy()
+        except Exception as e:
+            logger.error(f"Error reading config file: {e}")
+            config = default_config.copy()
+
+        # Update only specific fields
+        config.update({
+            "container_name": container_name,
+            "http_port": HTTP_PORT,
+            "bolt_port": BOLT_PORT,
+            "login": NEO4J_LOGIN,
+            "password": NEO4J_PASSWORD
+        })
+
+    else:
+        logger.info(f"No existing configuration found. Creating a new one at {CONF_FILE}.")
+        config = default_config
+
+    # Write configuration back to file
+    try:
+        with open(CONF_FILE, "w") as f:
+            json.dump(config, f, indent=2)
+        logger.info("Configuration successfully written.")
+    except Exception as e:
+        logger.error(f"Failed to write configuration: {e}")
+
 def write_config(container_name, HTTP_PORT=7474, BOLT_PORT=7687):
     logger.info(f"write conf {container_name}")
     with open(CONF_FILE, "w") as f:
@@ -304,11 +369,11 @@ def dump_db(container_name, docker_image=DOCKER_IMAGE):
     try:
         subprocess.run([
             "docker", "run", "--rm",
-            f"--cpus={MAX_CPU}",
-            f"--memory={MAX_MEM}",
+            #f"--cpus={MAX_CPU}",
+            #f"--memory={MAX_MEM}",
             f"--memory-swap={MAX_SWAP}",
-            "-e", f"JAVA_OPTS=-Xmx{MAX_MEM} -Xms1g",
-            "-e", f"NEO4J_dbms.memory.heap.max_size={MAX_MEM}",
+            #"-e", f"JAVA_OPTS=-Xmx{MAX_MEM} -Xms1g",
+            #"-e", f"NEO4J_dbms.memory.heap.max_size={MAX_MEM}",
             "-v", f"{NEO4J_BASE_DIR}/data:/data",
             "-v", f"{IMPORT_DIR}:/import",
             DOCKER_IMAGE,

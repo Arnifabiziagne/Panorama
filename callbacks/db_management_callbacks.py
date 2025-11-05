@@ -376,7 +376,7 @@ def update_label(data):
         data = {}
     if "container_name" not in data :
         conf = load_config_from_json()
-        if not conf:
+        if not conf or "container_name" not in data or data['container_name'] is None or data['container_name'] == "":
             return f'No conf file found. Use "create new DB" procedure to generate it.', "container_name", data
         else:
             container_name = conf.get("container_name")
@@ -416,6 +416,8 @@ def create_db_ask_confirmation(n_clicks):
 )
 @require_authorization
 def confirm_create_db(n_clicks,container_name, docker_image, data, options):
+    if data is None:
+        data = {}
     logger.info("container name : " + container_name)
     if not n_clicks:
         raise exceptions.PreventUpdate

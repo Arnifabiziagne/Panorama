@@ -183,7 +183,7 @@ def create_stats_from_nodes():
                 })
             """, genomes=all_genomes, chromosomes=all_chromosomes, version=DB_VERSION)
 
-            logger.info("✅ Stats node created with:", all_genomes, all_chromosomes)
+            logger.info(f"✅ Stats node created with genomes : {all_genomes} - chromosomes : {all_chromosomes}")
 
     return
 
@@ -1049,6 +1049,11 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
     print_header_sequences = not os.path.isfile(import_dir+"/sequences.csv")
     print_header_long_sequences = not os.path.isfile(import_dir+"/long_sequences.csv")
     last_node_id = 0
+    if chromosome_file is not None:
+        c_str = chromosome_file
+    else:
+        c_str = "all"
+    logger.info(f"Create csv import file for {gfa_file_name} - chromosome {c_str}")
     header_file = None
     if os.path.isfile(import_dir+"/nodes.csv") :
         last_line = None

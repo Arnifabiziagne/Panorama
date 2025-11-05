@@ -86,10 +86,13 @@ def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET
         check_conf_file()
     with open(CONF_FILE) as f:
         conf = json.load(f)
-    container_name = str(conf["container_name"])   
-    HTTP_PORT = int(conf["http_port"])
-    BOLT_PORT = int(conf["bolt_port"])
-    AUTH = (conf["login"],conf["password"])
+    if "container_name" in conf:
+        container_name = str(conf.get("container_name",""))
+    else:
+        container_name = None
+    HTTP_PORT = int(conf.get("http_port", 7474))
+    BOLT_PORT = int(conf.get("bolt_port",7687))
+    AUTH = (conf.get("login", None),conf.get("password", None))
     DB_URL="bolt://localhost:"+str(BOLT_PORT)
     SERVER_MODE = bool(conf.get("server_mode",False))
     ADMIN_MODE = bool(conf.get("admin_mode",False))
@@ -175,21 +178,24 @@ def get_driver(max_retries=5, retry_delay=5):
         check_conf_file()
     if os.path.exists(CONF_FILE):
         conf=get_conf()
-        DB_URL = conf["DB_URL"]
-        AUTH= conf["AUTH"]
-        for attempt in range(1, max_retries + 1):
+        if "container_name" in conf and conf["container_name"] != None and conf["container_name"] != "":
+            DB_URL = conf["DB_URL"]
+            AUTH= conf["AUTH"]
+            for attempt in range(1, max_retries + 1):
+                if test_connection(DB_URL, AUTH):
+                    driver = GraphDatabase.driver(DB_URL, auth=AUTH)
+                    return driver
+                else:
+                    logger.warn(f"Retry {attempt}/{max_retries} to connect to driver")
+                    time.sleep(retry_delay)
+
+
             if test_connection(DB_URL, AUTH):
-                driver = GraphDatabase.driver(DB_URL, auth=AUTH)
-                return driver
-            else:
-                logger.warn(f"Retry {attempt}/{max_retries} to connect to driver")
-                time.sleep(retry_delay)
-                
-    
-        if test_connection(DB_URL, AUTH):
-                driver = GraphDatabase.driver(DB_URL, auth=AUTH)
-                return driver
-        logger.error(f"❌ Fail to access Database of container {conf['container_name']}.")
-        return None
+                    driver = GraphDatabase.driver(DB_URL, auth=AUTH)
+                    return driver
+            logger.error(f"❌ Fail to access Database of container {conf['container_name']}.")
+            return None
+        else:
+            return None
     else:
         return None
