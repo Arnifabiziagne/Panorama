@@ -1,59 +1,97 @@
 @echo off
-SETLOCAL ENABLEEXTENSIONS
 SETLOCAL ENABLEDELAYEDEXPANSION
 
-:: --- Paramètres ---
-SET ENV_NAME=panorama_graph
-SET ENV_FILE=panorama_graph.yaml
-SET HASH_FILE=.\.%ENV_NAME%_env_hash
-SET DASH_PORT=8050
-IF NOT "%1"=="" SET DASH_PORT=%1
+:: --- Parameters ---
+SET "ENV_NAME=panorama_graph"
+SET "ENV_FILE=panorama_graph_win.yaml"
+SET "HASH_FILE=.%ENV_NAME%_env_hash"
+SET "DASH_PORT=8050"
+IF NOT "%~1"=="" SET "DASH_PORT=%~1"
 
-:: --- Vérifie que conda est disponible ---
+:: --- Check if conda is available ---
 where conda >nul 2>&1
 IF ERRORLEVEL 1 (
-    echo Error: conda not found.
+    echo [ERROR] Conda not found in PATH.
+    echo Please run this script from Anaconda Prompt or add conda to PATH.
     EXIT /B 1
 )
 
-:: --- Calculer le hash actuel du YAML ---
-for /f "tokens=*" %%H in ('certutil -hashfile "%ENV_FILE%" SHA1 ^| findstr /v "hash" ^| findstr /r /v "^$"') do set CURRENT_HASH=%%H
-
-:: --- Lire le hash précédent s'il existe ---
-SET PREV_HASH=
-IF EXIST "%HASH_FILE%" (
-    set /p PREV_HASH=<"%HASH_FILE%"
-)
-
-:: --- Vérifie si l'environnement existe ---
-conda env list | findstr /R /C:"^%ENV_NAME%\s" >nul
-IF ERRORLEVEL 0 (
-    REM L'environnement existe
-    IF NOT "!CURRENT_HASH!"=="!PREV_HASH!" (
-        echo Environment %ENV_NAME% exists but YAML changed. Updating...
-        conda env update --name %ENV_NAME% --file %ENV_FILE% --prune
-        echo !CURRENT_HASH! > "%HASH_FILE%"
-    ) ELSE (
-        echo Environment %ENV_NAME% exists and is up to date.
+:: --- Compute clean SHA1 hash ---
+SET "CURRENT_HASH="
+FOR /F "usebackq skip=1 tokens=*" %%H IN (certutil -hashfile "%ENV_FILE%" SHA1 ^| findstr /R /V "hash") DO (
+    SET "LINE=%%H"
+    SET "LINE=!LINE: =!"
+    IF NOT "!LINE!"=="" (
+        SET "CURRENT_HASH=!LINE!"
+        GOTO done_hash
     )
-) ELSE (
-    echo Environment %ENV_NAME% not found. Creating...
-    conda env create --file %ENV_FILE%
-    echo !CURRENT_HASH! > "%HASH_FILE%"
+)
+:done_hash
+SET "CURRENT_HASH=!CURRENT_HASH:~0,40!"
+FOR /F "delims=" %%A IN ("!CURRENT_HASH!") DO SET "CURRENT_HASH=%%~A"
+
+echo [DEBUG] Current hash: '!CURRENT_HASH!'
+
+:: --- Check if environment exists ---
+SET "ENV_EXISTS=0"
+FOR /F "tokens=1" %%E IN ('conda env list ^| findstr /B "%ENV_NAME%"') DO (
+    IF "%%E"=="%ENV_NAME%" SET "ENV_EXISTS=1"
 )
 
-:: --- Active l'environnement ---
-CALL conda activate %ENV_NAME%
+:: --- Determine if update or creation needed ---
+SET "UPDATE_ENV=0"
+IF "!ENV_EXISTS!"=="0" (
+    echo [INFO] Environment %ENV_NAME% not found. Creating it...
+    call conda env create --name %ENV_NAME% --file "%ENV_FILE%"
+    IF ERRORLEVEL 1 (
+        echo [ERROR] Failed to create environment.
+        EXIT /B 1
+    )
+    SET "UPDATE_ENV=1"
+) ELSE (
+    IF NOT EXIST "%HASH_FILE%" (
+        echo [INFO] No previous hash found. Will update environment.
+        SET "UPDATE_ENV=1"
+    ) ELSE (
+        SET /P PREV_HASH=<"%HASH_FILE%"
+        SET "PREV_HASH=!PREV_HASH: =!"
+        SET "PREV_HASH=!PREV_HASH:~0,40!"
+        FOR /F "delims=" %%A IN ("!PREV_HASH!") DO SET "PREV_HASH=%%~A"
+        echo [DEBUG] Previous hash: '!PREV_HASH!'
+        IF /I NOT "!CURRENT_HASH!"=="!PREV_HASH!" (
+            echo [INFO] YAML has changed. Updating environment...
+            SET "UPDATE_ENV=1"
+        ) ELSE (
+            echo [INFO] Environment is up to date.
+        )
+    )
+)
+
+:: --- Update environment if needed ---
+IF "!UPDATE_ENV!"=="1" (
+    echo [INFO] Running conda env update...
+    call conda env update --name %ENV_NAME% --file "%ENV_FILE%" --prune
+    IF ERRORLEVEL 1 (
+        echo [ERROR] Failed to update environment.
+        EXIT /B 1
+    )
+
+>"%HASH_FILE%" echo !CURRENT_HASH!
+)
+
+:: --- Activate environment ---
+echo [INFO] Activating environment %ENV_NAME%...
+call conda activate %ENV_NAME%
 IF ERRORLEVEL 1 (
-    echo Error when activating conda environment.
+    echo [ERROR] Failed to activate environment %ENV_NAME%.
     EXIT /B 1
 )
 
-:: --- Lancer l'application Dash ---
-echo Launching Panorama on port %DASH_PORT%...
+:: --- Launch Dash app ---
+echo [INFO] Launching Panorama on port %DASH_PORT%...
 python index.py --port %DASH_PORT%
 IF ERRORLEVEL 1 (
-    echo Error when executing index.py
+    echo [ERROR] Dash app failed to start.
     EXIT /B 1
 )
 

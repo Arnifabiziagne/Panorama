@@ -36,6 +36,7 @@ It allows the following functionalities :
 ### Tips
   - For big pangenome, it is recommended to generate csv files before creation the database. In this case, on the DB management page, select the gfa file and click on "Generate CSV Import file". Once the csv are generated, click on "Create new DB".
   - To launch multiple neo4j instance, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
+  - On windows system, raxmlHPC must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed.
 
 ### Logs
 
@@ -67,7 +68,7 @@ To do so, modify the configuration file (`./conf.json`):
   - In this case, the application will prompt for a username and password to access it.  
   - This login information is defined in the `"admin_users"` field — you should update it with the desired credentials.  
   - Once the data has been loaded, set `"admin_mode"` back to `false` to allow open access for all users.
-- To launch application, use the ./launch_gunicorn.sh (linux) script or launch_gunicorn.bat (windows)
+- To launch application, use the ./launch_gunicorn.sh (server gunicorn is available only for linux) script.
 
 
 ## Parameters file

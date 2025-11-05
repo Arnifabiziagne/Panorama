@@ -22,6 +22,7 @@ def get_log_parameters():
     log_retention = 7
     log_mode = "both"
     log_level=logging.INFO
+    log_level_str = "INFO"
     if os.path.exists(CONF_FILE):
         with open(CONF_FILE) as f:
             conf = json.load(f)
