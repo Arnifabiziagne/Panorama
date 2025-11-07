@@ -7,6 +7,7 @@ Created on Wed Jul  2 22:03:10 2025
 """
 
 from dash import html, Output, Input, State, no_update, dcc, ctx, no_update, exceptions
+from dash.dependencies import ALL, MATCH
 
 
 import os
@@ -78,119 +79,113 @@ def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
     return html.Div("No file.")
 
 
+
 @app.callback(
     Output("gfa-message", "children", allow_duplicate=True),
-    Output("gfa-files-selector", "value"),
+    Output({'type': 'gfa-checkbox', 'index': ALL}, 'value', allow_duplicate=True),
     Input("btn-load-gfa", "n_clicks"),
-    State('gfa-files-selector', 'value'),
-    State("db-chromosome-input", "value"),
+    State({'type': 'gfa-checkbox', 'index': ALL}, 'value'),
+    State({'type': 'gfa-checkbox', 'index': ALL}, 'id'),
+    State({'type': 'gfa-input', 'index': ALL}, 'value'),
+    State({'type': 'gfa-input', 'index': ALL}, 'id'),
     State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
 @require_authorization
-def on_click_load_gfa(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFAULT_BATCH_SIZE):
-    if not gfa_file_names:
-        return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), no_update
+def on_click_load_gfa(n_clicks, checkbox_values, checkbox_ids, input_values, input_ids, batch_size=DEFAULT_BATCH_SIZE):
+    # Get selected files
+    selected_files = [c_id['index'] for c_val, c_id in zip(checkbox_values, checkbox_ids) if c_val]
+    if not selected_files:
+        return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), [no_update for _ in checkbox_ids]
+    invalid_files = [f for f in selected_files if not f.lower().endswith(".gfa")]
+    if invalid_files:
+        return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.",
+                        style=error_style), [no_update for _ in checkbox_ids]
     if batch_size < MIN_BATCH_SIZE:
         batch_size = MIN_BATCH_SIZE
-    # Force to list
-    if isinstance(gfa_file_names, str):
-        gfa_file_names = [gfa_file_names]
 
-    # ✅ Check all files have .gfa extension
-    invalid_files = [f for f in gfa_file_names if not f.lower().endswith(".gfa")]
-    if invalid_files:
-        return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.", style=error_style), no_update
-    if len(gfa_file_names) == 1 and not chromosome_file:
-        list_chromosome_file = [None]
-    else:
-        if len(gfa_file_names) == 1:
-            list_chromosome_file = [chromosome_file]
-        else:
-            list_chromosome_file = []
-            for f in gfa_file_names:
-                if "_" in f:
-                    chromosome = f[:-4].split("_")[-1]
-                else:
-                    chromosome = f[:-4]
+    # Get the chromosome associated to file (if set)
+    chromosome_dict = {i_id['index']: val for i_id, val in zip(input_ids, input_values)}
+    list_chromosome_file = [chromosome_dict.get(f, "") for f in selected_files]
+    if len(list_chromosome_file) > 1:
+        for cf in list_chromosome_file:
+            if cf is None or cf == "":
+                return html.Div(
+                    "❌ When multiple gfa are selected, it is required to set the chromosome for each of theses files (non null or empty value).",
+                    style=error_style), [no_update for _ in checkbox_ids]
 
-                chromosome = chromosome.lower().removeprefix("chr")
-                chromosome = chromosome.lstrip("0")
-                list_chromosome_file.append(chromosome)
-
-    
-
-    for i in range(len(gfa_file_names)):
+    for file_name, chromosome_file in zip(selected_files, list_chromosome_file):
         start_time = time.time()
-        file_name = gfa_file_names[i]
-        chromosome_file = list_chromosome_file[i]
-        if chromosome_file != "" :
-            file_path = os.path.join(GFA_FOLDER, file_name)
-            load_sequences(file_path, chromosome_file=chromosome_file, create=True)
-            load_gfa_data_to_neo4j(file_path, chromosome_file = chromosome_file, batch_size = batch_size, start_chromosome = None, create = True, haplotype = True, create_only_relations = False)
-        logger.info(f"Graph from {file_name} loaded in {time.time() - start_time:.2f} s")
+        if chromosome_file == "":
+            chromosome_file = None
+        file_path = os.path.join(GFA_FOLDER, file_name)
+        load_sequences(file_path, chromosome_file=chromosome_file, create=True)
+        load_gfa_data_to_neo4j(file_path, chromosome_file=chromosome_file, batch_size=batch_size,
+                                start_chromosome=None, create=True, haplotype=True, create_only_relations=False)
+    logger.info(f"Graph from {file_name} loaded in {time.time() - start_time:.2f} s")
 
     create_indexes(base=True, extend=True, genomes_index=True)
     logger.info("✅ All GFA files loaded.")
 
-    return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style), []
+    return html.Div(f"✅ GFA files loaded successfully: {', '.join(selected_files)}", style=success_style),  [ [] for _ in checkbox_ids ]
+
 
 
 @app.callback(
     Output("gfa-message", "children", allow_duplicate=True),
-    Output("gfa-files-selector", "value", allow_duplicate=True),
+    Output({'type': 'gfa-checkbox', 'index': ALL}, 'value', allow_duplicate=True),
     Input("btn-csv-import", "n_clicks"),
-    State('gfa-files-selector', 'value'),
-    State("db-chromosome-input", "value"),
+    State({'type': 'gfa-checkbox', 'index': ALL}, 'value'),
+    State({'type': 'gfa-checkbox', 'index': ALL}, 'id'),
+    State({'type': 'gfa-input', 'index': ALL}, 'value'),
+    State({'type': 'gfa-input', 'index': ALL}, 'id'),
     State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
 @require_authorization
-def on_click_csv_import(n_clicks, gfa_file_names, chromosome_file, batch_size=DEFAULT_BATCH_SIZE):
-    logger.info("generate import csv")
-    if not gfa_file_names:
-        return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), no_update
-    
+def on_click_csv_import(n_clicks, checkbox_values, checkbox_ids, input_values, input_ids, batch_size=DEFAULT_BATCH_SIZE):
+    # Get selected files
+    selected_files = [c_id['index'] for c_val, c_id in zip(checkbox_values, checkbox_ids) if c_val]
+    if not selected_files:
+        return html.Div("❌ Please select at least one GFA file before importing.", style=error_style), [no_update for _ in checkbox_ids]
+    invalid_files = [f for f in selected_files if not f.lower().endswith(".gfa")]
+
+    if invalid_files:
+        return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.",
+                        style=error_style), [no_update for _ in checkbox_ids]
+
     if batch_size < MIN_BATCH_SIZE:
         batch_size = MIN_BATCH_SIZE
-    # Force to list
-    if isinstance(gfa_file_names, str):
-        gfa_file_names = [gfa_file_names]
 
-    # ✅ Check all files have .gfa extension
-    invalid_files = [f for f in gfa_file_names if not f.lower().endswith(".gfa")]
-    if invalid_files:
-        return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.", style=error_style), no_update
-    if len(gfa_file_names) == 1 and not chromosome_file:
-        list_chromosome_file = [None]
-    else:
-        if len(gfa_file_names) == 1:
-            list_chromosome_file = [chromosome_file]
-        else:
-            list_chromosome_file = []
-            for f in gfa_file_names:
-                if "_" in f:
-                    chromosome = f[:-4].split("_")[-1]
-                else:
-                    chromosome = f[:-4]
+    # Get the chromosome associated to file (if set)
+    chromosome_dict = {i_id['index']: val for i_id, val in zip(input_ids, input_values)}
+    list_chromosome_file = [chromosome_dict.get(f, "") for f in selected_files]
 
-                chromosome = chromosome.lower().removeprefix("chr")
-                chromosome = chromosome.lstrip("0")
-                list_chromosome_file.append(chromosome)
+    if len(list_chromosome_file) > 1:
+        for cf in list_chromosome_file:
+            if cf is None or cf == "":
+                return html.Div(
+                    "❌ When multiple gfa are selected, it is required to set the chromosome for each of theses files (non null or empty value).",
+                    style=error_style), [no_update for _ in checkbox_ids]
 
-    for i in range(len(gfa_file_names)):
+    for file_name, chromosome_file in zip(selected_files, list_chromosome_file):
         start_time = time.time()
-        file_name = gfa_file_names[i]
-        chromosome_file = list_chromosome_file[i]
-        if chromosome_file != "" :
+        if chromosome_file != "":
             file_path = os.path.join(GFA_FOLDER, file_name)
-            load_gfa_data_to_csv(file_path, import_dir="./data/import", chromosome_file = chromosome_file, chromosome_prefix = False, batch_size = batch_size, start_chromosome = None, haplotype = True)
+            load_gfa_data_to_csv(file_path, import_dir="./data/import",
+                                 chromosome_file=chromosome_file,
+                                 chromosome_prefix=False,
+                                 batch_size=batch_size,
+                                 start_chromosome=None,
+                                 haplotype=True)
         logger.info(f"CSV generation from {file_name} loaded in {time.time() - start_time:.2f} s")
+
     logger.info("✅ All GFA files loaded.")
 
-    return html.Div(f"✅ GFA files loaded successfully: {', '.join(gfa_file_names)}", style=success_style), []
+    return html.Div(f"✅ GFA files loaded successfully: {', '.join(selected_files)}", style=success_style), [ [] for _ in checkbox_ids ]
 
-    
+
+
 @app.callback(
     Output("gfa-message", "children", allow_duplicate=True),
     Input("btn-create-index", "n_clicks"),
@@ -259,63 +254,130 @@ def clear_genome_error_on_selection(genome):
     dash.exceptions.PreventUpdate 
 
 
-
 @app.callback(
     Output("annotation-message", "children"),
-    Output("annotations-files-selector", "value"),
+    Output({'type': 'annotation-checkbox', 'index': ALL}, 'value'),
     Input("btn-load-annotations-with-link", "n_clicks"),
-    #Input("btn-load-only-annotations", "n_clicks"),
-    #Input("btn-link-annotations", "n_clicks"),
-    State("dropdown-genome", "value"),
-    State('annotations-files-selector', 'value'),
+    State({'type': 'annotation-checkbox', 'index': ALL}, 'value'),
+    State({'type': 'annotation-checkbox', 'index': ALL}, 'id'),
+    State({'type': 'annotation-dropdown', 'index': ALL}, 'value'),
+    State({'type': 'annotation-dropdown', 'index': ALL}, 'id'),
     prevent_initial_call=True
 )
 @require_authorization
-def on_click_load_annotation(n_clicks_load_all, genome, annotation_file_names):
+def on_click_load_annotations(n_clicks, checkbox_values, checkbox_ids, dropdown_values, dropdown_ids):
     triggered_id = ctx.triggered_id
     annotation_time = time.time()
-    logger.info("annotations file names : " + str(annotation_file_names))
-    logger.info("triggered id : " + str(triggered_id))
-    if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
-        if not annotation_file_names:
-            return html.Div("❌ Please select an annotation file before loading.", style=error_style), no_update
-        if not genome or genome == "":
-            return html.Div("❌ Please select a reference haplotype.", style=error_style), no_update
-        state_index = check_state_index("NodeIndex"+genome+"_position")
+
+    # Build list of selected files and map each file to its associated genome
+    selected_files = []
+    genome_mapping = {}
+    for cb_val, cb_id, dd_val, dd_id in zip(checkbox_values, checkbox_ids, dropdown_values, dropdown_ids):
+        file_name = cb_id['index']
+        if cb_val:  # file is selected
+            selected_files.append(file_name)
+            genome_mapping[file_name] = dd_val
+
+    # Error if no file selected
+    if not selected_files:
+        return html.Div("❌ Please select at least one annotation file before loading.", style=error_style), checkbox_values
+
+    # Ensure each selected file has an associated genome
+    for f in selected_files:
+        genome = genome_mapping.get(f)
+        if not genome:
+            return html.Div(f"❌ Please select a genome for annotation file '{f}'.", style=error_style), checkbox_values
+
+    # Check index state for each genome
+    for genome in set(genome_mapping.values()):
+        state_index = check_state_index("NodeIndex" + genome + "_position")
         if state_index is None:
-            return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
+            return html.Div(f"❌ Index for genome '{genome}' has not been created. Please create the index before loading annotations.", style=error_style), checkbox_values
         if int(state_index) != 100:
-            return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
+            return html.Div(f"❌ Index for genome '{genome}' is not completely created (state: {state_index}%). Please wait.", style=warning_style), checkbox_values
 
-        # Force to list
-        if isinstance(annotation_file_names, str):
-            annotation_file_names = [annotation_file_names]
+    # Validate file extensions
+    invalid_files = [f for f in selected_files if not f.lower().endswith((".gff", ".gff3", ".gtf"))]
+    if invalid_files:
+        return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gff, .gff3, or .gtf files.", style=error_style), checkbox_values
 
-        # ✅ Check all files have .gtf / .gff3 / .gff extension
-        invalid_files = [f for f in annotation_file_names if not f.lower().endswith(".gff") and not f.lower().endswith(".gff3") and not f.lower().endswith(".gtf")]
-        if invalid_files:
-            return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gff, .gff3 or gtf files.", style=error_style), no_update
+    # Loop through each selected file and load annotations
+    for f in selected_files:
+        genome = genome_mapping[f]
+        file_path = os.path.join(ANNOTATIONS_FOLDER, f)
+        logger.info(f"Load annotations for file '{f}' with genome '{genome}'")
+        load_annotations_neo4j(file_path, genome_ref=genome, single_chromosome=None)
 
-        for f in annotation_file_names:
-            logger.info(f"Load annotations for file {f}")
-            state_index = check_state_index("NodeIndex"+genome+"_position")
-            if state_index is None:
-                return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
-            if int(state_index) != 100:
-                return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
-            file = os.path.join(ANNOTATIONS_FOLDER, f)
-            annotation_time = time.time()
-            load_annotations_neo4j(file, genome_ref = genome, single_chromosome = None)
-        logger.info("Annotations loaded in " + str(time.time()-annotation_time) + " s.")
-    if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-link-annotations" :
-        logger.info("Link annotations")
-        annotation_relation_time = time.time()
-        creer_relations_annotations_neo4j(genome)
-        logger.info("Link annotations in " + str(time.time()-annotation_relation_time) + " s.")
-    if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
-        return html.Div(f"✅ Annotation '{annotation_file_names}' loaded for genome '{genome}'.", style=success_style), []
-    else:
-        return html.Div(f"✅ Annotation linked.", style=success_style),[]
+    # Optionally link annotations if the "with-link" button was clicked
+    if triggered_id == "btn-load-annotations-with-link":
+        for genome in set(genome_mapping.values()):
+            logger.info(f"Link annotations for genome '{genome}'")
+            creer_relations_annotations_neo4j(genome)
+
+    # Return success message and reset all checkboxes (empty list)
+    return html.Div(
+        f"✅ Annotation(s) '{', '.join(selected_files)}' loaded with associated genomes.",
+        style=success_style
+    ), [[] for _ in checkbox_values]
+
+
+#
+# @app.callback(
+#     Output("annotation-message", "children"),
+#     Output("annotations-files-selector", "value"),
+#     Input("btn-load-annotations-with-link", "n_clicks"),
+#     #Input("btn-load-only-annotations", "n_clicks"),
+#     #Input("btn-link-annotations", "n_clicks"),
+#     State("dropdown-genome", "value"),
+#     State('annotations-files-selector', 'value'),
+#     prevent_initial_call=True
+# )
+# @require_authorization
+# def on_click_load_annotation(n_clicks_load_all, genome, annotation_file_names):
+#     triggered_id = ctx.triggered_id
+#     annotation_time = time.time()
+#     logger.info("annotations file names : " + str(annotation_file_names))
+#     logger.info("triggered id : " + str(triggered_id))
+#     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
+#         if not annotation_file_names:
+#             return html.Div("❌ Please select an annotation file before loading.", style=error_style), no_update
+#         if not genome or genome == "":
+#             return html.Div("❌ Please select a reference haplotype.", style=error_style), no_update
+#         state_index = check_state_index("NodeIndex"+genome+"_position")
+#         if state_index is None:
+#             return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
+#         if int(state_index) != 100:
+#             return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
+#
+#         # Force to list
+#         if isinstance(annotation_file_names, str):
+#             annotation_file_names = [annotation_file_names]
+#
+#         # ✅ Check all files have .gtf / .gff3 / .gff extension
+#         invalid_files = [f for f in annotation_file_names if not f.lower().endswith(".gff") and not f.lower().endswith(".gff3") and not f.lower().endswith(".gtf")]
+#         if invalid_files:
+#             return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gff, .gff3 or gtf files.", style=error_style), no_update
+#         genomes_list = []
+#         for f in annotation_file_names:
+#             logger.info(f"Load annotations for file {f}")
+#             state_index = check_state_index("NodeIndex"+genome+"_position")
+#             if state_index is None:
+#                 return html.Div(f"❌ Index {state_index} has not been created, please create index before loading annotations.", style=error_style), no_update
+#             if int(state_index) != 100:
+#                 return html.Div(f"❌ Index {state_index} is not completly created (creation state : {state_index}%). Please wait until this index has been created.", style=warning_style), no_update
+#             file = os.path.join(ANNOTATIONS_FOLDER, f)
+#             annotation_time = time.time()
+#             load_annotations_neo4j(file, genome_ref = genome, single_chromosome = None)
+#         logger.info("Annotations loaded in " + str(time.time()-annotation_time) + " s.")
+#     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-link-annotations" :
+#         logger.info("Link annotations")
+#         annotation_relation_time = time.time()
+#         creer_relations_annotations_neo4j(genome)
+#         logger.info("Link annotations in " + str(time.time()-annotation_relation_time) + " s.")
+#     if triggered_id == "btn-load-annotations-with-link" or triggered_id == "btn-load-only-annotations":
+#         return html.Div(f"✅ Annotation '{annotation_file_names}' loaded for genome '{genome}'.", style=success_style), []
+#     else:
+#         return html.Div(f"✅ Annotation linked.", style=success_style),[]
 
 ############# Delete data callbacks#################
 
@@ -402,56 +464,65 @@ def create_db_ask_confirmation(n_clicks):
         ])
     return ""
 
+
 @app.callback(
     Output("create-db-message", "children"),
     Output("create-db-confirmation", "children", allow_duplicate=True),
     Output('db-management-page-store', 'data', allow_duplicate=True),
-    Output('dropdown-genome', 'options'),
+    Output({'type': 'annotation-dropdown', 'index': ALL}, 'options'),
     Input("btn-confirm-create-db", "n_clicks"),
     State("container-name-input","value"),
     State("docker-image-dropdown","value"),
     State('db-management-page-store', 'data'),
-    State('dropdown-genome', 'options'),
+    State('annotations-files-container', 'children'),
     prevent_initial_call=True
 )
 @require_authorization
-def confirm_create_db(n_clicks,container_name, docker_image, data, options):
+def confirm_create_db(n_clicks, container_name, docker_image, data, children):
     if data is None:
         data = {}
-    logger.info("container name : " + container_name)
+
+    n_dropdowns = len(children) if children else 0
+    no_update_list = [no_update] * n_dropdowns
+
     if not n_clicks:
         raise exceptions.PreventUpdate
-    if container_name is None or container_name == "":
-        if 'container_name' in data and data["container_name"] is not None and data["container_name"] != "":
-            container_name = data["container_name"]
-        else:
-            return html.Div("❌ No container name", style=error_style), "", data, options
-    else :
+
+    # Check container name
+    if not container_name:
+        return html.Div("❌ No container name", style=error_style), "", data, no_update_list
+    else:
         data['container_name'] = container_name
-        container_name=PREFIX_CONTAINER_NAME+container_name
+        container_name_prefixed = PREFIX_CONTAINER_NAME + container_name
+
     try:
-        creation_mode = create_db(container_name, docker_image)
-        #If creation by importing csv files it is necessary to create stats and indexes
-        if creation_mode == "csv" :
+
+        creation_mode = create_db(container_name_prefixed, docker_image)
+        # If creation by importing csv files it is necessary to create stats and indexes
+        if creation_mode == "csv":
             logger.info("creating base indexes")
             create_indexes(base=True, extend=True, genomes_index=False)
             if check_state_index("NodeIndexChromosome") is not None:
                 t = 0
                 while int(check_state_index("NodeIndexChromosome")) < 100 and t < MAX_TIME_INDEX:
                     time.sleep(10)
-                    t+=10
+                    t += 10
                 logger.info("creating stats")
                 create_stats_from_nodes()
-            logger.info("creating other indexes")    
+            logger.info("creating other indexes")
             create_indexes(base=False, extend=False, genomes_index=True)
-        genomes = get_genomes()
-        options = []
-        if genomes is not None :
-            options = [{"label": genome, "value": genome} for genome in genomes]
-        return html.Div("✅ DB successfully created.", style=success_style), "", data, options
+
+        genomes = get_genomes() or []
+        options_list = [
+            [{"label": genome, "value": genome} for genome in genomes]
+            for _ in range(n_dropdowns)
+        ]
+
+        return html.Div("✅ DB successfully created.", style=success_style), "", data, options_list
+
     except Exception as e:
-        return html.Div(f"❌ Error while creating database: {str(e)}", style=error_style), "", data, options
-    
+        logger.error(f"Error while creating database: {e}")
+        return html.Div(f"❌ Error while creating database: {str(e)}", style=error_style), "", data, no_update_list
 
 @app.callback(
     Output("create-db-message", "children", allow_duplicate=True),

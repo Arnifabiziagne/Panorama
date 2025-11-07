@@ -33,10 +33,23 @@ It allows the following functionalities :
 - Prepare database (command line):
   - It is possible to prepare database with command lines : go into neo4j_install directory and run the script (replace $container_name with the desired name) : bash ./setup_neo4j.sh --container-name $container_name
 
-### Tips
-  - For big pangenome, it is recommended to generate csv files before creation the database. In this case, on the DB management page, select the gfa file and click on "Generate CSV Import file". Once the csv are generated, click on "Create new DB".
+## Important notes
   - To launch multiple neo4j instance, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
   - On windows system, raxmlHPC must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed.
+  - The default memory used by the neo4j database is defined into the data/conf/neo4j.conf file, it requires at least 20 Go, if the system (and docker configuration) doesn't have this memory available it will be necessary to tune these values.
+  -The GFA file must be properly structured for the application to correctly identify the individual name and chromosome. According to the GFA format:
+    - **For GFA files with `W` lines:**  
+      The data is typically organized as follows:  
+      - **Column 2:** Individual name  
+      - **Column 3:** Haplotype number (the individual will then be named `individual_haplotype`)  
+      - **Column 4:** Chromosome identifier  
+
+    - **For `P` lines:**  
+      The path name (`pathName`, in column 2) must follow one of the two formats below:  
+      - `genome#haplotype#chromosome`  
+      - `genome.haplotype.chromosome`
+
+In all cases, if a chromosome is specified when loading the GFA file, that value will take precedence.
 
 ### Logs
 
