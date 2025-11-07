@@ -37,7 +37,7 @@ It allows the following functionalities :
   - To launch multiple neo4j instance, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
   - On windows system, raxmlHPC must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed.
   - The default memory used by the neo4j database is defined into the data/conf/neo4j.conf file, it requires at least 20 Go, if the system (and docker configuration) doesn't have this memory available it will be necessary to tune these values.
-  - The GFA file must be properly structured for the application to correctly identify the individual name and chromosome. According to the GFA format:
+  - The GFA file must be properly structured for the application to correctly identify the individual name and chromosome. We strongly recommend to use W lines but according to the GFA format:
     - **For GFA files with `W` lines:**  
       The data is typically organized as follows:  
       - **Column 2:** Individual name  
