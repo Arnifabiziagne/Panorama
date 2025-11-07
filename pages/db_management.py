@@ -48,16 +48,23 @@ def layout():
             html.Ul([
                 html.Li("This page allows to manage database. Once the data have been created, this page is normally only used to reset the database. The creation of the database depends on the data :"),
                     html.Ul([
-                        html.Li("Procedure for an intermediate data volume (graph with less than 10 millions nodes): "),  
+                        html.Li("Initial procedure :"),
                         html.Ul([
-                            html.Li("First create the database : select the neo4j docker image and give a name to the database. Then click on 'create a new DB' button."),
-                            html.Li("Load the GFA : select the GFA files. If the GFA files concern a unique chromosome, enter the name of the chromosome in the appropriate field. Then click on 'Load' button."),                            
-                        ]),
-                        html.Li("Procedure recommended for big data (gfa with more than 10 millions nodes): "),  
-                        html.Ul([
-                            html.Li("First convert the GFA into csv file : select GFA files. If the GFA files concern a unique chromosome, enter the name of the chromosome in the appropriate field. Then click on 'Generate CSV import file' button."),
-                            html.Li("Then create the database : select the neo4j docker image and give a name to the database. Then click on 'create a new DB' button. The csv will automatically be used to generate databse."),
+                            html.Li("First convert the GFA into csv file : select GFA files and set the associated chromosome in the following cases : "),
+                            html.Ul([
+                            html.Li("The file concern a unique chromosome."),
+                            html.Li("Multiple gfa files are loaded, each file must refer ton only one chromosome."),
+                            html.Li("No chromosome at all (set the value to 0 in this case)."),
+                            html.Li("If there is only one GFA file with multiple chromosomes then there is nothing to set."),
+                            ]),
+                            html.Li("Click on Generate CSV Import file button."),
+                            html.Li("Then create the database : select the neo4j docker image and give a name to the database. Then click on 'create a new DB' button. The csv will automatically be used to generate database."),
                             
+                        ]),
+                        html.Li("Procedure to load further GFA files : "),
+                        html.Ul([
+                            html.Li(
+                                "Once the database has been created, it is no longer possible to use the CSV generation process. In this case, you can use the **'Add data'** procedure by selecting the file and specifying the associated chromosome. However, this approach is **not recommended**, as it is slower than the initial CSV-based loading process."),
                         ]),
                         html.Li("Dump procedure (for intermediate data volume): "),  
                         html.Ul([
@@ -66,7 +73,7 @@ def layout():
                         html.Li("Load annotations files : "),  
                         html.Ul([
                             html.Li("For this step it is necessary that indexes are created. It can take a few time after the GFA loading."),
-                            html.Li("For each reference genome : select the reference genome and the drag and drop or select annotations file associated to this genome. Then click on 'Load' button. Depending on the volume of data, this operation may take some time."),
+                            html.Li("For each annotation file to be loaded, select the file and specify the individual associated with that annotation file. Each annotation file must be linked to **only one** individual. Then, click the **'Load'** button."),
                             
                         ]),
                     ])
@@ -278,7 +285,7 @@ def layout():
                 html.Li("Required indexes must be created and available in the database before loading annotations."),          ])
         ]),
         html.Br(),
-        html.H3("Annotations files loading (it is recommended to put big annotations files directly into the /data/annotations directory)"),
+        html.H3("Annotations files loading (only for small annotation files, big must be placed directly into the /data/annotations directory)"),
     
         dcc.Upload(
             id='upload-annotations-data',

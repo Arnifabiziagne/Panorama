@@ -229,9 +229,8 @@ def stop_container(container_name=None):
     if container_name == None:
         with open(CONF_FILE) as f:
             conf = json.load(f)
-            if container_name in conf and conf["container_name"] is not None and conf["container_name"] != "":
+            if "container_name" in conf and conf["container_name"] is not None and conf["container_name"] != "":
                 container_name = conf["container_name"]
-
     if container_name is not None:
         """
         Stops Docker container if it exists.

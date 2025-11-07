@@ -4,6 +4,7 @@ DASH_PORT=${1:-8050}
 ENV_NAME="panorama_graph"
 ENV_FILE="panorama_graph.yaml"
 HASH_FILE="./.${ENV_NAME}_env_hash"
+CONF_FILE="./conf.json"
 
 set -e
 

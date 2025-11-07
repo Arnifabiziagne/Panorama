@@ -1724,7 +1724,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                 i = 0
                 while current_id < max_id:
                     i+=1
-                    logger.info("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
+                    logger.debug("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
                     annotations_nb = 0
                     if chromosome is None :
                         annotations = session.run(
@@ -1761,7 +1761,7 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
                             process_annotation_complex_batch(tx, annotations, g, annotation_search_limit=10000)
                             tx.commit()
                     
-                    logger.info("Annotations nb : " + str(annotations_nb) + " - Annotations already treated : " + str(total_annotations))
+                    logger.debug("Annotations nb : " + str(annotations_nb) + " - Annotations already treated : " + str(total_annotations))
                     current_id += batch_size
             
             
