@@ -229,27 +229,29 @@ def stop_container(container_name=None):
     if container_name == None:
         with open(CONF_FILE) as f:
             conf = json.load(f)
-            container_name = conf["container_name"]
+            if container_name in conf and conf["container_name"] is not None and conf["container_name"] != "":
+                container_name = conf["container_name"]
 
-    """
-    Stops and removes a Docker container if it exists.
-    Does nothing if the container does not exist.
-    """
-    try:
-        # List all container names (including stopped ones)
-        result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{.Names}}"],
-            capture_output=True, text=True, check=True
-        )
-        existing_containers = result.stdout.strip().splitlines()
+    if container_name is not None:
+        """
+        Stops Docker container if it exists.
+        Does nothing if the container does not exist.
+        """
+        try:
+            # List all container names (including stopped ones)
+            result = subprocess.run(
+                ["docker", "ps", "-a", "--format", "{{.Names}}"],
+                capture_output=True, text=True, check=True
+            )
+            existing_containers = result.stdout.strip().splitlines()
 
-        if container_name in existing_containers:
-            logger.info(f"🛑 Stopping existing container: {container_name}")
-            subprocess.run(["docker", "stop", container_name], check=True)
-        else:
-            logger.info(f"ℹ️ Container '{container_name}' does not exist. Nothing to do.")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"❌ Error while stopping/removing container: {e}")
+            if container_name in existing_containers:
+                logger.info(f"🛑 Stopping existing container: {container_name}")
+                subprocess.run(["docker", "stop", container_name], check=True)
+            else:
+                logger.info(f"ℹ️ Container '{container_name}' does not exist. Nothing to do.")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"❌ Error while stopping/removing container: {e}")
 
 
 
