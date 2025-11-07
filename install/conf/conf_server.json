@@ -1,0 +1,10 @@
+{
+  "server_mode": true,
+  "admin_mode": false,
+  "admin_users": {
+    "admin": "1234"
+  },
+  "server_log_mode": "both",
+  "log_retention_days": 7,
+  "log_level": "INFO"
+}

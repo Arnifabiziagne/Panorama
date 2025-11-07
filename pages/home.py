@@ -886,16 +886,16 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         
     if gene_name is not None and gene_name != "":
         home_data_storage["gene_name"] = gene_name
-        home_data_storage["start"] = None
-        home_data_storage["end"] = None
-        start_value = None
-        end_value = None
+        #home_data_storage["start"] = None
+        #home_data_storage["end"] = None
+        #start_value = None
+        #end_value = None
     if gene_id is not None and gene_id != "":
         home_data_storage["gene_id"] = gene_id
-        home_data_storage["start"] = None
-        home_data_storage["end"] = None
-        start_value = None
-        end_value = None
+        #home_data_storage["start"] = None
+        #home_data_storage["end"] = None
+        #start_value = None
+        #end_value = None
     if min_shared_genome is None:
         min_shared_genome = 100
     if tolerance is None:
@@ -980,6 +980,20 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 else:
                     new_data = get_nodes_by_gene(
                         genome, chromosome=chromosome, gene_id=gene_id)
+                #Get the start / end value
+                genome_position = genome + "_position"
+                nodes_with_position = [node for node in new_data.values() if genome_position in node]
+                if len(nodes_with_position) > 1:
+                    print(f"new data length {len(new_data)}")
+                    min_node = min(nodes_with_position, key=lambda x: x[genome_position])
+                    max_node = max(nodes_with_position, key=lambda x: x[genome_position])
+
+                    max_node_size = max_node.get("size", None)
+                    start_value = min_node.get(genome_position, None)
+                    end_value = max_node.get(genome_position) + max_node_size
+                    home_data_storage["start"] = start_value
+                    home_data_storage["end"] = end_value
+                    log.debug(f"start value : {start_value} - end value : {end_value}")
                 data_storage_nodes = new_data
             else:
                 new_data = get_nodes_by_region(
