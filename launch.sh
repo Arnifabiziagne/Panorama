@@ -43,6 +43,40 @@ fi
 echo "Activating environment '$ENV_NAME'"
 conda activate "$ENV_NAME"
 
+
+# Check conf file
+#First check old config file
+if [ -f "db_conf.json" ]; then
+	:
+else
+    # Check if conf.json file exists
+    if [ -f "conf.json" ]; then
+		:
+    else
+        # Old conf file and new config file don't exist => create default conf file
+        echo "Copy conf file install/conf/conf_dash.json to conf.json..."
+        cp "install/conf/conf_dash.json" "conf.json"
+        if [ $? -ne 0 ]; then
+            echo "Error when copying conf file."
+            exit 1
+        fi
+    fi
+fi
+
+
+# Check neo4j conf file
+if [ -f "data/conf/neo4j.conf" ]; then
+	:
+else
+	# neo4j conf file doesn't exists => create default neo4j conf file
+	echo "Copy neo4j conf file install/conf/neo4j.conf to data/conf/neo4j.conf..."
+	cp "install/conf/neo4j.conf" "data/conf/neo4j.conf"
+	if [ $? -ne 0 ]; then
+		echo "Error when copying neo4j conf file."
+		exit 1
+	fi
+fi
+    
 # --- Launch application ---
 echo "Launching Panorama on port $DASH_PORT..."
 python index.py --port $DASH_PORT

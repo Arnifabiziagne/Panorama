@@ -87,6 +87,40 @@ IF ERRORLEVEL 1 (
     EXIT /B 1
 )
 
+REM Check if db_conf.json exists
+if exist "db_conf.json" (
+	REM file exists nothing to do
+) else (
+    REM Check if conf.json exists
+    if exist "conf.json" (
+		REM file exists nothing to do
+    ) else (
+        REM No existing conf file => copy default conf file
+        echo Copy file conf_dash.json to conf.json...
+        copy "install\conf\conf_dash.json" "conf.json"
+        if %errorlevel% neq 0 (
+            echo Error when copying conf file.
+            exit /b 1
+        )
+    )
+)
+
+
+REM Check if neo4j.conf exists
+if exist "data\conf\neo4j.conf" (
+	REM file exists nothing to do
+) else (
+
+	REM No existing neo4j conf file => copy default conf file
+	echo Copy file install\conf\neo4j.conf to data\conf\conf.json...
+	copy "install\conf\neo4j.conf" "data\conf\neo4j.conf"
+	if %errorlevel% neq 0 (
+		echo Error when copying neo4j conf file.
+		exit /b 1
+	)
+
+)
+
 :: --- Launch Dash app ---
 echo [INFO] Launching Panorama on port %DASH_PORT%...
 python index.py --port %DASH_PORT%
