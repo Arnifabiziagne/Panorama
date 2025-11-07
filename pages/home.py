@@ -993,7 +993,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                     end_value = max_node.get(genome_position) + max_node_size
                     home_data_storage["start"] = start_value
                     home_data_storage["end"] = end_value
-                    log.debug(f"start value : {start_value} - end value : {end_value}")
+                    logger.debug(f"start value : {start_value} - end value : {end_value}")
                 data_storage_nodes = new_data
             else:
                 new_data = get_nodes_by_region(
@@ -1004,7 +1004,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         if triggered_id == "search-button":
             zoom_shared_storage_out = {}
         if len(elements) == 0:
-            message=html.Div("❌ No data found.", style=warning_style)
+            message=html.Div("❌ No data found or region too wide.", style=warning_style)
 
     else:
         logger.debug(f"min node size : {size_slider_val}")
