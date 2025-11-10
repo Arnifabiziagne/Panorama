@@ -1004,6 +1004,10 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         if triggered_id == "search-button":
             zoom_shared_storage_out = {}
         if len(elements) == 0:
+            start_value = None
+            end_value = None
+            home_data_storage["start"] = start_value
+            home_data_storage["end"] = end_value
             message=html.Div("❌ No data found or region too wide.", style=warning_style)
 
     else:

@@ -322,6 +322,8 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
                 stop = noeuds_annotes[-1][genome_position] + noeuds_annotes[-1]["size"]
                 logger.debug(f"start : {start} - stop : {stop} - nodes number : {len(noeuds_annotes)}")
                 nodes_data = get_nodes_by_region(genome, chromosome, start, stop)
+            else:
+                logger.debug(f"No nodes found {len(noeuds_annotes)}.")
             
         return nodes_data
 
@@ -1234,7 +1236,7 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
         else:
             #Set of control points :
             x_vals = np.array([1e4, 1e5, 1e7, 1e8, 2e9])
-            y_vals = np.array([1e4, 5e4, 3e5, 5e5, 1e6])
+            y_vals = np.array([1e4, 2e4, 6e4, 7e4, 9e4])
             logx = np.log10(x_vals)
             #Compute the polynomial interpolation in log space:
             coeffs = np.polyfit(logx, y_vals, deg=4)
@@ -1299,16 +1301,34 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
                 os.remove(f)
             
             raxml_command = [
-                "raxmlHPC", 
-                "-s", distance_matrix_filename, 
-                "-m", "BINGAMMA",  
-                "-p", "12345",  
+                "raxmlHPC",
+                "-s", distance_matrix_filename,
+                "-m", "BINGAMMA",
+                "-p", "12345",
                 # '-#', '100',  # Iterations number for bootstrapping
                 "-n", project_name
             ]
-        
+
+            # raxml_command = [
+            #     "raxml-ng",
+            #     "--msa", distance_matrix_filename,
+            #     "--model", "BIN+G",
+            #     "--seed", "12345",
+            #     "--prefix", project_name,
+            # ]
+
+            # iqtree_command = [
+            #     "iqtree2",
+            #     "-s", distance_matrix_filename,
+            #     "-seed", "12345",
+            #     "-nt", "AUTO",
+            #     "-pre", project_name
+            # ]
+
+
             # launching RaxML command
             result = subprocess.run(raxml_command, check=True, cwd=dir_raxml)
+            #result = subprocess.run(iqtree_command, check=True, cwd=dir_raxml)
             try:
                 with open(tree_newick_filename, 'r') as f:
                     return f.read()
