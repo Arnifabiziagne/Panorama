@@ -86,7 +86,7 @@ app.layout = html.Div([
         children=[
             dcc.Tabs(
                 id="tabs-navigation",
-                value="/",  # valeur par défaut (la page affichée au lancement)
+                value=None,
                 children=tabs,
             )
         ],
@@ -149,6 +149,20 @@ def init_data(pathname):
     new_data["genomes"] = all_genomes
     new_data["chromosomes"]  = get_chromosomes()
     return new_data
+
+
+@app.callback(
+    Output('tabs-navigation', 'value',allow_duplicate=True),
+    Input('url', 'pathname'),
+    prevent_initial_call=True,
+)
+def sync_tabs_with_url(pathname):
+    """
+    Synchronise la tab sélectionnée avec la route actuelle.
+    """
+    if pathname is None:
+        return '/'
+    return pathname
 
 
 @app.callback(

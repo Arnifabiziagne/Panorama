@@ -190,7 +190,7 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                     # Check if the region size is not too  wide
                     query_genome = f"""
                                         MATCH (m:Node)
-                                        WHERE  m.chromosome = "{chromosome}" 
+                                        WHERE  m.chromosome = "{chromosome}"
                                         AND (
                                         """
                     first = True
@@ -234,6 +234,7 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                             OPTIONAL MATCH (m)-[]->(a:Annotation)
                             OPTIONAL MATCH (s:Sequence {{name: m.ref_node}})
                             RETURN m, substring(s.sequence, 0, {max_sequence}) as sequence, collect(a.gene_name) AS annotations, collect(a.feature) AS features
+                            LIMIT {max_nodes_number + 1}
                             """
 
                         #logger.info(query_genome)
