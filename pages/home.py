@@ -486,39 +486,87 @@ def layout(data=None, initial_size_limit=10):
 
 
                 html.Div([
-                    html.H5("Search region", style={'textAlign': 'left', 'marginBottom': '15px'}),
                     html.Div([
-                        html.Label("Start : ", title="Start on the selected haplotype / chromosome."),
-                        dcc.Input(id='start-input', type='number', style={'width': '100px', 'marginRight': '10px'}),
-                        html.Label("End : ", title="End on the selected haplotype / chromosome."),
-                        dcc.Input(id='end-input', type='number', style={'width': '100px', 'marginRight': '20px'})
-                    ], style={'marginBottom': '10px'}),
-                    html.Div([
-                        html.Label(
-                            "Gene name : ", title="Will be searched on annotation of the selected haplotype / chromosome."),
-                        dcc.Input(
-                            id='genename-input',
-                            type='text',
-                            placeholder='Nom de gene',
-                            debounce=True,
-                            style={'marginRight': "10px"}
-                        ),
-                        html.Label(
-                            "Gene id : ", title="Will be searched on annotation of the selected haplotype / chromosome."),
-                        dcc.Input(
-                            id='geneid-input',
-                            type='text',
-                            placeholder='id de gene',
-                            debounce=True
-                        )
-                    ], style={'marginBottom': '20px'}),
-                    html.Button('Search', id='search-button',
-                                n_clicks=0, style={'marginTop': '10px'}),
-                    dcc.Loading(
-                        id="loading-search-msg",
-                        type="circle",
-                        children=html.Div(id="search-message")
-                    ),
+                        #Div search and display
+                        html.Div([
+                                #div search options
+                            html.H5("Search region", style={'textAlign': 'left', 'marginBottom': '15px'}),
+                            html.Div([
+                                html.Label("Start : ", title="Start on the selected haplotype / chromosome."),
+                                dcc.Input(id='start-input', type='number', style={'width': '100px', 'marginRight': '10px'}),
+                                html.Label("End : ", title="End on the selected haplotype / chromosome."),
+                                dcc.Input(id='end-input', type='number', style={'width': '100px', 'marginRight': '20px'})
+                            ], style={'marginBottom': '10px'}),
+                            html.Div([
+                                html.Div([
+                                    html.Label(
+                                        "Gene name : ",
+                                        title="Will be searched on annotation of the selected haplotype / chromosome."
+                                    ),
+                                    dcc.Input(
+                                        id='genename-input',
+                                        type='text',
+                                        placeholder='Gene name',
+                                        debounce=True,
+                                        style={'width': '200px', 'marginBottom': '10px'}
+                                    ),
+                                ]),
+                                html.Div([
+                                    html.Label(
+                                        "Gene id : ",
+                                        title="Will be searched on annotation of the selected haplotype / chromosome."
+                                    ),
+                                    dcc.Input(
+                                        id='geneid-input',
+                                        type='text',
+                                        placeholder='Gene id',
+                                        debounce=True,
+                                        style={'width': '200px'}
+                                    ),
+                                ]),
+                            ],
+                                style={'marginBottom': '20px'}),
+                            html.Button('Search', id='search-button',
+                                        n_clicks=0, style={'marginTop': '10px'}),
+                            dcc.Loading(
+                                id="loading-search-msg",
+                                type="circle",
+                                children=html.Div(id="search-message")
+                            ),
+                        ],style={
+                            'width': '45%',
+                            'padding': '10px',
+                            'box-sizing': 'border-box'
+                        }),
+                        html.Div([
+                            #Div displayed region
+                            html.H4("Displayed region", style={'marginBottom': '10px'}),
+                            html.Div([
+                                html.Div(id='displayed-region-container', children=[
+                                    html.Div("No region selected.", id='no-region-msg',
+                                             style={'font-style': 'italic', 'color': '#777'})
+                                ])
+                            ], style={
+                                'border': '1px solid #ccc',
+                                'border-radius': '5px',
+                                'padding': '10px',
+                                'background-color': '#f9f9f9',
+                                'min-height': '100px'
+                            }),
+                        ],
+                            style={
+                                'width': '45%',
+                                'padding': '10px',
+                                'border-left': '2px solid #ddd',
+                                'box-sizing': 'border-box'
+                            }),
+                    ],style={
+                        'display': 'flex',
+                        'flex-direction': 'row',
+                        'justify-content': 'space-between',
+                        'align-items': 'flex-start',
+                        'width': '100%',
+                    }),
                     html.Div([
                         html.Label("Haplotypes to visualize :", title="Nodes containing only unselected haplotypes won't be displayed.", style={
                                    'marginBottom': '5px'}),
@@ -797,9 +845,33 @@ def display_element_data(node_data, edge_data):
         )
     return "Click on a node or link to display data."
 
+#Function to construct the region information
+def get_displayed_div(start, end, gene_name, gene_id):
+    def info_line(label, value):
+        if value is not None and value != "":
+            return html.Div([
+                html.Span(f"{label}: ", style={'font-weight': 'bold', 'margin-right': '5px'}),
+                html.Span(str(value))
+            ], style={'margin-bottom': '5px'})
+    info_rows = []
+    if start or end:
+        start_txt = str(start) if start else "—"
+        end_txt = str(end) if end else "—"
+        info_rows.append(
+            html.Div([
+                html.Span("Region: ", style={'font-weight': 'bold', 'margin-right': '5px'}),
+                html.Span(f"{start_txt} — {end_txt}")
+            ], style={'margin-bottom': '5px'})
+        )
+    if gene_name:
+        info_rows.append(info_line("Gene name", gene_name))
+    if gene_id:
+        info_rows.append(info_line("Gene ID", gene_id))
+    displayed_div = info_rows or html.Div("No region selected.", style={'font-style': 'italic', 'color': '#777'})
+    return displayed_div
+
+
 # Main callback to update graph when changing size, or selecting genomes, etc.
-
-
 @app.callback(
     Output("graph", "elements"),
     Output("nb-noeuds", 'children'),
@@ -814,6 +886,9 @@ def display_element_data(node_data, edge_data):
     Output('zoom_shared_storage_nodes', 'data', allow_duplicate=True),
     Output('start-input', 'value', allow_duplicate=True),
     Output('end-input', 'value', allow_duplicate=True),
+    Output('genename-input', 'value', allow_duplicate=True),
+    Output('geneid-input', 'value', allow_duplicate=True),
+    Output('displayed-region-container', 'children'),
     State('genome_selector', 'value'),
     State('shared-mode', 'value'),
     State('specific-genome_selector', 'value'),
@@ -876,26 +951,23 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     if start is not None:
         home_data_storage["start"] = start
         start_value = start
-    # elif "start" in home_data_storage:
-    #     start_value = home_data_storage["start"] 
+        home_data_storage["gene_name"] = ""
+        home_data_storage["gene_id"] = ""
+
     if end is not None:
         home_data_storage["end"] = end
         end_value = end
-    # elif "end" in home_data_storage:
-    #     end_value = home_data_storage["end"]
-        
+        home_data_storage["gene_name"] = ""
+        home_data_storage["gene_id"] = ""
+
     if gene_name is not None and gene_name != "":
         home_data_storage["gene_name"] = gene_name
-        #home_data_storage["start"] = None
-        #home_data_storage["end"] = None
-        #start_value = None
-        #end_value = None
+        home_data_storage["gene_id"] = ""
+
     if gene_id is not None and gene_id != "":
         home_data_storage["gene_id"] = gene_id
-        #home_data_storage["start"] = None
-        #home_data_storage["end"] = None
-        #start_value = None
-        #end_value = None
+        home_data_storage["gene_name"] = ""
+
     if min_shared_genome is None:
         min_shared_genome = 100
     if tolerance is None:
@@ -910,8 +982,8 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         if selected_nodes_data is not None and len(selected_nodes_data) > 0:
             selected_nodes_name = set([node['name'] for node in selected_nodes_data])
         if len(zoom_shared_storage_out) ==0:
-            zoom_shared_storage_out["start"] = start_value
-            zoom_shared_storage_out["end"] = end_value
+            zoom_shared_storage_out["start"] = home_data_storage["start"]
+            zoom_shared_storage_out["end"] = home_data_storage["end"]
         position_field = genome + "_position"
         selected_positions =set()
         for n in data_storage_nodes:
@@ -942,6 +1014,20 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             zoom_shared_storage_out = {}
             home_data_storage["start"] = start_value
             home_data_storage["end"] = end_value
+        else:
+            if ("gene_name" in home_data_storage and home_data_storage["gene_name"] is not None
+                    and home_data_storage["gene_name"] != ""):
+                gene_name = home_data_storage["gene_name"]
+                logger.debug(f"No zoom, display gene name {gene_name}")
+            elif ("gene_id" in home_data_storage and home_data_storage["gene_id"] is not None
+                  and home_data_storage["gene_id"] != ""):
+                gene_id = home_data_storage["gene_id"]
+                logger.debug(f"No zoom, display gene id {gene_id}")
+            elif "start" in home_data_storage and "end" in home_data_storage:
+                start_value = home_data_storage["start"]
+                end_value = home_data_storage["end"]
+                logger.debug(f"No zoom, display region {start_value} - {end_value}")
+
 
     logger.debug("update graph : " + str(ctx.triggered[0]['prop_id']))
     stylesheet = []
@@ -977,9 +1063,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 if gene_name is not None and gene_name != "":
                     new_data = get_nodes_by_gene(
                         genome, chromosome=chromosome, gene_name=gene_name)
+                    home_data_storage["gene_id"] = None
                 else:
                     new_data = get_nodes_by_gene(
                         genome, chromosome=chromosome, gene_id=gene_id)
+                    home_data_storage["gene_name"] = None
                 #Get the start / end value
                 genome_position = genome + "_position"
                 nodes_with_position = [node for node in new_data.values() if genome_position in node]
@@ -998,9 +1086,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             else:
                 new_data = get_nodes_by_region(
                     genome, chromosome=chromosome, start=0, end=end)
-        elements = compute_graph_elements(new_data, genome, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
+        elements = compute_graph_elements(new_data, genome, selected_genomes, size_slider_val, all_genomes,
+                                          all_chromosomes, specifics_genomes_list,
                                           color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
-                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
+                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color,
+                                          exons=exons, exons_color=exons_color)
         if triggered_id == "search-button":
             zoom_shared_storage_out = {}
         if len(elements) == 0:
@@ -1012,9 +1102,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
 
     else:
         logger.debug(f"min node size : {size_slider_val}")
-        elements = compute_graph_elements(data_storage_nodes, genome, selected_genomes, size_slider_val, all_genomes, all_chromosomes, specifics_genomes_list,
+        elements = compute_graph_elements(data_storage_nodes, genome, selected_genomes, size_slider_val, all_genomes,
+                                          all_chromosomes, specifics_genomes_list,
                                           color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
-                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color, exons=exons, exons_color=exons_color)
+                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color,
+                                          exons=exons, exons_color=exons_color)
 
     defined_color = 0
     if color_genomes is not None:
@@ -1046,8 +1138,11 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             'quality': "proof",
             'fit': True
         }
-
-    return elements,f"{count} displayed nodes", data_storage_nodes, message, annotations, stylesheet, layout, home_data_storage, [], [], zoom_shared_storage_out, start_value, end_value
+    #displayed region construction:
+    displayed_div = get_displayed_div(start_value, end_value, gene_name, gene_id)
+    return (elements,f"{count} displayed nodes", data_storage_nodes, message, annotations, stylesheet,
+            layout, home_data_storage, [], [], zoom_shared_storage_out,
+            None, None, "", "", displayed_div)
 
 
 # color picker
@@ -1083,10 +1178,7 @@ def save_slider_value(size_slider_val, data):
     Output('size_slider', 'value'),
     Output('chromosomes-dropdown', 'value'),
     Output('genomes-dropdown', 'value'),
-    Output('start-input', 'value'),
-    Output('end-input', 'value'),
-    Output('genename-input', 'value'),
-    Output('geneid-input', 'value'),
+    Output('displayed-region-container', 'children', allow_duplicate=True),
     Output('shared-region-color-picker', 'value'),
     Output('specific-genome_selector', 'value'),
     Output('update_graph_command_storage', 'data'),
@@ -1096,6 +1188,7 @@ def save_slider_value(size_slider_val, data):
     State('genomes-dropdown', 'options'),
     State('chromosomes-dropdown', 'options'),
     State('specific-genome_selector', 'value'),
+    prevent_initial_call=True
 )
 def update_parameters_on_page_load(pathname, search, data, options_genomes, options_chromosomes, specifics_genomes):
     slider_value = DEFAULT_SIZE_VALUE
@@ -1170,9 +1263,9 @@ def update_parameters_on_page_load(pathname, search, data, options_genomes, opti
             gene_name = data["gene_name"]
         if "gene_id" in data:
             gene_id = data["gene_id"]
-        
 
-    return slider_value, selected_chromosome, selected_genome, start_input, end_input, gene_name, gene_id, shared_regions_link_color, selected_shared_genomes, update_graph_command_storage
+    displayed_div = get_displayed_div(start_input, end_input, gene_name, gene_id)
+    return slider_value, selected_chromosome, selected_genome, displayed_div, shared_regions_link_color, selected_shared_genomes, update_graph_command_storage
 
 
 # Algorithm cytoscape choice
@@ -1213,11 +1306,12 @@ def toggle_layout(layout_choice):
     Input('graph', 'imageData'),
     State('chromosomes-dropdown', 'value'),
     State('genomes-dropdown', 'value'),
-    State('start-input', 'value'),
-    State('end-input', 'value'),
+    State('home-page-store', 'data'),
     prevent_initial_call=True
 )
-def save_image_to_file(image_data, chromosome, genome, start, end):
+def save_image_to_file(image_data, chromosome, genome, data):
+    start = data.get("start", "")
+    end =  data.get("end", "")
     if not image_data:
         raise PreventUpdate
     # S'assurer que le dossier existe
@@ -1266,16 +1360,3 @@ def trigger_image_save(n_clicks_jpg, n_clicks_png):
     else:
         return {'type': fmt, 'action': 'store'}
 
-
-######## zoom on selection callbacks ###############
-
-# @app.callback(
-#     Output('selected-nodes', 'children'),
-#     Input('graph', 'selectedNodeData')
-# )
-# def display_selected_nodes(data):
-#     if not data:
-#         return "No nodes selected."
-
-#     # Affiche les infos utiles des nœuds sélectionnés
-#     return "\n".join(f"- {node.get('label')} (id: {node.get('id')})" for node in data)

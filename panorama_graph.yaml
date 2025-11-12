@@ -6,6 +6,8 @@ channels:
 dependencies:
   - python=3.10
   - raxml=8.2.13  
+  - raxml-ng
+  - fasttree
   - pandas
   - matplotlib
   - numpy

@@ -1300,35 +1300,44 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
             for f in glob.glob(pattern):
                 os.remove(f)
             
+            # raxml_command = [
+            #     "raxmlHPC",
+            #     "-s", distance_matrix_filename,
+            #     "-m", "BINGAMMA",
+            #     "-p", "12345",
+            #     # '-#', '100',  # Iterations number for bootstrapping
+            #     "-n", project_name
+            # ]
+
             raxml_command = [
-                "raxmlHPC",
-                "-s", distance_matrix_filename,
-                "-m", "BINGAMMA",
-                "-p", "12345",
-                # '-#', '100',  # Iterations number for bootstrapping
-                "-n", project_name
+                "raxml-ng",
+                "--msa", distance_matrix_filename,
+                "--model", "BIN+G",
+                "--seed", "12345",
+                "--prefix", project_name,
             ]
 
-            # raxml_command = [
-            #     "raxml-ng",
-            #     "--msa", distance_matrix_filename,
-            #     "--model", "BIN+G",
-            #     "--seed", "12345",
-            #     "--prefix", project_name,
-            # ]
+            fasttree_command = [
+                "FastTree",
+                "-nt",
+                distance_matrix_filename
+            ]
 
-            # iqtree_command = [
-            #     "iqtree2",
-            #     "-s", distance_matrix_filename,
-            #     "-seed", "12345",
-            #     "-nt", "AUTO",
-            #     "-pre", project_name
-            # ]
+
+            iqtree_command = [
+                "iqtree2",
+                "-s", distance_matrix_filename,
+                "-seed", "12345",
+                "-st",  "MORPH",
+                "-pre", project_name
+            ]
 
 
             # launching RaxML command
             result = subprocess.run(raxml_command, check=True, cwd=dir_raxml)
             #result = subprocess.run(iqtree_command, check=True, cwd=dir_raxml)
+            # with open(tree_newick_filename, "w") as outfile:
+            #     subprocess.run(fasttree_command, stdout=outfile, check=True)
             try:
                 with open(tree_newick_filename, 'r') as f:
                     return f.read()
