@@ -1045,6 +1045,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         exons = True
     all_genomes = data_storage["genomes"]
     all_chromosomes = data_storage["chromosomes"]
+
     if (triggered_id== "search-button" and n_clicks > 0)  \
         or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"] \
         or (triggered_id == "update_graph_command_storage" and update_graph_command_storage is not None) :
