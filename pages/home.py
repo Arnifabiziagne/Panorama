@@ -1043,10 +1043,8 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     exons=False
     if show_exons and 'exons' in show_exons:
         exons = True
-        
     all_genomes = data_storage["genomes"]
     all_chromosomes = data_storage["chromosomes"]
-
     if (triggered_id== "search-button" and n_clicks > 0)  \
         or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"] \
         or (triggered_id == "update_graph_command_storage" and update_graph_command_storage is not None) :
@@ -1178,7 +1176,10 @@ def save_slider_value(size_slider_val, data):
     Output('size_slider', 'value'),
     Output('chromosomes-dropdown', 'value'),
     Output('genomes-dropdown', 'value'),
-    Output('displayed-region-container', 'children', allow_duplicate=True),
+    Output('start-input', 'value'),
+    Output('end-input', 'value'),
+    Output('genename-input', 'value'),
+    Output('geneid-input', 'value'),
     Output('shared-region-color-picker', 'value'),
     Output('specific-genome_selector', 'value'),
     Output('update_graph_command_storage', 'data'),
@@ -1187,8 +1188,7 @@ def save_slider_value(size_slider_val, data):
     Input('home-page-store', 'data'),
     State('genomes-dropdown', 'options'),
     State('chromosomes-dropdown', 'options'),
-    State('specific-genome_selector', 'value'),
-    prevent_initial_call=True
+    State('specific-genome_selector', 'value')
 )
 def update_parameters_on_page_load(pathname, search, data, options_genomes, options_chromosomes, specifics_genomes):
     slider_value = DEFAULT_SIZE_VALUE
@@ -1240,7 +1240,7 @@ def update_parameters_on_page_load(pathname, search, data, options_genomes, opti
             else:
                 start_input = int(url_start)
                 end_input = int(url_end)
-            update_graph_command_storage = {"url_hap":url_hap, "url_chromosome":url_chromosome, "url_gene_name":url_gene_name, 
+            update_graph_command_storage = {"force_refresh": time.time(), "url_hap":url_hap, "url_chromosome":url_chromosome, "url_gene_name":url_gene_name,
                                             "url_gene_id":url_gene_id, "url_start":url_start, "url_end":url_end}
             logger.debug(update_graph_command_storage)
     if no_query_params :
@@ -1255,17 +1255,11 @@ def update_parameters_on_page_load(pathname, search, data, options_genomes, opti
         else:
             if options_chromosomes:
                 selected_chromosome = options_chromosomes[0]["value"]
-        if "start" in data:
-            start_input = data["start"]
-        if "end" in data:
-            end_input = data["end"]
-        if "gene_name" in data:
-            gene_name = data["gene_name"]
-        if "gene_id" in data:
-            gene_id = data["gene_id"]
-
-    displayed_div = get_displayed_div(start_input, end_input, gene_name, gene_id)
-    return slider_value, selected_chromosome, selected_genome, displayed_div, shared_regions_link_color, selected_shared_genomes, update_graph_command_storage
+        start_input = None
+        end_input = None
+        gene_name = ""
+        gene_id = ""
+    return slider_value, selected_chromosome, selected_genome, start_input, end_input, gene_name, gene_id, shared_regions_link_color, selected_shared_genomes, update_graph_command_storage
 
 
 # Algorithm cytoscape choice
