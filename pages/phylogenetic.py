@@ -102,25 +102,44 @@ def layout():
                 multiple=False
             ),
             html.Div([
-                html.Button("Plot global tree", title="This will compute the tree for the whole pangenome (or limited to the selected chromosome) using a RaxML method (presence / absence of random sampled nodes).",style={'margin-right': '15px'}, id="btn-plot-global-tree"),
-                html.Label("Chromosome", title="The regions / annotations will be related only to this chromosome.",
-                           style={'display': 'block', 'marginRight': "10px"}),
-                dcc.Dropdown(
-                    id='phylogenetic_chromosomes_dropdown',
-                    placeholder="Limit tree to chromosome : ",
-                    style={
-                        "width": "250px",     
-                        "minWidth": "150px",
-                        "maxWidth": "100%",   
-                        "flexShrink": 0
-                    }
-                ),
-                dcc.Loading(
-                    id="phylogenetic_loading-spinner",
-                    type="circle",  # 'default', 'circle', or 'dot'
-                    children=html.Div(id="load_spinner_zone")
-                ),
-            ], style={"display": "flex", "flexDirection": "row", "align-items": "center", "marginBottom": "20px"}),
+                html.Div([
+                    html.Button(
+                        "Plot global tree",
+                        title="This will compute the tree for the whole pangenome...",
+                        style={'margin-right': '15px'},
+                        id="btn-plot-global-tree"
+                    ),
+                    html.Label(
+                        "Chromosome",
+                        title="The regions / annotations will be related only to this chromosome.",
+                        style={'display': 'block', 'marginRight': "10px"}
+                    ),
+                    dcc.Dropdown(
+                        id='phylogenetic_chromosomes_dropdown',
+                        placeholder="Limit tree to chromosome : ",
+                        style={
+                            "width": "250px",
+                            "minWidth": "150px",
+                            "maxWidth": "100%",
+                            "flexShrink": 0
+                        }
+                    ),
+                ], style={"display": "flex", "flexDirection": "row", "alignItems": "center"}),
+
+                html.Div([
+                    html.Button(
+                        "Load last computed tree",
+                        title="This will load the last computed tree.",
+                        id="btn-load-last-tree",
+                        style={"display": "none", "marginTop": "10px"}  # un peu d'espace au-dessus
+                    ),
+                    dcc.Loading(
+                        id="phylogenetic_loading-spinner",
+                        type="circle",
+                        children=html.Div(id="load_spinner_zone")
+                    ),
+                ], style={"marginTop": "10px"})
+            ], style={"marginBottom": "20px"}),
             html.H4("Reference tree"),
             html.Div(id='upload-status'),
             cyto.Cytoscape(

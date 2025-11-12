@@ -19,6 +19,7 @@ import plotly.express as px
 import plotly.io as pio
 import webbrowser
 import os
+import shutil
 import glob
 from typing import List, Dict
 import logging
@@ -1199,6 +1200,9 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
     dir_raxml = "./export/phylo/raxml"
     distance_matrix_filename = "distance_matrix.phy"
     tree_newick_filename = os.path.join(dir_raxml,"RAxML_bestTree."+project_name)
+    last_tree = "./export/phylo/last_tree.nwk"
+
+    # Copier le fichier
     distance_matrix_phylip_filename = os.path.join(dir_raxml, distance_matrix_filename)
     if not os.path.exists(dir_raxml):
         os.makedirs(dir_raxml)
@@ -1340,6 +1344,7 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
             #     subprocess.run(fasttree_command, stdout=outfile, check=True)
             try:
                 with open(tree_newick_filename, 'r') as f:
+                    shutil.copy(tree_newick_filename, last_tree)
                     return f.read()
             except FileNotFoundError:
                 return None

@@ -24,7 +24,7 @@ from app import *
 from neo4j_requests import *
 import logging
 
-
+last_tree = "./export/phylo/last_tree.nwk"
 logger = logging.getLogger("panorama_logger")
 
 EXPORT_DIR = "./export/phylo/"
@@ -196,12 +196,13 @@ def update_dropdown(data):
     Output("phylogenetic-page-store", "data"),
     Input('upload-newick', 'contents'),
     Input('btn-plot-global-tree', 'n_clicks'),
+    Input("btn-load-last-tree", "n_clicks"),
     State('upload-newick', 'filename'),
     State("phylogenetic_chromosomes_dropdown", 'value'),
     State("phylogenetic-page-store", "data"),
     prevent_initial_call=True
 )
-def update_phylo_graph(contents, n_clicks_global_tree, filename, chromosome, pĥylo_data):
+def update_phylo_graph(contents, n_clicks_global_tree, n_clicks_last_tree, filename, chromosome, pĥylo_data):
     triggered_id = ctx.triggered_id
     if triggered_id == "btn-plot-global-tree":
         if chromosome == None or chromosome == "":
@@ -210,9 +211,16 @@ def update_phylo_graph(contents, n_clicks_global_tree, filename, chromosome, pĥ
             c = chromosome
         newick_str = compute_global_raxml_phylo_tree_from_nodes(chromosome=c)
         status = f"Tree successfully computed."
+    elif triggered_id == "btn-load-last-tree" :
+        if os.path.exists(last_tree):
+            with open(last_tree, "r") as f:
+                newick_str = f.read()
+                status = f"Tree successfully computed."
+        else:
+            return [], f"No existing last tree file : {last_tree}","", pĥylo_data
     else:
         if contents is None:
-            return [], "Aucun fichier chargé.","", pĥylo_data
+            return [], "No fil loaded.","", pĥylo_data
     
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
@@ -320,12 +328,14 @@ def save_tree(n_clicks, phylo_data):
 @app.callback(
     Output('cytoscape-phylo', 'elements', allow_duplicate=True),
     Output('cytoscape-phylo-region', 'elements', allow_duplicate=True),
+    Output("btn-load-last-tree", "style"),
     Input('url', 'pathname'),
     Input('phylogenetic-page-store', 'data'),
     prevent_initial_call=True
 
 )
 def update_graph_on_page_load(pathname, pĥylo_data):
+
     elements_region = []
     elements_global = []
     if pĥylo_data is None:
@@ -334,6 +344,11 @@ def update_graph_on_page_load(pathname, pĥylo_data):
         elements_region = generate_elements(pĥylo_data["newick_region"])
     if "newick_global" in pĥylo_data:
         elements_global = generate_elements(pĥylo_data["newick_global"])
-    return elements_global, elements_region
+    #Display last tree button if a tree has already been computed
+    if os.path.exists(last_tree):
+        last_tree_btn = {"display": "block"}
+    else:
+        last_tree_btn = {"display": "none"}
+    return elements_global, elements_region,last_tree_btn
     
         
