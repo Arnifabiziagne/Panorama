@@ -42,15 +42,16 @@ logger = logging.getLogger("panorama_logger")
 
 #This value is used to limit the nodes number when seeking for regions :
 #If the region is wider than this value then it is ignored
-max_bp_seeking = 800000
+MAX_BP_SEEKING = 800000
 
 #Maximal number of nodes to get the whole region
-max_nodes_number = 100000
+MAX_NODES_NUMBER = 50000
 
 logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 
 def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
+    core_genome = False
     if get_driver() is None :
         return None
     genome_position = genome+"_position"
@@ -93,8 +94,10 @@ def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
                         )
                     record = result.single()
                     if record:
-                        return dict(record["n"])
+                        core_genome = True
+                        return dict(record["n"]),core_genome
                 #Anchor not found => the current node will be used
+                logger.debug("No core genome anchor found, get the current nodes.")
                 if before:
                     query = f"""
                     MATCH (n:Node)
@@ -117,7 +120,7 @@ def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
                     )
                 record = result.single()
                 if record:
-                    return dict(record["n"])
+                    return dict(record["n"]),core_genome
     else:
         if before:
             query = f"""
@@ -142,9 +145,9 @@ def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
                     )
                 record = result.single()
                 if record:
-                    return dict(record["n"])    
+                    return dict(record["n"]) ,core_genome
 
-    return None
+    return None, core_genome
 
 
 
@@ -152,14 +155,26 @@ def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
 #and it returns all the nodes in this region and the other related regions : 
 #for each haplotype the start and stop are given by the first anchor node before the start position and the first after the end position
 #Anchor node is a node with all haplotypes
+#return metadata :
+# return_code :
+#   - OK => nodes found
+#   - PARTIAL => no anchor on pangenome found
+#   - WIDE => more than MAX_NODES_NUMBER nodes found into the region
+#   - NO_DATA => no data found
+#   - ZOOM => more than MAX_NODES_NUMBER nodes found but with filtering with flow an acceptable number of nodes has been found
+#       in this case the flow value will be set
+#   - FILTER => exceptional individuals have been removed from the search (if not there would be too much nodes)
+# flow : in case of filtering, the minimal flow used to filter data
 def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
+    return_metadata = {"return_code":"OK", "flow":None, "nodes_number":0, "removed_genomes" : None}
+    valid_individuals_exceptions = []
     if get_driver() is None :
         return []
     temps_depart = time.time()
     nodes_data = {}
     max_sequence = 1000
     if end is None:
-        stop = max_bp_seeking
+        stop = MAX_BP_SEEKING
     else:
         stop = end
     with get_driver() as driver:
@@ -168,13 +183,15 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
         shared_genomes = []
         with driver.session() as session:
     
-            # Step 1 : find the region
+            # Step 1 : find the anchors of the region
             if start is not None and end is not None :
                 genome_position = genome+"_position"
                 logger.info("Look for region : " + str(start) + " - " + str(stop) + " - chromosome " + str(chromosome) + " - genome : " + str(genome))
 
-                anchor_start = get_anchor(genome, chromosome, start, before = True, use_anchor=use_anchor)
-                anchor_stop = get_anchor(genome, chromosome, end, before = False, use_anchor=use_anchor)
+                anchor_start, core_genome_start = get_anchor(genome, chromosome, start, before = True, use_anchor=use_anchor)
+                anchor_stop, core_genome_stop = get_anchor(genome, chromosome, end, before = False, use_anchor=use_anchor)
+                if not core_genome_start or not core_genome_stop:
+                    return_metadata["return_code"] = "PARTIAL"
                 delta = abs(stop - start)
                 if anchor_start is not None and  anchor_stop is not None:
                     if anchor_start[genome_position] > anchor_stop[genome_position]:
@@ -184,16 +201,16 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                     logger.debug("Anchor start name : " + str(anchor_start["name"]))
                     logger.debug("Anchor stop name : " + str(anchor_stop["name"]))
                     logger.debug("Anchor region : " + str(anchor_start[genome_position]) + " - " + str(anchor_stop[genome_position]))
-                
+
+                # Step 2 : find the region between the 2 anchors
                 if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] > 0 and len(anchor_start['genomes']) > 0 :
                     region_nodes_number = 0
-                    #if anchor_stop[genome_position] - anchor_start[genome_position] > max_bp_seeking :
-                    # Check if the region size is not too  wide
-                    query_genome = f"""
-                                        MATCH (m:Node)
-                                        WHERE  m.chromosome = "{chromosome}"
-                                        AND (
-                                        """
+                    #construct the base query to find all genomes betwwen the start / stop position
+                    base_query_genome = f"""
+                        MATCH (m:Node)
+                        WHERE  m.chromosome = "{chromosome}"
+                        AND (
+                        """
                     first = True
                     for g in set(anchor_start["genomes"] + anchor_stop["genomes"]):
                         position_field = g + "_position"
@@ -201,68 +218,158 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                             start = min(anchor_start[position_field], anchor_stop[position_field])
                             stop = max(anchor_start[position_field], anchor_stop[position_field])
                             if first:
-                                query_genome += f"(m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
+                                base_query_genome += f"(m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
                                 first = False
                             else:
-                                query_genome += f" OR (m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
-                    query_genome += ") return count(m) as nodes_number"
+                                base_query_genome += f" OR (m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
+                    base_query_genome += ")"
+
+                    #if anchor_stop[genome_position] - anchor_start[genome_position] > MAX_BP_SEEKING :
+                    # Step 3 : Check if the region size is not too  wide
+                    query_genome = base_query_genome + f"""
+                        WITH m LIMIT {MAX_NODES_NUMBER+1}
+                        return count(m) as nodes_number
+                        """
                     result = session.run(query_genome, start=start, end=end)
                     record = result.single()
                     if record:
                         region_nodes_number =  int(record["nodes_number"])
-                    if region_nodes_number <= max_nodes_number :
-                        # Step 3 : Get the nodes and annotations for each genomes
-                        query_genome = f"""
-                        MATCH (m:Node)
-                        WHERE  m.chromosome = "{chromosome}" 
-                        AND (
-                        """
-                        first = True
-                        for g in set(anchor_start["genomes"]+anchor_stop["genomes"]):
+                    if region_nodes_number <= MAX_NODES_NUMBER :
+                        flow = None
+                    else:
+                        # Step 5 : the region is too wide, try to find a "zoom level" for which the number of nodes is acceptable
+                        # To do that it will use the flow attribute
+                        logger.debug("Too much nodes into the region, try to reduce data by filtering on flow.")
+                        zoom = True
+                        flow = 1
+                        while zoom and flow >= 0:
+                            query_genome = base_query_genome + f"""
+                                AND m.flow >= {flow} 
+                                WITH m LIMIT {MAX_NODES_NUMBER+1}
+                                return count(m) as nodes_number
+                                """
+                            #logger.debug(query_genome)
+                            result = session.run(query_genome, start=start, end=end)
+                            record = result.single()
+                            if record:
+                                region_nodes_number = int(record["nodes_number"])
+                            if region_nodes_number > MAX_NODES_NUMBER:
+                                zoom = False
+                                logger.debug(f"Too much nodes with flow {flow}.")
+                            else:
+                                if flow - 0.1 >= 0 :
+                                    logger.debug(f"Nodes number found with flow {flow} : {region_nodes_number} - check with flow {flow - 0.1}")
+                                flow -= 0.1
+                        if not zoom and flow == 1:
+                            flow = -1
+                        else:
+                            flow += 0.1
+                        if flow >= 0 :
+                            logger.debug(f"Zoom level found with flow {flow}.")
+                        if flow < 0:
+                            # Step 6 : no zoom level found, check if the pb is due to a small proportion of indiviudals
+                            # If the nodes number of some individuals (less than 1% of the total individuals) is more than the limit
+                            # or more than 10 times the median, then they will be removed from the search
+                            logger.debug("No zoom level found, check for individual exception.")
+                            queries = []
+                            for g in set(anchor_start["genomes"] + anchor_stop["genomes"]):
+                                position_field = g + "_position"
+                                if position_field in anchor_start and position_field in anchor_stop:
+                                    start = min(anchor_start[position_field], anchor_stop[position_field])
+                                    stop = max(anchor_start[position_field], anchor_stop[position_field])
 
-                            position_field = g+"_position"
-                            if position_field in anchor_start and position_field in anchor_stop:
-                                start = min(anchor_start[position_field],anchor_stop[position_field])
-                                stop = max(anchor_start[position_field],anchor_stop[position_field])
-                                #logger.debug(f"Genome {g} start {start} stop {stop}")
-                                if first :
-                                    query_genome += f"(m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
-                                    first = False
-                                else :
-                                    query_genome += f" OR (m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
+                                    q = f"""
+                                    MATCH (m:Node)
+                                    WHERE m.chromosome = "{chromosome}"
+                                      AND m.{position_field} >= {start} AND m.{position_field} <= {stop}
+                                    WITH m LIMIT {MAX_NODES_NUMBER+1}
+                                    RETURN "{g}" AS genome, count(m) AS nb
+                                    """
+                                    queries.append(q)
 
-                        query_genome += f""")
+                            query_genome = "\nUNION ALL\n".join(queries)
+                            #logger.debug(query_genome)
+                            result = session.run(query_genome)
+                            counts = {r["genome"]:r["nb"] for r in result}
+                            median_value = statistics.median(counts.values())
+                            individuals_exceptions = []
+                            valid_individuals_exceptions = []
+                            for g in counts:
+                                if counts[g] > MAX_NODES_NUMBER or counts[g] > 10 * median_value :
+                                    individuals_exceptions.append(g)
+                            if len(individuals_exceptions) == 1 or len(individuals_exceptions) <= 0.1 * len(counts):
+                                valid_individuals_exceptions = individuals_exceptions
+                                logger.debug(f"These individuals will be removed from search : {valid_individuals_exceptions}")
+
+                    if flow is None or (flow is not None and flow >= 0) or len(valid_individuals_exceptions) > 0:
+                        # Step 7 : Get the nodes and annotations for each genomes
+                        if flow is not None and flow > 0 :
+                            #The search will be filtered by flow
+                            return_metadata["flow"]= flow
+                            return_metadata["return_code"] = "ZOOM"
+                            query_genome = base_query_genome + f"AND m.flow >= {flow} "
+                        elif len(valid_individuals_exceptions) > 0:
+                            #Remove exceptional individuals of the list
+                            query_genome = f"""
+                                MATCH (m:Node)
+                                WHERE  m.chromosome = "{chromosome}"
+                                AND (
+                                """
+                            first = True
+                            for g in set(anchor_start["genomes"] + anchor_stop["genomes"]) :
+                                if g not in valid_individuals_exceptions :
+                                    position_field = g + "_position"
+                                    if position_field in anchor_start and position_field in anchor_stop:
+                                        start = min(anchor_start[position_field], anchor_stop[position_field])
+                                        stop = max(anchor_start[position_field], anchor_stop[position_field])
+                                        if first:
+                                            query_genome += f"(m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
+                                            first = False
+                                        else:
+                                            query_genome += f" OR (m.`{position_field}` >= {start} AND m.`{position_field}` <= {stop})"
+                            query_genome += ")"
+                            return_metadata["flow"] : 1
+                            return_metadata["removed_genomes"] = valid_individuals_exceptions
+                            return_metadata["return_code"] = "FILTER"
+                        else : query_genome = base_query_genome
+
+                        query_genome = query_genome + f"""
                             OPTIONAL MATCH (m)-[]->(a:Annotation)
                             OPTIONAL MATCH (s:Sequence {{name: m.ref_node}})
                             RETURN m, substring(s.sequence, 0, {max_sequence}) as sequence, collect(a.gene_name) AS annotations, collect(a.feature) AS features
-                            LIMIT {max_nodes_number + 1}
+                            LIMIT {MAX_NODES_NUMBER + 1}
                             """
-
                         #logger.info(query_genome)
                         result = session.run(query_genome, start=start, end=end)
                         for record in result :
                             nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]} |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
-                        if len(nodes_data) > max_nodes_number :
+                        return_metadata["nodes_number"] = len(nodes_data)
+                        if len(nodes_data) > MAX_NODES_NUMBER :
                             nodes_data = {}
+                            return_metadata["return_code"] = "WIDE"
                             logger.warning(
-                                f"Region too wide : nodes number : {len(nodes_data)} - max nodes number : {max_nodes_number}")
+                                f"Region too wide : nodes number : {len(nodes_data)} - max nodes number : {MAX_NODES_NUMBER}")
+
                     else:
+                        return_metadata["return_code"] = "WIDE"
                         logger.warning(
-                            f"Region too wide : {anchor_stop[genome_position] - anchor_start[genome_position]} - nodes number : {region_nodes_number} - max nodes number : {max_nodes_number}")
+                            f"Region too wide : {anchor_stop[genome_position] - anchor_start[genome_position]} - nodes number : {region_nodes_number} - max nodes number : {MAX_NODES_NUMBER}")
                         nodes_data = {}
                 else:
-                    if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] >= max_bp_seeking :
+                    if anchor_start is not None and anchor_stop is not None and anchor_stop[genome_position] - anchor_start[genome_position] >= MAX_BP_SEEKING :
                         logger.warning(f"Region too wide : {anchor_stop[genome_position] - anchor_start[genome_position]}" )
+                        return_metadata["return_code"] = "WIDE"
                     else:
                         logger.warning("Region not found")
+                        return_metadata["return_code"] = "NO_DATA"
                     nodes_data = {}
 
             else:
-                #if end is set to None, get all the nodes if the number of nodes is less than max_nodes_number
+                #if end is set to None, get all the nodes if the number of nodes is less than MAX_NODES_NUMBER
                 
                 if start == 0 and end is None :
                     total_nodes = get_nodes_number(chromosome)
-                    if total_nodes <= max_nodes_number : 
+                    if total_nodes <= MAX_NODES_NUMBER :
                         query_genome = f"""
                         MATCH (m:Node)
                         WHERE  m.chromosome = "{chromosome}" 
@@ -273,10 +380,10 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                         result = session.run(query_genome)
                         for record in result:
                             nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]}  |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
-                        if len(nodes_data) > max_nodes_number :
+                        if len(nodes_data) > MAX_NODES_NUMBER :
                             nodes_data = {}
                             logger.warning(
-                                f"Region too wide : nodes number : {len(nodes_data)} - max nodes number : {max_nodes_number}")
+                                f"Region too wide : nodes number : {len(nodes_data)} - max nodes number : {MAX_NODES_NUMBER}")
                     else  :
                         logger.warning("Region too wide")
                         nodes_data = {}
@@ -285,12 +392,15 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                     nodes_data[elt]["annotations"] = list(nodes_data[elt]["annotations"])
                     nodes_data[elt]["features"] = list(nodes_data[elt]["features"])
         logger.debug("Total time : " + str(time.time() - temps_depart))
-        return nodes_data
+        return nodes_data, return_metadata
 
 
-
-
+# Find a region by annotation : gene_name or gene_id
+#   - OK
+#   - WIDE
+#   - NO_DATA
 def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
+    return_code = "OK"
     if get_driver() is None :
         return []
     with get_driver() as driver:
@@ -322,11 +432,13 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
                 start = noeuds_annotes[0][genome_position]
                 stop = noeuds_annotes[-1][genome_position] + noeuds_annotes[-1]["size"]
                 logger.debug(f"start : {start} - stop : {stop} - nodes number : {len(noeuds_annotes)}")
-                nodes_data = get_nodes_by_region(genome, chromosome, start, stop)
+                nodes_data, return_metadata = get_nodes_by_region(genome, chromosome, start, stop)
             else:
                 logger.debug(f"No nodes found {len(noeuds_annotes)}.")
+                return_metadata = {"return_code": "NO_DATA", "flow":None, "nodes_number":0}
+
             
-        return nodes_data
+        return nodes_data, return_metadata
 
 
 
@@ -528,7 +640,7 @@ def get_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min
         g = list(dic_regions.keys())[0]
     for c,items in dic_regions[g].items():
         for r in items["regions"]:
-            shared_regions_dict[c+"-"+str(r["start"]-region_trim) + "-"+str(r["stop"]+region_trim)] = get_nodes_by_region(g, c, r["start"]-region_trim, r["stop"]+region_trim)
+            shared_regions_dict[c+"-"+str(r["start"]-region_trim) + "-"+str(r["stop"]+region_trim)], return_code = get_nodes_by_region(g, c, r["start"]-region_trim, r["stop"]+region_trim)
             
     return shared_regions_dict, analyse
             
@@ -559,7 +671,7 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
     
     return ref_position
 
-#Function get_shared_regions : this function is used to get shared regions (positions) between a list of genomes (GWAS)
+#Function find_shared_regions : this function is used to get shared regions (positions) between a list of genomes (GWAS)
 #On peut préciser sur quel chromosome chercher
 #Usage exemple (cattle white spot) : dic_regions, analyse = find_shared_regions(["HER","SIM"],chromosome="6")
 #genomes_list : list of the genomes for which the function will look for shared regions
@@ -666,30 +778,6 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     result1 = list(session.run(query, genomes_list=genomes_list))
                     logger.debug("Nodes selected for chromosomes " + str(c) + " : " + str(len(result1)) + "\nTime : " + str(time.time()-time_0))
                     if deletion :
-
-                        # query = f"""
-                        #     MATCH (n:Node)-[r:gfa_link]->(m:Node)
-                        #     where n.chromosome = "{c}"
-                        #     AND n.flow >= {min_flow_deletion}
-                        #     AND n.size >= {node_min_size}
-                        #     with n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes, count(r) as rel_count
-                        #     WHERE size(matched_genomes) >= {min_associated_genomes}
-                        #     AND size(matched_genomes) < size(n.genomes)
-                        #     AND rel_count = 2
-                        #     WITH n, [g IN n.genomes WHERE NOT g IN $genomes_list] AS other_genomes
-                        #     MATCH (n)-[r1:gfa_link]->(m:Node)
-                        #     WHERE ALL(g IN other_genomes WHERE g IN m.genomes)
-                        #     AND NONE(g IN $genomes_list WHERE g IN m.genomes)
-                        #     AND  m.size  >= {node_min_size}
-                        #     Match (n)-[r2:gfa_link]->(m2:Node)
-                        #     WHERE ALL(g IN n.genomes WHERE g IN m2.genomes)
-                        #     AND size(m2.genomes) = size(n.genomes)
-                        #     RETURN n AS nodes, m.size as deleted_node_size order by n.`{genome_position_ref}_position` ASC
-                        # """
-                        
-                        #Query adapted for finding only first deleted node
-
-                        
                         query = f"""
                             MATCH (n:Node)
                             WHERE n.chromosome = "{c}"
@@ -939,8 +1027,8 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     r["shared_size"] = a["shared_size"]
                     r["shared_deleted_size"] = a["shared_deleted_size"]
                     r["genome"] = genome_ref
-                    n_start = get_anchor(genomes_list[0], a["chromosome"], a["start"], before = True)
-                    n_stop = get_anchor(genomes_list[0], a["chromosome"], a["stop"], before = False)
+                    n_start, core_genome_start = get_anchor(genomes_list[0], a["chromosome"], a["start"], before = True)
+                    n_stop, core_genome_start = get_anchor(genomes_list[0], a["chromosome"], a["stop"], before = False)
                     position_field = genome_ref+"_position"
                     r["start"] = 0
                     if position_field in n_start :

@@ -184,11 +184,12 @@ def handle_row_selection(selected_rows, table_data, data, home_page_data):
     genome = row['genome']
     logger.debug("search region genome " +str(genome) + " chromosome " + str(chromosome) + " start " + str(start) + " stop " + str(stop))
     try:
-        nodes = get_nodes_by_region(genome, str(chromosome), start, stop)
+        nodes, return_metadata = get_nodes_by_region(genome, str(chromosome), start, stop)
         home_page_data["selected_genome"]=genome
         home_page_data["selected_chromosome"]=chromosome
         home_page_data["start"]=start
         home_page_data["end"]=stop
+        home_page_data["search_return_metadata"] = return_metadata
         redirect = "/"
         return html.Div([
             html.P(f"Found nodes into the region : {len(nodes)}")
