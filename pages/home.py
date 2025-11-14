@@ -262,48 +262,6 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
 
         edges = []
         edges_dict = {}
-        # for genome in selected_genomes:
-        #     logger.debug(f"Compute elements - genome {genome}")
-        #     nodes_g = df[df["genomes"].apply(lambda g: genome in g)].copy()
-        #     col = f"{genome}_position"
-        #     if col not in nodes_g.columns:
-        #         continue
-        #     nodes_g = nodes_g[nodes_g[col].notnull()].copy()
-        #     if nodes_g.empty:
-        #         continue
-        #     nodes_g = nodes_g.sort_values(
-        #         by=col, ascending=True).reset_index(drop=True)
-        #     for i in range(len(nodes_g) - 1):
-        #         source = nodes_g.loc[i, 'name']
-        #         target = nodes_g.loc[i + 1, 'name']
-        #
-        #         edge_key = tuple(sorted([source, target]))
-        #         #edge_key = tuple(([source, target]))
-        #         if edge_key not in edges_dict:
-        #             edges_dict[edge_key] = {}
-        #             edges_dict[edge_key]["direction"] = {source+"->"+target : 1}
-        #             edges_dict[edge_key]["direction_genome"] = {genome:source + "->" + target}
-        #             edges_dict[edge_key]["flow"] = 1
-        #             edges_dict[edge_key]["annotations"] = set()
-        #             edges_dict[edge_key]["genomes"] = [genome]
-        #             edges_dict[edge_key]["SV"] = False
-        #         else:
-        #             if source+"->"+target not in edges_dict[edge_key]["direction"]:
-        #                 edges_dict[edge_key]["direction"][source+"->"+target] = 1
-        #             else:
-        #                 edges_dict[edge_key]["direction"][source + "->" + target] += 1
-        #             if genome not in edges_dict[edge_key]["direction_genome"]:
-        #                 edges_dict[edge_key]["direction_genome"][genome] = source + "->" + target
-        #             edges_dict[edge_key]["flow"] += 1
-        #             if genome not in edges_dict[edge_key]["genomes"]:
-        #                 edges_dict[edge_key]["genomes"].append(genome)
-        #         if genome == ref_genome and "direction_genome_ref" not in edges_dict[edge_key]:
-        #             edges_dict[edge_key]["direction_genome_ref"] = source + "->" + target
-        #         # Check if there is a big gap between nodes
-        #         if nodes_g.loc[i+1, col] - nodes_g.loc[i, col] > MAX_GAP and MAX_GAP > nodes_g.loc[i, "size"]:
-        #             edges_dict[edge_key]["SV"] = True
-        #         for a in nodes_g.loc[i, 'annotations']+nodes_g.loc[i + 1, 'annotations']:
-        #             edges_dict[edge_key]["annotations"].add(a)
 
         for genome in selected_genomes:
             #logger.debug(f"Compute elements - genome {genome}")

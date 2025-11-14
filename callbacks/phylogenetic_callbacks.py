@@ -197,19 +197,21 @@ def update_dropdown(data):
     Input('upload-newick', 'contents'),
     Input('btn-plot-global-tree', 'n_clicks'),
     Input("btn-load-last-tree", "n_clicks"),
+    State('method-dropdown', 'value'),
     State('upload-newick', 'filename'),
     State("phylogenetic_chromosomes_dropdown", 'value'),
     State("phylogenetic-page-store", "data"),
     prevent_initial_call=True
 )
-def update_phylo_graph(contents, n_clicks_global_tree, n_clicks_last_tree, filename, chromosome, pĥylo_data):
+def update_phylo_graph(method,contents, n_clicks_global_tree, n_clicks_last_tree, filename, chromosome, pĥylo_data):
     triggered_id = ctx.triggered_id
     if triggered_id == "btn-plot-global-tree":
         if chromosome == None or chromosome == "":
             c = None
         else:
             c = chromosome
-        newick_str = compute_global_raxml_phylo_tree_from_nodes(chromosome=c)
+        logger.debug(f"Compute global phylo tree using {method} method.")
+        newick_str = compute_global_phylo_tree_from_nodes(method=method, chromosome=c)
         status = f"Tree successfully computed."
     elif triggered_id == "btn-load-last-tree" :
         if os.path.exists(last_tree):

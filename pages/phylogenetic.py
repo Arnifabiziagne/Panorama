@@ -71,7 +71,8 @@ def layout():
                     html.Ul([
                         html.Li("Load a newick file : this allows you to load a file and display a reference tree, for example."
                                 " For that, juste drag / drop or select the newick file."),   
-                        html.Li("Plot global tree : this will compute a global tree with a RAxML method based on a presence / absence of a subset of sampled nodes (1% and limited to 1000000 nodes). Nodes traversed directly or in reverse are considered different nodes."
+                        html.Li("Plot global tree : this will compute a global tree with a either a RAxML or a distance matrix and neighbor joining (faster than raxml but less accurate)."
+                                "These two methodes use a sample matrix of presence / absence of a subset of sampled nodes. Nodes traversed directly or in reverse are considered different nodes."
                                 " It is possible to select a chromosome to limit the tree to this chromosome. If no chromosome selected then the tree is computed on all chromosomes."),   
                         html.Li("Plot tree of selected region : This allows you to calculate a tree for the region currently being viewed on the home page."
                                 " It is therefore necessary to select a region to view beforehand (on the home or gwas pages)."
@@ -108,6 +109,16 @@ def layout():
                         title="This will compute the tree for the whole pangenome...",
                         style={'margin-right': '15px'},
                         id="btn-plot-global-tree"
+                    ),
+                    dcc.Dropdown(
+                        id='method-dropdown',
+                        options=[
+                            {'label': 'RAxML (Maximum Likelihood)', 'value': 'raxml'},
+                            {'label': 'Neighbor Joining', 'value': 'nj'}
+                        ],
+                        value='raxml',
+                        clearable=False,
+                        style={'width': '300px', 'margin-right':'20px'}
                     ),
                     html.Label(
                         "Chromosome",

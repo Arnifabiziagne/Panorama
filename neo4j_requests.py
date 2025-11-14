@@ -27,7 +27,8 @@ import csv
 import json
 import subprocess
 from config import get_driver
-from Bio.Phylo.TreeConstruction import DistanceTreeConstructor
+from Bio.Phylo.TreeConstruction import DistanceTreeConstructor, _DistanceMatrix
+from scipy.spatial.distance import pdist, squareform
 import pandas as pd
 import numpy as np
 from Bio import Phylo
@@ -1270,8 +1271,6 @@ def compute_phylo_tree_from_nodes(nodes_data,output_dir = "", weighted=False):
     constructor = DistanceTreeConstructor()
     tree = constructor.nj(dm)
 
-    
-    
     newick_tree = tree.format('newick')
     #logger.debug(newick_tree)
     return newick_tree
@@ -1308,15 +1307,19 @@ def pav_to_phylip(pav_matrix_dic, distance_matrix_phylip_filename):
 
 
 
-#This function compute a raxml tree from a random selection of nodes
-#RaxML output file will be created in output_dir directory
-#to take account of direct / reverse traversing set the strand to True, else to False
-#To limit the tree to 1 chromosome, set chromosome value (else it will be computed on the whole graph)
-#project_name is used to name the RaxML files
-#max_nodes is used to limit the number of sampled nodes
-#min_sample_size is the minimal sampled size for pangenome of size >= min_sample_size
-#min_nodes_number : tree won't be computed on pangenomes with less than min_nodes_number nodes 
-def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree", max_nodes = 1000000, min_sample_size = 10000, min_nodes_number = 1000):
+#This function compute a global tree from a random selection of nodes taking account of direct / reverse traversing (if strnd is True)
+#Parameters :
+# - Method :
+#   - raxml : this will launch raxml on the sample matrix
+#   - nj : this will compute a distance matrix from the sample matrix and then compute a neighbor joining tree
+#       this method is less accurate but far much faster than raxml and it can be usefull for big pangenomes
+# - strand : is true used the traversal direction, if false it doesn't take it inot account
+# - chromosome : to limit the tree to 1 chromosome, set chromosome value (else it will be computed on the whole graph)
+# - project_name is used to name the RaxML files
+# - max_nodes is used to limit the number of sampled nodes
+# - min_sample_size is the minimal sampled size for pangenome of size >= min_sample_size
+# - min_nodes_number : tree won't be computed on pangenomes with less than min_nodes_number nodes
+def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree", max_nodes = 1000000, min_sample_size = 10000, min_nodes_number = 1000):
     total_nodes_number = 0
     
 
@@ -1421,56 +1424,69 @@ def compute_global_raxml_phylo_tree_from_nodes(output_dir = "", strand=True, chr
                     else:
                         pav_matrix[g][i] = int(1)         
             pav_to_phylip(pav_matrix, distance_matrix_phylip_filename)
-            
-            pattern = os.path.join(dir_raxml, f"RAxML_*")
-            
-            for f in glob.glob(pattern):
-                os.remove(f)
-            
-            # raxml_command = [
-            #     "raxmlHPC",
-            #     "-s", distance_matrix_filename,
-            #     "-m", "BINGAMMA",
-            #     "-p", "12345",
-            #     # '-#', '100',  # Iterations number for bootstrapping
-            #     "-n", project_name
-            # ]
 
-            raxml_command = [
-                "raxml-ng",
-                "--msa", distance_matrix_filename,
-                "--model", "BIN+G",
-                "--seed", "12345",
-                "--prefix", project_name,
-            ]
+            if method == "raxml":
+                logger.debug("RaxML method...")
+                pattern = os.path.join(dir_raxml, f"RAxML_*")
 
-            fasttree_command = [
-                "FastTree",
-                "-nt",
-                distance_matrix_filename
-            ]
+                for f in glob.glob(pattern):
+                    os.remove(f)
 
+                raxml_command = [
+                    "raxmlHPC",
+                    "-s", distance_matrix_filename,
+                    "-m", "BINGAMMA",
+                    "-p", "12345",
+                    # '-#', '100',  # Iterations number for bootstrapping
+                    "-n", project_name
+                ]
 
-            iqtree_command = [
-                "iqtree2",
-                "-s", distance_matrix_filename,
-                "-seed", "12345",
-                "-st",  "MORPH",
-                "-pre", project_name
-            ]
+                # raxml_command = [
+                #     "raxml-ng",
+                #     "--msa", distance_matrix_filename,
+                #     "--model", "BIN+G",
+                #     "--seed", "12345",
+                #     "--prefix", project_name,
+                # ]
+                #
+                #
+                # iqtree_command = [
+                #     "iqtree2",
+                #     "-s", distance_matrix_filename,
+                #     "-seed", "12345",
+                #     "-st",  "MORPH",
+                #     "-pre", project_name
+                # ]
 
 
-            # launching RaxML command
-            result = subprocess.run(raxml_command, check=True, cwd=dir_raxml)
-            #result = subprocess.run(iqtree_command, check=True, cwd=dir_raxml)
-            # with open(tree_newick_filename, "w") as outfile:
-            #     subprocess.run(fasttree_command, stdout=outfile, check=True)
-            try:
-                with open(tree_newick_filename, 'r') as f:
-                    shutil.copy(tree_newick_filename, last_tree)
-                    return f.read()
-            except FileNotFoundError:
-                return None
+                # launching RaxML command
+                result = subprocess.run(raxml_command, check=True, cwd=dir_raxml)
+                try:
+                    with open(tree_newick_filename, 'r') as f:
+                        shutil.copy(tree_newick_filename, last_tree)
+                        return f.read()
+                except FileNotFoundError:
+                    return None
+            else:
+                #method with matrix distance and neighbor joining
+                logger.debug("Neighbor joining method...")
+                names = list(pav_matrix.keys())
+                matrix = np.array([pav_matrix[name] for name in names])
+                n = len(names)
+                lower_tri = []
+                for i in range(n):
+                    lower_tri.append([])
+                    for j in range(i+1):
+                        # Hamming distance
+                        lower_tri[i].append(np.sum(matrix[i] != matrix[j]) / matrix.shape[1])
+                dm = _DistanceMatrix(names, lower_tri)
+                constructor = DistanceTreeConstructor()
+                tree = constructor.nj(dm)
+                newick_tree = tree.format('newick')
+                with open(last_tree, 'w') as f:
+                    f.write(newick_tree)
+                return newick_tree
+
         else:
             return None
 
