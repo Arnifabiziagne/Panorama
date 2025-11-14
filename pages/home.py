@@ -1001,7 +1001,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
             size_slider_val = DEFAULT_SIZE_VALUE
     else:
         size_slider_val = size_slider
-    if "search_return_metadata" in home_data_storage and home_data_storage["search_return_code"] is not None :
+    if "search_return_metadata" in home_data_storage and home_data_storage["search_return_metadata"] is not None :
         return_metadata = home_data_storage["search_return_metadata"]
         home_data_storage["search_return_metadata"] = None
     # save the parameters into store
