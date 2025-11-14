@@ -1366,7 +1366,7 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
         else:
             #Set of control points :
             x_vals = np.array([1e4, 1e5, 1e7, 1e8, 2e9])
-            y_vals = np.array([1e4, 2e4, 6e4, 7e4, 9e4])
+            y_vals = np.array([1e4, 3e4, 9e4, 1e5, 2e4])
             logx = np.log10(x_vals)
             #Compute the polynomial interpolation in log space:
             coeffs = np.polyfit(logx, y_vals, deg=4)
