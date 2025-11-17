@@ -6,6 +6,9 @@ Created on Tue Oct 21 09:48:11 2025
 @author: fgraziani
 """
 
+from gevent import monkey
+monkey.patch_all()
+
 def on_starting(server):
     from index import start_container
     start_container()

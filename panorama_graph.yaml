@@ -19,3 +19,4 @@ dependencies:
       - dash-bootstrap-components
       - dash-auth
       - gunicorn
+      - gevent
