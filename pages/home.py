@@ -59,8 +59,16 @@ def compute_stylesheet(color_number):
                 'height':'data(displayed_node_size)',
                 'z-index':9999
 
-            }
-        },
+                }
+            },
+            {
+                'selector': '.main-node',
+                'style': {'shape': 'circle'}
+            },
+            {
+                'selector': '.degenerate-node',
+                'style': {'shape': 'square'}
+            },
             {
             'selector': 'edge',
             'style': {
@@ -193,72 +201,39 @@ def compute_graph_elements(data, ref_genome, selected_genomes, size_min, all_gen
         size_min = df['size'].min()
         size_max_noeud = 10
         #logger.debug(f"Compute elements - begin loop")
+
         for _, row in df.iterrows():
             node_style = "default"
+            classes = "main-node" if row['ref_node'] == row['name'] else "degenerate-node"
             if exons :
                 if "features" in row and "exon" in row['features']:
                     node_style="exon"
             node_color = flow_to_rgb(row['flow'],node_style,exons_color)
             #displayed_node_size = (10+row['size']-size_min) / size_max*size_max_noeud+size_min
             displayed_node_size = (40+row['size'])/ size_max_noeud
-            main_style = {
-                #'background-color': flow_to_rgb(row['flow'],node_style),
-                'shape': 'circle',
-                #'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
-                #'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
-                
-            }
-            degenerate_node_style = {
-                #'background-color': flow_to_rgb(row['flow'],node_style),
-                'shape': 'square',
-                #'width': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
-                #'height': (10+row['size']-size_min) / size_max*size_max_noeud+size_min,
+
+            data_nodes = {
+                'data': {
+                    'id': row.get('name'),
+                    'name': row.get('name'),
+                    'displayed_node_size': displayed_node_size,
+                    'ref_node': row.get('ref_node'),
+                    'size': row.get('size'),
+                    'flow': row.get('flow'),
+                    'genomes': row.get('genomes'),
+                    'chromosome': row.get('chromosome'),
+                    'sequence': row.get('sequence'),
+                    'annotations': row.get('annotations'),
+                    'features': row.get('features'),
+                    'color': node_color,
+                    'position': row.get(position_field)
+                },
+                'position': {'x': row['x'], 'y': row['y']},
+                'classes':classes
             }
 
-                # else:
-                #     main_style["background-color"]="#000000"
-                #     degenerate_node_style["background-color"]="#000000"
-            if row['ref_node'] == row['name']:
-                nodes.append({
-                    'data': {
-                        'id': row.get('name'),
-                        'name': row.get('name'),
-                        'displayed_node_size': displayed_node_size,
-                        'ref_node': row.get('ref_node'),
-                        'size': row.get('size'),
-                        'flow': row.get('flow'),
-                        'genomes': row.get('genomes'),
-                        'chromosome': row.get('chromosome'),
-                        'sequence': row.get('sequence'),
-                        'annotations': row.get('annotations'),
-                        'features': row.get('features'),
-                        'color': node_color,
-                        'position': row.get(position_field)
-                    },
-                    'position': {'x': row['x'], 'y': row['y']},
-                    'style': main_style
-                })
-            else:
-                nodes.append({
-                    'data': 
-                        {
-                        'id': row.get('name'),
-                        'name': row.get('name'),
-                        'displayed_node_size': displayed_node_size,
-                        'ref_node': row.get('ref_node'),
-                        'size': row.get('size'),
-                        'flow': row.get('flow'),
-                        'genomes': row.get('genomes'),
-                        'chromosome': row.get('chromosome'),
-                        'sequence': row.get('sequence'),
-                        'annotations': row.get('annotations'),
-                        'features': row.get('features'),
-                        'color': node_color,
-                        'position': row.get(position_field)
-                    },
-                    'position': {'x': row['x'], 'y': row['y']},
-                    'style': degenerate_node_style
-                })
+            nodes.append(data_nodes)
+
 
         edges = []
         edges_dict = {}
