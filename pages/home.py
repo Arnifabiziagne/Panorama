@@ -428,11 +428,13 @@ def layout(data=None, initial_size_limit=10):
                 html.P("Display settings:"),
                 html.Ul([
                     html.Li(
-                        "The “minimum node size” slider allows you to hide nodes smaller than this value."),
-                    html.Li(
-                        "“Hide labels”: allows you to hide labels (they can take up too much space)."),
+                        "The minimum node size slider allows you to hide nodes smaller than this value."),
                     html.Li(
                         "Select layout: allows you to change the representation algorithm if it is not suitable."),
+                    html.Li(
+                        "Hide labels: allows you to hide labels (they can take up too much space)."),
+                    html.Li(
+                        "Show exons: allows you to color the node linked to an exon annotation (color is defined by user)."),
                     html.Li("Search shared paths : if the box is checked, the display is modified to allow the selection of haplotypes for which you want to view shared links. This display can be configured:"),
                     html.Ul([
                         html.Li(
@@ -476,9 +478,40 @@ def layout(data=None, initial_size_limit=10):
                         html.Li(
                             "To zoom in : first select the nodes you want to zoom in by holding down the left mouse button and Shift key. Then push the 'zoom on selection' button."),
                         html.Li(
+                            "Zoom out 2000 bp : zoom out the region by starting 1000 bp before the current region and 1000 bp after."),
+                        html.Li(
                             "To retrieve the initial region just push the 'Reset zoom' button."),
-                        html.Li("Important : only the selected nodes will be used to display the new graph, this may hide areas displayed before zooming because nodes are linked by position ascending.")
                     ]),
+                ]),
+                html.P("Query params:"),
+                html.Ul([
+                    html.Li([
+                        "It is possible to directly visualize a region by specifying query parameters in the request."]),
+
+                    html.Li([
+                    "For example, to visualize the region from 10,330,185 to 10,529,460 on chromosome 21 of the haplotype CHM13_0, "
+                    "you can use the following query parameter: ",
+                    html.Code("?haplotype=CHM13_0&chromosome=21&start=10330185&end=10529460")
+                        ]),
+                    html.Li(["Here is the list of available parameters:"]),
+                    html.Ul([
+                        html.Li([
+                            "Mandatory parameters:",
+                            html.Ul([
+                                html.Li("haplotype"),
+                                html.Li("chromosome")
+                            ])
+                        ]),
+                        html.Li([
+                            "Search parameters:",
+                            html.Ul([
+                                html.Li("start / end"),
+                                html.Li("geneName"),
+                                html.Li("geneId")
+                            ])
+                        ])
+                    ])
+
                 ]),
             ], style={"marginBottom": "20px"}),
 

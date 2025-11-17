@@ -67,7 +67,7 @@ def layout():
                              html.Li("Reference haplotype : results will be displayed only for this haplotype, including annotations. If no one is selected then the first annotated haplotype will be displayed."
                                      "If the reference haplotype is not selected then the coordinates will be computed by selecting the first anchor node before / after the first haplotype. If no anchor is detected then the start will be set to 0 and the stop will be set to start."),
                              html.Li("Export to csv / export to csv with sequences : it will save the result into a csv file (without or with the sequences associated to each region). The file is located in the './export/gwas' directory."),
-                             html.Li("Load csv : it allows to load the saved csv (it must be located in the '/gwas' directory)."),
+                             html.Li("Load csv : it allows to load the saved csv (it located in the '/gwas' directory or a selected file)."),
                              html.Li("First column : by clicking on the first columns it will display the region in the home page."),
                              html.Li("Region size column : by clicking on the size columns it will display the sequence associated to the region."),
                              ])

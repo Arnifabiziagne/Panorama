@@ -72,8 +72,9 @@ def layout():
                         html.Li("Load a newick file : this allows you to load a file and display a reference tree, for example."
                                 " For that, juste drag / drop or select the newick file."),   
                         html.Li("Plot global tree : this will compute a global tree with a either a RAxML or a distance matrix and neighbor joining (faster than raxml but less accurate)."
-                                "These two methodes use a sample matrix of presence / absence of a subset of sampled nodes. Nodes traversed directly or in reverse are considered different nodes."
-                                " It is possible to select a chromosome to limit the tree to this chromosome. If no chromosome selected then the tree is computed on all chromosomes."),   
+                                "These two methods use a sample matrix of presence / absence of a subset of sampled nodes. Nodes traversed directly or in reverse are considered different nodes."
+                                " It is possible to select a chromosome to limit the tree to this chromosome. If no chromosome selected then the tree is computed on all chromosomes."
+                                " If the global tree has already been computed, it is possible to load it directly by clicking on the corresponding button."),
                         html.Li("Plot tree of selected region : This allows you to calculate a tree for the region currently being viewed on the home page."
                                 " It is therefore necessary to select a region to view beforehand (on the home or gwas pages)."
                                 " The tree is constructed based on a distance matrix. This matrix is calculated using the Jaccard index, taking into account the strand and repetition of each node."

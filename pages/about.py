@@ -35,7 +35,7 @@ def layout():
                     ]),
                     html.Li("Main functionnalities :"),
                         html.Ul([
-                            html.Li("Generate a new database and load GFA / annotations files through the 'DB management' page."),   
+                            html.Li("Generate a new database and load GFA / annotations files through the 'DB management' page (not accessible in server mode)."),
                             html.Li("Search and visualize a region of the pangenome graph through the 'Home' page." ), 
                             html.Li("Get the sequences of the displayed region for each haplotype through the 'Sequences' page." ),
                             html.Li("Plot the phylogenetic of the displayed region for each haplotype through the 'Phylogenetic' page." ),
