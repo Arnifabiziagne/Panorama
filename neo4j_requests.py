@@ -412,7 +412,8 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                         OPTIONAL MATCH (m)-[]->(a:Annotation)
                         OPTIONAL MATCH (s:Sequence {{name: m.ref_node}})
                         RETURN m, substring(s.sequence, 0, {max_sequence}) as sequence, collect(a.gene_name) AS annotations, collect(a.feature) AS features
-                            """
+                        LIMIT {MAX_NODES_NUMBER + 1}
+                        """
                         result = session.run(query_genome)
                         for record in result:
                             nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]}  |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
@@ -451,18 +452,20 @@ def get_nodes_by_gene(genome, chromosome, gene_id=None, gene_name=None):
                 logger.info("Looking for gene name : " + str(gene_name))
                 query = f"""
                 MATCH (a:Annotation {{chromosome:"{chromosome}", gene_name: $gene_name}})<-[]-(n:Node)
+                WHERE n[$genome_position] IS NOT NULL
                 RETURN DISTINCT n
-                ORDER BY n.`{genome_position}` ASC
+                ORDER BY n[$genome_position] ASC
                 """
-                result = session.run(query, gene_name=gene_name)
+                result = session.run(query, gene_name=gene_name, genome_position=genome_position)
                 #logger.debug(query)
             else:
                 query = f"""
                 MATCH (a:Annotation {{chromosome:"{chromosome}", gene_id: $gene_id}})<-[]-(n:Node)
+                WHERE n[$genome_position] IS NOT NULL
                 RETURN DISTINCT n
-                ORDER BY n.`{genome_position}` ASC
+                ORDER BY n[$genome_position] ASC
                 """
-                result = session.run(query, gene_id=gene_id)
+                result = session.run(query, gene_id=gene_id, genome_position=genome_position)
             noeuds_annotes = [record["n"] for record in result]
             if len(noeuds_annotes) > 0 and genome_position in noeuds_annotes[0] and genome_position in noeuds_annotes[-1]:
                 start = noeuds_annotes[0][genome_position]
