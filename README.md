@@ -1,4 +1,4 @@
-# PANORAMA:
+# PANORAMA
 **Tools to manipulate and visualize pangenomes variation graphs.**
 
 
@@ -75,7 +75,7 @@ To configure logging behavior, modify the following parameters in the `./conf.js
 
 
 ## Generate the database
-    There are 3 ways to generate database :
+* There are 3 ways to generate database :
     - From a dump file : this is the fastest way but the dump must be available. It uses the neo4j-admin load functionnality. If the neo4j.dump file is available, move or copy it into ./import directory, this file will be used to generate database.
     - From csv file : it is a fast way to create the database if the csv files are available. It uses the neo4j-admin import functionnality.
     - From the GFA file (and gtf / gff if available) : the database is constructed directly from the GFA file. This procedure can be usefull to add data but requires more time than other methods. It is not recommended for big gfa files.
