@@ -1122,6 +1122,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     if (triggered_id== "search-button" and n_clicks > 0)  \
         or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"] \
         or (triggered_id == "update_graph_command_storage" and update_graph_command_storage is not None) :
+        new_data = {}
         if start_value is not None:
             use_anchor = True
             if triggered_id == "btn-zoom":
