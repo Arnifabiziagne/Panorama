@@ -1328,7 +1328,7 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
 
     dir_raxml = "./export/phylo/raxml"
     distance_matrix_filename = "distance_matrix.phy"
-    tree_newick_filename = os.path.join(dir_raxml,"RAxML_bestTree."+project_name)
+    tree_newick_filename = os.path.join(dir_raxml,project_name+".raxml.bestTree")
     last_tree = "./export/phylo/last_tree.nwk"
 
     # Copier le fichier
@@ -1435,23 +1435,23 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
                 for f in glob.glob(pattern):
                     os.remove(f)
 
+                # raxml_command = [
+                #     "raxmlHPC",
+                #     "-s", distance_matrix_filename,
+                #     "-m", "BINGAMMA",
+                #     "-p", "12345",
+                #     # '-#', '100',  # Iterations number for bootstrapping
+                #     "-n", project_name
+                # ]
+
                 raxml_command = [
-                    "raxmlHPC",
-                    "-s", distance_matrix_filename,
-                    "-m", "BINGAMMA",
-                    "-p", "12345",
-                    # '-#', '100',  # Iterations number for bootstrapping
-                    "-n", project_name
+                    "raxml-ng",
+                    "--msa", distance_matrix_filename,
+                    "--model", "BIN+G",
+                    "--seed", "12345",
+                    "--prefix", project_name,
                 ]
 
-                # raxml_command = [
-                #     "raxml-ng",
-                #     "--msa", distance_matrix_filename,
-                #     "--model", "BIN+G",
-                #     "--seed", "12345",
-                #     "--prefix", project_name,
-                # ]
-                #
                 #
                 # iqtree_command = [
                 #     "iqtree2",

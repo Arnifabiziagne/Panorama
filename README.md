@@ -16,6 +16,7 @@ It allows the following functionalities :
 ### Requirements
 * Docker available : see docker documentation if not installed. Docker must be able to be launched by the $USER user; otherwise, see the procedure for launching Docker in non-root mode (adding docker group : "sudo groupadd docker" then "sudo usermod -aG docker $USER" and finally "newgrp docker")
 * Miniconda 3. Please choose the installer corresponding to your OS: [Miniconda dowloads](https://docs.conda.io/en/latest/miniconda.html) 
+* Mamba : this package will be automatically installed if not present.
 * 20 GB RAM (32 Go+ recommanded for big data)
 * Sufficient disk space : approximately 10 times the size of the GFA, ideally SSD (HDD are about 10 times slower and are not recommended for this use)
 * The version of panorama used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
@@ -35,7 +36,7 @@ It allows the following functionalities :
 
 ## Important notes
   - To launch multiple neo4j instances, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
-  - On Windows system, raxmlHPC must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed with this method (but the neighbor joining method will work).
+  - On Windows system, raxml-ng must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed with this method (but the neighbor joining method will work).
   - The default memory used by the neo4j database is defined into the data/conf/neo4j.conf file, it requires at least 20 Go, if the system (and docker configuration) doesn't have this memory available it will be necessary to tune these values.
   - The GFA file must be properly structured for the application to correctly identify the individual name and chromosome. We strongly recommend to use W lines but according to the GFA format:
     - **For GFA files with `W` lines:**  
