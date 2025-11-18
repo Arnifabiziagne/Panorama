@@ -1,41 +1,41 @@
-Panorama project : tools to manipulate and visualize pangenomes variation graphs.
+# PANORAMA:
+**Tools to manipulate and visualize pangenomes variation graphs.**
 
-# Overview
+
+## Overview
 Panorama is based on a graph database modelisation (neo4j) from a gfa graph.
 It allows the following functionalities : 
-- Load a GFA file into a neo4j database (including optionnal annotations if present)
+- Load a GFA file into a neo4j database 
+- Load annotation files (GFF or GTF) : this will link annotations to the pangenome.
 - Compute shared regions between a set of selected haplotypes
-- Compute a phylogenetic tree from a selected region (neighbour joining with a distance matrix based on Jaccard index)
+- Computes the sequences of a selected region
+- Compute a global phylogenetic tree or a local phylogenetic tree from a selected region (neighbour joining with a distance matrix based on Jaccard index)
 - Visualize a region and annotation of the pangenome
 
-## Prerequisites
-- Docker available
-- 16 GB RAM (32 Go+ recommanded for big data)
-- Sufficient disk space : approximately 10 times the size of the GFA, ideally SSD (HDD are about 10 times slower and are not recommended for this use)
-- Conda
-- Docker : Docker must be able to be launched by the $USER user; otherwise, see the procedure for launching Docker in non-root mode (adding docker group : "sudo groupadd docker" then "sudo usermod -aG docker $USER" and finally "newgrp docker")
-- The version of panorama used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
+## Installation 
+### Requirements
+* Docker available : see docker documentation if not installed. Docker must be able to be launched by the $USER user; otherwise, see the procedure for launching Docker in non-root mode (adding docker group : "sudo groupadd docker" then "sudo usermod -aG docker $USER" and finally "newgrp docker")
+* Miniconda 3. Please choose the installer corresponding to your OS: [Miniconda dowloads](https://docs.conda.io/en/latest/miniconda.html) 
+* 20 GB RAM (32 Go+ recommanded for big data)
+* Sufficient disk space : approximately 10 times the size of the GFA, ideally SSD (HDD are about 10 times slower and are not recommended for this use)
+* The version of panorama used to construct the database must be compatible with the version to visualize and analyse data (the version of the database is indicated in the Stats node)
 
-## Quickstart
-- Installation (only the first time) :
+### Quickstart
+* Installation (only the first time) :
   - Download the last release in the Panorama project and unzip the archive where do you want to store your data
-  - If there is a dump file available (file named neo4j.dump) or csv files to import (nodes.csv, sequences.csv and relations.csv), move or copy it into ./import directory
-  - Create the conda environnement : conda env create -f panorama_graph.yaml 
   - Make launcher executable (linux) : chmod +x launcher.sh
-- Launch the tool : 
+* Launch the tool : 
   - Execute launcher : ./launch.sh on linux (or ./launch_gunicorn.sh to launch with gunicorn server in production) or ./launch.bat on windows and go to http://localhost:8050
-  - To launch on an other port, just specify the porty after. For example, to launch on port 8051 : ./launcher.sh 8051 or ./launcher.bat 8051.
-- Prepare database (IHM)
+  - To launch on another port (default is 8050), just specify the porty after. For example, to launch on port 8051 : ./launcher.sh 8051 or ./launcher.bat 8051.
+* Prepare database (IHM)
   - Go to "DB management" page, give a name to your container (e.g. DB_my_species_PGGB) and click on "Create new DB"
-  - If no data (dump or csv) present in the ./data/import directory, load GFA data by selecting GFA file (if the file concerns only a single chromosome it is required to set the chromosome name)
-  - Load annotations by selecting the file and the genome related. Before to load annotations it is required that indexex are fully created (after creating data or loading GFA the indexes are automatically created but if data are big it requires some time)
+  - If no data (dump or csv) present in the ./data/import directory, load GFA data by selecting GFA file. If the file concerns only a single chromosome it is required to set the chromosome name.
+  - Load annotations by selecting the file (gtf or gff) and the genome associated to this file. Before to load annotations it is required that indexes are fully created : after creating data or loading GFA the indexes are automatically created but if data are big it requires some time.
   Once data are loaded the tool can be ued (see quick pages description).
-- Prepare database (command line):
-  - It is possible to prepare database with command lines : go into neo4j_install directory and run the script (replace $container_name with the desired name) : bash ./setup_neo4j.sh --container-name $container_name
 
 ## Important notes
-  - To launch multiple neo4j instance, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
-  - On windows system, raxmlHPC must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed.
+  - To launch multiple neo4j instances, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
+  - On Windows system, raxmlHPC must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed with this method (but the neighbor joining method will work).
   - The default memory used by the neo4j database is defined into the data/conf/neo4j.conf file, it requires at least 20 Go, if the system (and docker configuration) doesn't have this memory available it will be necessary to tune these values.
   - The GFA file must be properly structured for the application to correctly identify the individual name and chromosome. We strongly recommend to use W lines but according to the GFA format:
     - **For GFA files with `W` lines:**  
@@ -51,8 +51,7 @@ It allows the following functionalities :
 
 In all cases, if a chromosome is specified when loading the GFA file, that value will take precedence.
 
-### Logs
-
+## Logs
 
 Logs are displayed by default in the console and in log files located in the `./logs` directory.  
 
@@ -66,14 +65,20 @@ To configure logging behavior, modify the following parameters in the `./conf.js
   - `"both"` — Log to both the console and file *(default value)*.  
 
 ## Quick pages description
-  The menu allow to navigate on differents pages :
+  The menu allow to navigate on different pages :
 
   - DB management (available only in admin mode for server mode installation) : this page is used only on the start to create DB and load data.
-  - Home page : page to vizualise data (by defining the chromosome, start and stop or genome and gene_name / gene_id).
-  - GWAS : page to detect the nodes shared by a selection of haplotypes. It computes the list of identified regions that can be exported in csv. Sequence associated to a region can be seen by clicking on "size" column.
+  - Home page : page to visualize data (by defining the chromosome, start and stop or genome and gene_name / gene_id).
+  - Shared region discovery : page to detect the nodes shared by a selection of haplotypes. It computes the list of identified regions that can be exported in csv. Sequence associated to a region can be seen by clicking on "size" column.
   - Phylogenetic : on left it is possible to load a reference phylogenetic tree. On right, by clicking on the "Plot tree..." button it computes the tree of the region defined in the Home page.
   - Sequences : by clicking on the button it computes the sequence for each haplotype of the region selected in the home page.
 
+
+## Generate the database
+    There are 3 ways to generate database :
+    - From a dump file : this is the fastest way but the dump must be available. It uses the neo4j-admin load functionnality. If the neo4j.dump file is available, move or copy it into ./import directory, this file will be used to generate database.
+    - From csv file : it is a fast way to create the database if the csv files are available. It uses the neo4j-admin import functionnality.
+    - From the GFA file (and gtf / gff if available) : the database is constructed directly from the GFA file. This procedure can be usefull to add data but requires more time than other methods. It is not recommended for big gfa files.
 
 ## Server Mode Configuration
 
@@ -106,21 +111,12 @@ The parameter file is named `./conf.json`. It contains the following parameters:
 - `"log_retention_days"`: number of days to keep logs (default: `7`).  
 - `"log_level"`: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"` — logs are displayed only if their level is equal to or higher than this setting.  
 
-## Manual installation
-### Install neo4
-    See the readme in neo4j_install directory
 
-### Create environment
-- Create conda env : conda env create -f panorama_graph.yaml
-- Load conda env : conda activate panorama_graph
+## Contacts
+*F Graziani, M Zytnicki*
 
-### Generate the database
-    There are 3 ways to generate database :
-    - From a dump file : this is the fastest way but the dump must be available. It uses the neo4j-admin load functionnality.
-    - From csv file : it is a fast way to create rthe database if the csv files are available. It uses the neo4j-admin import functionnality. The difference with the dump is that annotations and indexes won't be created.
-    - From the GFA file (and gtf / gff if available) : use the construct_DB function of neoj4_DB_contruction.py script or the DB management page of IHM. 
-        If the pangenome is big this can take a long time, in this case it is recommanded to use the load_gfa_data_to_csv function to generate csv files. According to the memory available, it is necessary to limit the 
-        batch size. If a gtf / gff file is present, the genome_ref must be set in order to link annotations nodes with the main nodes of pangenome.
+Genotoul Bioinfo team, MIAT, INRAE Auzeville, France.
 
-### Use the tool 
-    You can use the tool from the graphical interface. To launch it, just launch the index.py file : python index.py
+## Licence
+
+Panorama is available under the GNU license.
