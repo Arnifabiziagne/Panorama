@@ -20,7 +20,7 @@ fi
 # --- Ensure mamba is installed in base ---
 if ! command -v mamba &> /dev/null; then
     echo "Mamba not found, installing in base environment..."
-    conda install -y -n base mamba
+    conda install -y -n base mamba --channel conda-forge
 fi
 
 # --- Compute current YAML hash ---
