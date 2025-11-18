@@ -51,7 +51,7 @@ def compute_stylesheet(color_number):
             'selector': 'node',
             'style': {
                 'label': 'data(label)',
-                'background-color':'data(color)',
+                'backgroundColor':'data(color)',
                 'min-zoomed-font-size': 10,
                 'text-opacity':1,
                 'opacity':1,
@@ -83,7 +83,7 @@ def compute_stylesheet(color_number):
             },
         },
             {'selector': ':selected', 'style': {
-                'background-color': 'grey',
+                'backgroundColor': 'grey',
                 'line-color': '#FF4136',
                 'border-width': 3,
                 'border-color': 'black'
@@ -103,8 +103,8 @@ def compute_stylesheet(color_number):
             {
                 'selector': 'node',
                 'style': {
-                    'background-color':'data(color)',
-                    'label': 'data(label)',
+                    'backgroundColor':'data(color)',
+                    #'label': 'data(label)',
                     'min-zoomed-font-size': 10,
                     'opacity':1,
                     'text-opacity':1,
@@ -603,7 +603,7 @@ def layout(data=None, initial_size_limit=10):
                         ],style={
                             'width': '45%',
                             'padding': '10px',
-                            'box-sizing': 'border-box'
+                            'boxSizing': 'border-box'
                         }),
                         html.Div([
                             #Div displayed region
@@ -611,27 +611,27 @@ def layout(data=None, initial_size_limit=10):
                             html.Div([
                                 html.Div(id='displayed-region-container', children=[
                                     html.Div("No region selected.", id='no-region-msg',
-                                             style={'font-style': 'italic', 'color': '#777'})
+                                             style={'fontStyle': 'italic', 'color': '#777'})
                                 ])
                             ], style={
                                 'border': '1px solid #ccc',
-                                'border-radius': '5px',
+                                'borderRadius': '5px',
                                 'padding': '10px',
-                                'background-color': '#f9f9f9',
-                                'min-height': '100px'
+                                'backgroundColor': '#f9f9f9',
+                                'minHeight': '100px'
                             }),
                         ],
                             style={
                                 'width': '45%',
                                 'padding': '10px',
-                                'border-left': '2px solid #ddd',
-                                'box-sizing': 'border-box'
+                                'borderLeft': '2px solid #ddd',
+                                'boxSizing': 'border-box'
                             }),
                     ],style={
                         'display': 'flex',
-                        'flex-direction': 'row',
-                        'justify-content': 'space-between',
-                        'align-items': 'flex-start',
+                        'flexDirection': 'row',
+                        'justifyContent': 'space-between',
+                        'alignItems': 'flex-start',
                         'width': '100%',
                     }),
                     html.Div([
@@ -807,12 +807,12 @@ def layout(data=None, initial_size_limit=10):
                 html.Div(html.H4(id='annotations-info',
                          style={'margin': '10px'}))
             ], style={'flex': '1', 'padding': '20px', 'border': '1px solid #ccc', 'marginLeft': '20px', 'minWidth': '300px',
-                      'boxSizing': 'border-box', 'display': 'flex', 'flex-direction': 'column'})
+                      'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column'})
         ], style={
             'display': 'flex',
-            'flex-direction': 'row',
+            'flexDirection': 'row',
             'flexWrap': 'wrap',
-            'justify-content': 'space-between'
+            'justifyContent': 'space-between'
         }),
         html.Div([
             # Button on top of the graph
@@ -934,7 +934,7 @@ def get_displayed_div(start, end, gene_name, gene_id):
         info_rows.append(info_line("Gene name", gene_name))
     if gene_id:
         info_rows.append(info_line("Gene ID", gene_id))
-    displayed_div = info_rows or html.Div("No region selected.", style={'font-style': 'italic', 'color': '#777'})
+    displayed_div = info_rows or html.Div("No region selected.", style={'fontStyle': 'italic', 'color': '#777'})
     return displayed_div
 
 

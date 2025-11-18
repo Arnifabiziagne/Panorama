@@ -279,7 +279,7 @@ def create_indexes(base=True, extend=False, genomes_index=False):
                 nb_genomes = len(all_genomes)
                 logger.info(all_genomes)
                 for g in all_genomes:
-                    logger.info("creating indexes for genome " + g + " ("+str(current_genome) + "/"+str(nb_genomes) +")")
+                    logger.info("creating indexes for genome " + g + " ("+str(current_genome+1) + "/"+str(nb_genomes) +")")
                     current_genome += 1
                     indexes_queries = []
                     indexes_queries.append("CREATE INDEX NodeIndex"+str(g).replace("-", "_").replace(".","_")+"_position IF NOT EXISTS FOR (n:Node) ON (n.chromosome, n.`"+str(g)+"_position`)")
