@@ -597,7 +597,7 @@ def layout(data=None, initial_size_limit=10):
                                         n_clicks=0, style={'marginTop': '10px'}),
                             dcc.Loading(
                                 id="loading-search-msg",
-                                type="circle",
+                                #type="circle",
                                 children=html.Div(id="search-message")
                             ),
                         ],style={

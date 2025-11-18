@@ -121,7 +121,7 @@ def layout():
         ),
         dcc.Loading(
             id="loading-gfa-upload",
-            type="default", 
+            #type="default",
             children=html.Div(id='upload-gfa-output'),
         ),
     
@@ -200,7 +200,7 @@ def layout():
         ], style={'marginBottom': '10px'}),
         dcc.Loading(
             id="loading-gfa-msg",
-            type="circle",
+            #type="circle",
             children=html.Div(id="gfa-message")
         ),
 
@@ -267,7 +267,7 @@ def layout():
 
         html.Button("Dump DB", id="btn-dump-db", n_clicks=0),
         dcc.Loading(
-            type="circle",
+            #type="circle",
             children=html.Div(id="create-db-message", style={"marginTop": "10px"})
         ),
     
@@ -307,7 +307,7 @@ def layout():
         ),
         dcc.Loading(
             id="loading-annotations-upload",
-            type="default",
+            #type="default",
             children=html.Div(id='upload-annotations-output'),
         ),
     
@@ -373,7 +373,7 @@ def layout():
             #html.Button("Link annotations", id="btn-link-annotations", n_clicks=0),
             dcc.Loading(
                 id="loading-annotation-msg",
-                type="circle",
+                #type="circle",
                 children=html.Div(id="annotation-message")
             )
         ]),
@@ -390,7 +390,7 @@ def layout():
         # Confirm deletion
         html.Div(id="delete-confirmation", style={"marginTop": "10px"}),
         dcc.Loading(
-            type="circle",
+            #type="circle",
             children=html.Div(id="delete-message", style={"marginTop": "10px"})
         )
     

@@ -47,7 +47,7 @@ def layout():
             None if BLOCK_ADMIN_FUNCTIONNALITIES else html.Button("Update Panorama", id='update-panorama-btn', n_clicks=0, style={'margin': '15px 0'}),
             dcc.Loading(
                 id="update-panorama",
-                type="default", 
+                #type="default",
                 children=html.Div(id='update-panorama-output'),
             )
             ], style={"marginBottom": "100px"}),

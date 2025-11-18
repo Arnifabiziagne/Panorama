@@ -1327,12 +1327,13 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
     
 
     dir_raxml = "./export/phylo/raxml"
+    dir_phylo = "./export/phylo"
     distance_matrix_filename = "distance_matrix.phy"
     tree_newick_filename = os.path.join(dir_raxml,project_name+".raxml.bestTree")
     last_tree = "./export/phylo/last_tree.nwk"
 
     # Copier le fichier
-    distance_matrix_phylip_filename = os.path.join(dir_raxml, distance_matrix_filename)
+    distance_matrix_phylip_filename = os.path.join(dir_phylo, distance_matrix_filename)
     if not os.path.exists(dir_raxml):
         os.makedirs(dir_raxml)
     if get_driver() is None :
@@ -1377,9 +1378,7 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
                 return np.polyval(coeffs, np.log10(x))
             sample_nodes_number = max(min_sample_size, min(int(f(total_nodes_number)),max_nodes))
         #sample_nodes_number = max(min_sample_size,min(int(node_selection_percentage*total_nodes_number/100), max_nodes))
-        
-        
-        
+
         if chromosome is None :
             query = f"""
             MATCH (n:Node)
@@ -1427,17 +1426,14 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
                     else:
                         pav_matrix[g][i] = int(1)         
             pav_to_phylip(pav_matrix, distance_matrix_phylip_filename)
-
             if method == "raxml":
                 logger.debug("RaxML method...")
-                pattern = os.path.join(dir_raxml, f"RAxML_*")
-
+                pattern = os.path.join(dir_raxml, f"{project_name}.*")
                 for f in glob.glob(pattern):
                     os.remove(f)
-
                 # raxml_command = [
                 #     "raxmlHPC",
-                #     "-s", distance_matrix_filename,
+                #     "-s", f"../{distance_matrix_filename}",
                 #     "-m", "BINGAMMA",
                 #     "-p", "12345",
                 #     # '-#', '100',  # Iterations number for bootstrapping
@@ -1446,7 +1442,7 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
 
                 raxml_command = [
                     "raxml-ng",
-                    "--msa", distance_matrix_filename,
+                    "--msa", f"../{distance_matrix_filename}",
                     "--model", "BIN+G",
                     "--seed", "12345",
                     "--prefix", project_name,
@@ -1455,7 +1451,7 @@ def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand
                 #
                 # iqtree_command = [
                 #     "iqtree2",
-                #     "-s", distance_matrix_filename,
+                #     "-s", f"../{distance_matrix_filename}",
                 #     "-seed", "12345",
                 #     "-st",  "MORPH",
                 #     "-pre", project_name

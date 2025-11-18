@@ -31,7 +31,7 @@ def layout():
             html.Button("Get sequences", title='Before using this button, data must be displayed on home page. If data are displayed, then this will computes the sequence of each displayed haplotypes.', id='get-sequences-btn', n_clicks=0),
             dcc.Loading(
                 id="loading-sequences-msg",
-                type="circle",
+                #type="circle",
                 children=html.Div(id="sequences-message")
             )
         ],style={'padding':'20px'}),

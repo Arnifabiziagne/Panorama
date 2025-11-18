@@ -166,7 +166,7 @@ def layout():
         html.Button("Find shared regions", id='btn-find-shared', n_clicks=0, style={'margin': '15px 0'}),
         dcc.Loading(
             id="gwas_loading-spinner",
-            type="circle",  # 'default', 'circle', or 'dot'
+            #type="circle",  # 'default', 'circle', or 'dot'
             children=html.Div(id="load_spinner_zone")
         ),
     

@@ -147,7 +147,7 @@ def layout():
                     ),
                     dcc.Loading(
                         id="phylogenetic_loading-spinner",
-                        type="circle",
+                        #type="circle",
                         children=html.Div(id="load_spinner_zone")
                     ),
                 ], style={"marginTop": "10px"})
@@ -170,7 +170,7 @@ def layout():
             dcc.Download(id="download-tree"),
             dcc.Loading(
                 id="loading-phylogenetic-msg",
-                type="circle",
+                #type="circle",
                 children=html.Div(id="phylogenetic-message")
             ),
             html.Div(id='region-status', style={'margin': '10px 0'}),
