@@ -83,6 +83,6 @@ fi
 # --- Launch application ---
 ENV_GUNICORN=$(conda info --base)/envs/$ENV_NAME/bin/gunicorn
 echo "Launching Panorama on port $DASH_PORT with command $ENV_GUNICORN..."
-$ENV_GUNICORN wsgi:application -k gevent -w 8 -b 0.0.0.0:$DASH_PORT \
-    --timeout 180000 --config gunicorn_config.py --pid gunicorn.pid
+setsid $ENV_GUNICORN wsgi:application -k gevent -w 8 -b 0.0.0.0:$DASH_PORT \
+    --timeout 180000 --config gunicorn_config.py --pid gunicorn.pid &
 

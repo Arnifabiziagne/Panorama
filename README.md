@@ -95,6 +95,21 @@ To do so, modify the configuration file (`./conf.json`):
   - Once the data has been loaded, set `"admin_mode"` back to `false` to allow open access for all users.
 - To launch application, use the ./launch_gunicorn.sh (server gunicorn is available only for linux) script.
 - To stop application, use the ./stop_server.sh script.
+- Gunicorn log into /logs/gunicorn but it is recommended to set a rotation file for this log. To do that :
+  - Create file /etc/logrotate.d/gunicorn
+  - Write this into this file by replacing $ABSOLUTE_PATH_TO_PANORAMA by the aboslute path to your panorama directory :
+    ``` bash
+    $ABSOLUTE_PATH_TO_PANORAMA/logs/gunicorn/*.log {
+        daily
+        rotate 14
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+    }
+    ```
+
 
 ## Parameters file
 

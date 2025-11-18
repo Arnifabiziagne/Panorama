@@ -13,7 +13,7 @@ import multiprocessing
 
 accesslog = "logs/gunicorn/gunicorn_access.log"
 errorlog = "logs/gunicorn/gunicorn_error.log"
-loglevel = "info"
+loglevel = "error"
 
 
 
