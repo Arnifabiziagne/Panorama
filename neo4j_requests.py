@@ -417,12 +417,15 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                         result = session.run(query_genome)
                         for record in result:
                             nodes_data[record["m"]["name"]] = dict(record["m"]) |{"sequence":record["sequence"]}  |{"annotations":set(record["annotations"][a] for a in range(len(record["annotations"])))} |{"features":set(record["features"][a] for a in range(len(record["features"])))}
+                        return_metadata["nodes_number"] = len(nodes_data)
                         if len(nodes_data) > MAX_NODES_NUMBER :
                             nodes_data = {}
+                            return_metadata["return_code"] = "WIDE"
                             logger.warning(
                                 f"Region too wide : nodes number : {len(nodes_data)} - max nodes number : {MAX_NODES_NUMBER}")
                     else  :
                         logger.warning("Region too wide")
+                        return_metadata["return_code"] = "WIDE"
                         nodes_data = {}
             if len(nodes_data) > 0 :
                 for elt in nodes_data:
