@@ -29,8 +29,10 @@ It allows the following functionalities :
   - Execute launcher : ./launch.sh on linux (or ./launch_gunicorn.sh to launch with gunicorn server in production) or ./launch.bat on windows and go to http://localhost:8050
   - To launch on another port (default is 8050), just specify the porty after. For example, to launch on port 8051 : ./launcher.sh 8051 or ./launcher.bat 8051.
 * Prepare database (IHM)
-  - Go to "DB management" page, give a name to your container (e.g. DB_my_species_PGGB) and click on "Create new DB"
-  - If no data (dump or csv) present in the ./data/import directory, load GFA data by selecting GFA file. If the file concerns only a single chromosome it is required to set the chromosome name.
+  - Go to "DB management" page, give a name to your container (e.g. DB_my_species_PGGB) and click on "Create new DB".
+  - If no data (dump or csv) present in the ./data/import directory, load GFA data by selecting GFA files. According to your data, there are 2 possibilities :
+    - Unique GFA with multiple chromosomes : in this case the chromosome must be defined in the path / walk according to the rules described in "Important notes" section.
+    - One GFA file per chromosome: in this case, it is strongly recommended to enter the chromosome value in the input box associated with the file. Otherwise, it will use the chromosome defined in the path/walk, but this value is not always well defined.
   - Load annotations by selecting the file (gtf or gff) and the genome associated to this file. Before to load annotations it is required that indexes are fully created : after creating data or loading GFA the indexes are automatically created but if data are big it requires some time.
   Once data are loaded the tool can be ued (see quick pages description).
 
