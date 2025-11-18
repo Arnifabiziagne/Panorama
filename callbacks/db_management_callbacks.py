@@ -438,7 +438,7 @@ def update_label(data):
         data = {}
     if "container_name" not in data :
         conf = load_config_from_json()
-        if not conf or "container_name" not in data or data['container_name'] is None or data['container_name'] == "":
+        if not conf or "container_name" not in conf or conf['container_name'] is None or conf['container_name'] == "":
             return f'No conf file found. Use "create new DB" procedure to generate it.', "container_name", data
         else:
             container_name = conf.get("container_name")

@@ -76,7 +76,7 @@ def display_sequences(n_clicks, nodes_data):
         "❌ No data to compute sequences. Select a region to visualise on the ",
         dcc.Link("home page", href="/", style={'color': 'blue', 'textDecoration': 'underline'}),
         " or on the ",
-        dcc.Link("gwas page", href="/gwas", style={'color': 'blue', 'textDecoration': 'underline'})
+        dcc.Link("Shared regions discovery page", href="/gwas", style={'color': 'blue', 'textDecoration': 'underline'})
         ], style=error_style))
     else:
         sequences = []
