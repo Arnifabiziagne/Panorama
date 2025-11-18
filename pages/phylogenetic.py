@@ -89,7 +89,7 @@ def layout():
                 id='upload-newick',
                 children=html.Div([
                     'Drag/drop or ',
-                    html.A('selct a Newick file')
+                    html.A('select a Newick file')
                 ]),
                 style={
                     'width': '60%',
