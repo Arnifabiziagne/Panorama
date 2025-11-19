@@ -6,5 +6,7 @@
   },
   "server_log_mode": "both",
   "log_retention_days": 7,
-  "log_level": "INFO"
+  "log_level": "INFO",
+  "gunicorn_log_level":"error",
+  "db_gfa_loading_batch_size":2000000
 }

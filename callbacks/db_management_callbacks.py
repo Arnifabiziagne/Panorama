@@ -40,9 +40,6 @@ GFA_FOLDER = os.path.join(PROJECT_ROOT, "data", "gfa")
 DATA_FOLDER = os.path.join(PROJECT_ROOT, "data", "data")
 ANNOTATIONS_FOLDER = os.path.join(PROJECT_ROOT, "data", "annotations")
 
-DEFAULT_BATCH_SIZE = 2000000
-MIN_BATCH_SIZE = 1000
-
 
 def get_container_name_no_prefix(container_name):
     return re.sub(r'^DB_.[^_]+_', '',container_name)
@@ -88,11 +85,10 @@ def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
     State({'type': 'gfa-checkbox', 'index': ALL}, 'id'),
     State({'type': 'gfa-input', 'index': ALL}, 'value'),
     State({'type': 'gfa-input', 'index': ALL}, 'id'),
-    State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
 @require_authorization
-def on_click_load_gfa(n_clicks, checkbox_values, checkbox_ids, input_values, input_ids, batch_size=DEFAULT_BATCH_SIZE):
+def on_click_load_gfa(n_clicks, checkbox_values, checkbox_ids, input_values, input_ids):
     # Get selected files
     selected_files = [c_id['index'] for c_val, c_id in zip(checkbox_values, checkbox_ids) if c_val]
     if not selected_files:
@@ -101,9 +97,10 @@ def on_click_load_gfa(n_clicks, checkbox_values, checkbox_ids, input_values, inp
     if invalid_files:
         return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.",
                         style=error_style), [no_update for _ in checkbox_ids]
-    if batch_size < MIN_BATCH_SIZE:
-        batch_size = MIN_BATCH_SIZE
 
+    #Get batch size from conf
+    batch_size = get_db_load_gfa_batch_size()
+    logger.info(f"Load GFA files {selected_files} with batch size {batch_size}")
     # Get the chromosome associated to file (if set)
     chromosome_dict = {i_id['index']: val for i_id, val in zip(input_ids, input_values)}
     list_chromosome_file = [chromosome_dict.get(f, "") for f in selected_files]
@@ -139,11 +136,10 @@ def on_click_load_gfa(n_clicks, checkbox_values, checkbox_ids, input_values, inp
     State({'type': 'gfa-checkbox', 'index': ALL}, 'id'),
     State({'type': 'gfa-input', 'index': ALL}, 'value'),
     State({'type': 'gfa-input', 'index': ALL}, 'id'),
-    State("db-batch-size-input", "value"),
     prevent_initial_call=True
 )
 @require_authorization
-def on_click_csv_import(n_clicks, checkbox_values, checkbox_ids, input_values, input_ids, batch_size=DEFAULT_BATCH_SIZE):
+def on_click_csv_import(n_clicks, checkbox_values, checkbox_ids, input_values, input_ids):
     # Get selected files
     selected_files = [c_id['index'] for c_val, c_id in zip(checkbox_values, checkbox_ids) if c_val]
     if not selected_files:
@@ -154,9 +150,8 @@ def on_click_csv_import(n_clicks, checkbox_values, checkbox_ids, input_values, i
         return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.",
                         style=error_style), [no_update for _ in checkbox_ids]
 
-    if batch_size < MIN_BATCH_SIZE:
-        batch_size = MIN_BATCH_SIZE
-
+    batch_size = get_db_load_gfa_batch_size()
+    logger.info(f"Generate csv from GFA files {selected_files} with batch size {batch_size}")
     # Get the chromosome associated to file (if set)
     chromosome_dict = {i_id['index']: val for i_id, val in zip(input_ids, input_values)}
     list_chromosome_file = [chromosome_dict.get(f, "") for f in selected_files]

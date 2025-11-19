@@ -653,7 +653,7 @@ Input:
     - haplotype: indicates whether the sample name should be concatenated with the haplotype
 '''
 @require_authorization
-def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
+def load_gfa_data_to_neo4j(gfa_file_name, chromosome_file = None, chromosome_prefix = False, batch_size = 2000000, start_chromosome = None, create = False, haplotype = True, create_only_relations = False):
     sep = ["[,;.*]", "(<|>)"]
     batch_nb = 0
     set_genome = set()
@@ -1020,7 +1020,7 @@ def update_csv_line(csv_fields_index, dic_node, csv_line):
 #After the creation of the csv it is necessary to import them in the database
 #Important note : if start chromosome is not None and sequences csv file already exists, the sequences csv file won't be computed
 @require_authorization
-def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_file = None, chromosome_prefix = False, batch_size = 5000000, start_chromosome = None, haplotype = True):
+def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_file = None, chromosome_prefix = False, batch_size = 2000000, start_chromosome = None, haplotype = True):
     sep = ["[,;.*]", "(<|>)"]
     batch_nb = 0
     set_genome = set()

@@ -91,11 +91,11 @@ def layout():
         html.Div([
             html.H4("Instructions for loading a GFA files :"),
             html.Ul([
-                html.Li("This step allow to prepare data before creating database. This will load a gfa file and transform it into csv files that will be imported by neo4j when creatinf the database."),
+                html.Li("This step allow to prepare data before creating database. This will load a gfa file and transform it into csv files that will be imported by neo4j when creating the database."),
                 html.Li("GFA files must be in the ./data/gfa directory."),
                 html.Li("The database must be empty before loading."),
-                html.Li("For multi GFA processing : each GFA must refer to a chromosom and must be named as follows : either filename_chrxx.gfa, filename_xx.gfa, or xx.gfa or a chromosome must be associated with the gfa file."),
-                html.Li("To add data after database creation, use the the add data button."),
+                html.Li("For multi GFA processing : each GFA must refer to a unique chromosome and the chromosome value must be set in the input box associated to each gfa file. If not set the value in the path / walk will be used."),
+                html.Li("To add data after database creation, use the the add data button : this procedure is slower and is not recommended for big gfa files."),
             ])
         ]),
         html.Br(),
@@ -124,16 +124,7 @@ def layout():
             #type="default",
             children=html.Div(id='upload-gfa-output'),
         ),
-    
-        html.Br(),
-        # html.Div([
-        #     html.H4("If GFA concern only one chromosome, or if no chromosome, specify the chromosome value here (0 if no chromosome):  ", style={'margin-right': '20px'}),
-        #     dcc.Input(id='db-chromosome-input', style={'width': '100px', 'marginRight': '10px'}),
-        # ], style={'display': 'flex', 'alignItems': 'center'}),
-        html.Div([
-            html.H4("Batch size. According to your ram available : bigger batch size will go faster but will consume more memory. Recommended 2 000 000):  ", style={'margin-right': '20px'}),
-            dcc.Input(id='db-batch-size-input', type='number', value = 2000000, style={'width': '100px', 'marginRight': '10px'}),
-        ], style={'display': 'flex', 'alignItems': 'center'}),
+
         html.Br(),
         #Checklist of annotations files
 

@@ -20,6 +20,7 @@ import logging
 
 logger = logging.getLogger("panorama_logger")
 
+DEFAULT_DB_LOAD_GFA_BATCH_SIZE = 2000000
 
 CONF_FILE = os.path.abspath("./conf.json")
 OLD_CONF_FILE = os.path.abspath("./db_conf.json")
@@ -100,6 +101,8 @@ def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET
     LOG_RETENTION_DAYS = int(conf.get("log_retention_days",7))
     SERVER_LOG_MODE = str(conf.get("server_log_mode","both"))
     LOG_LEVEL_PARAM = str(conf.get("log_level","INFO")).upper()
+    GUNICORN_LOG_LEVEL = str(conf.get("gunicorn_log_level","")).upper()
+    DB_LOAD_GFA_BATCH_SIZE = int(conf.get("db_gfa_loading_batch_size",DEFAULT_DB_LOAD_GFA_BATCH_SIZE))
     if LOG_LEVEL_PARAM in log_levels:
         LOG_LEVEL= "logging."+LOG_LEVEL_PARAM
     else:
@@ -114,7 +117,8 @@ def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET
             USERS[k.strip()] = v.strip()
     return {"container_name":container_name, "HTTP_PORT":HTTP_PORT, "BOLT_PORT":BOLT_PORT, 
             "AUTH":AUTH, "DB_URL":DB_URL, "SERVER_MODE":SERVER_MODE, "USERS":USERS, "ADMIN_MODE":ADMIN_MODE,
-            "SERVER_LOG_MODE":SERVER_LOG_MODE,"LOG_RETENTION_DAYS":LOG_RETENTION_DAYS, "LOG_LEVEL":LOG_LEVEL}
+            "SERVER_LOG_MODE":SERVER_LOG_MODE,"LOG_RETENTION_DAYS":LOG_RETENTION_DAYS, "LOG_LEVEL":LOG_LEVEL,
+            "GUNICORN_LOG_LEVEL":GUNICORN_LOG_LEVEL, "DB_LOAD_GFA_BATCH_SIZE":DB_LOAD_GFA_BATCH_SIZE}
 
 def test_connection(DB_URL, AUTH):
     try:
@@ -153,7 +157,9 @@ def is_admin_mode():
         admin_mode = conf["ADMIN_MODE"]
     return admin_mode
 
-
+def get_db_load_gfa_batch_size():
+    conf=get_conf()
+    return conf["DB_LOAD_GFA_BATCH_SIZE"]
 
 #Authorization is set to True for local installation of panorama
 #or if the mode admin is set to True
