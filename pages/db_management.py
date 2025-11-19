@@ -361,7 +361,7 @@ def layout():
             html.Li("Creation of indexes and statistics in the database"),
             html.Li("Dump creation")
         ]),
-        html.P("Normally, these operations do not need to be used."),
+        html.P("Normally, these operations do not need to be used since they are automatically launched when creating a new database."),
         html.Br(),
         html.Label("Reset all the database and configuration : this will delete data, configuration and neo4j container.",
                    style={'display': 'block', 'marginBottom': '8px'}),

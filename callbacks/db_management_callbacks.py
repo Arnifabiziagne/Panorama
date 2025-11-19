@@ -465,10 +465,11 @@ def confirm_delete_data(n_clicks, data):
     Output("btn-create-index", "disabled"),
     Output("btn-create-stats", "disabled"),
     Output("btn-dump-db", "disabled"),
-    Input('db-management-page-store', 'data')
+    Input('db-management-page-store', 'data'),
+    State('container-name-input', 'value'),
 )
 @require_authorization
-def update_label(data):
+def update_label(data, container_input):
     style_create_db = {"display": "inline-block"}
     style_add_gfa = {"display": "none"}
     if data is None :
@@ -477,7 +478,11 @@ def update_label(data):
 
         conf = load_config_from_json()
         if not conf or "container_name" not in conf or conf['container_name'] is None or conf['container_name'] == "":
-            return f'No conf file found. Use "create new DB" procedure to generate it.', "container_name", data, False, True, style_create_db, style_add_gfa, True, True, True
+            if container_input is not None and container_input != "":
+                c_name = container_input
+            else:
+                c_name = "container_name"
+            return f'No conf file found. Use "create new DB" procedure to generate it.', c_name, data, False, True, style_create_db, style_add_gfa, True, True, True
         else:
             style_create_db = {"display": "none"}
             style_add_gfa = {"display": "inline-block"}
@@ -513,6 +518,7 @@ def create_db_ask_confirmation(n_clicks):
     Output('db-management-page-store', 'data', allow_duplicate=True),
     Output({'type': 'annotation-dropdown', 'index': ALL}, 'options'),
     Output({'type': 'gfa-checkbox', 'index': ALL}, 'value'),
+    Output("container-name-input","value", allow_duplicate=True),
     Input("btn-confirm-create-db", "n_clicks"),
     State("container-name-input","value"),
     State("docker-image-dropdown","value"),
@@ -541,7 +547,7 @@ def confirm_create_db(n_clicks, container_name, docker_image, data, children, ch
 
     # Check container name
     if not container_name:
-        return html.Div("❌ No container name", style=error_style), "", data, no_update_list, checkbox_values
+        return html.Div("❌ No container name", style=error_style), "", data, no_update_list, checkbox_values, "container_name"
     else:
         container_name_prefixed = PREFIX_CONTAINER_NAME + container_name
     try:
@@ -552,7 +558,7 @@ def confirm_create_db(n_clicks, container_name, docker_image, data, children, ch
             invalid_files = [f for f in selected_files if not f.lower().endswith(".gfa")]
             if invalid_files:
                 return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.",
-                                style=error_style), [no_update for _ in checkbox_ids], no_update, checkbox_values
+                                style=error_style), "", data, no_update_list, checkbox_values, container_name
 
             # Get batch size from conf
             batch_size = get_db_load_gfa_batch_size()
@@ -566,7 +572,7 @@ def confirm_create_db(n_clicks, container_name, docker_image, data, children, ch
                     if cf is None or cf == "":
                         return html.Div(
                             "❌ When multiple gfa are selected, it is required to set the chromosome for each of theses files (non null or empty value).",
-                            style=error_style), [no_update for _ in checkbox_ids], checkbox_values
+                            style=error_style), "", data, no_update_list, checkbox_values, container_name
 
             for file_name, chromosome_file in zip(selected_files, list_chromosome_file):
                 start_time = time.time()
@@ -605,11 +611,11 @@ def confirm_create_db(n_clicks, container_name, docker_image, data, children, ch
         msg_ok = "✅ DB successfully created"
         if len(selected_files) > 0:
             msg_ok += f" with gfa files : {selected_files}"
-        return html.Div(msg_ok, style=success_style), "", data, options_list, [[] for _ in checkbox_values]
+        return html.Div(msg_ok, style=success_style), "", data, options_list, [[] for _ in checkbox_values], container_name
 
     except Exception as e:
         logger.error(f"Error while creating database: {e}")
-        return html.Div(f"❌ Error while creating database: {str(e)}", style=error_style), "", data, no_update_list, checkbox_values
+        return html.Div(f"❌ Error while creating database: {str(e)}", style=error_style), "", data, no_update_list, checkbox_values, container_name
 
 @app.callback(
     Output("dump-message", "children", allow_duplicate=True),
