@@ -50,29 +50,30 @@ def layout():
                     html.Ul([
                         html.Li("Initial procedure :"),
                         html.Ul([
-                            html.Li("First convert the GFA into csv file : select GFA files and set the associated chromosome in the following cases : "),
+                            html.Li("Set the name of the neo4J container."),
+                            html.Li("Select GFA files and set the associated chromosome in the following cases : "),
                             html.Ul([
                             html.Li("The file concern a unique chromosome."),
                             html.Li("Multiple gfa files are loaded, each file must refer ton only one chromosome."),
                             html.Li("No chromosome at all (set the value to 0 in this case)."),
                             html.Li("If there is only one GFA file with multiple chromosomes then there is nothing to set."),
                             ]),
-                            html.Li("Click on Generate CSV Import file button."),
-                            html.Li("Then create the database : select the neo4j docker image and give a name to the database. Then click on 'create a new DB' button. The csv will automatically be used to generate database."),
-                            
+                            html.Li("Click on Create new DB button."),
                         ]),
                         html.Li("Procedure to load further GFA files : "),
                         html.Ul([
                             html.Li(
-                                "Once the database has been created, it is no longer possible to use the CSV generation process. In this case, you can use the **'Add data'** procedure by selecting the file and specifying the associated chromosome. However, this approach is **not recommended**, as it is slower than the initial CSV-based loading process."),
+                                "Once the database has been created, it is no longer possible to use the CSV generation process. In this case, you can use the **'Add data'** procedure by selecting the file and specifying the associated chromosome. However, this approach is **not recommended** for big gfa files, as it is slower than the initial loading process."),
                         ]),
                         html.Li("Dump procedure (for intermediate data volume): "),  
                         html.Ul([
-                            html.Li("If a dump file has been generated (neo4j.dump file) just check if this file is into the /data/import directory, enter the database name, select the neo4j image associated to this dump and click on 'create new db' button."),
+                            html.Li("If a dump file has been generated (neo4j.dump file) just check if this file is into the /data/import directory, enter the neo4j container name and click on 'create new db' button (don't select gfa files)."),
                         ]),
                         html.Li("Load annotations files : "),  
                         html.Ul([
-                            html.Li("For this step it is necessary that indexes are created. It can take a few time after the GFA loading."),
+                            html.Li(
+                                "To launch this operation the database must be created (else the button is disable)."),
+                            html.Li("For this step it is necessary that indexes are created. It can take a few time after database creation."),
                             html.Li("For each annotation file to be loaded, select the file and specify the individual associated with that annotation file. Each annotation file must be linked to **only one** individual. Then, click the **'Load'** button."),
                             
                         ]),
@@ -84,22 +85,55 @@ def layout():
 
 
         html.Hr(),
-        # ---- Data Section ----
+        #############################" ---- Database creation Section ---- #####################################"
 
-        html.H3("GFA data loading"),
+        html.H3("Create new Database"),
+        html.Hr(),
+        html.Div([
+            html.H4("Important notes:"),
+            html.Ul([
+                html.Li("This operation allow to create a new database with gfa files."),
+                html.Li("It is required to set a container name (name of the neo4j docker container)."),
+                html.Li("If no gfa files selected, the it will use, dump (in priority) files or CSV files in ./data/import. If no data in /data/import then an empty database will be created."),
+            ])
+        ]),
+        html.Br(),
+        html.Div([
+            html.Label("📦 Neo4j container name :  ", title='Set a name for your docker container.', ),
+            html.Span(PREFIX_CONTAINER_NAME, style={
+                'fontWeight': 'bold',
+                'paddingRight': '5px'
+            }),
+            dcc.Input(
+                id='container-name-input',
+                type='text',
+                debounce=True,
+                style={'width': '400px'}
+            )
+        ], style={'margin-bottom': '20px'}),
+        html.Label("Select docker image to use :"),
+        html.Div([
+            dcc.Dropdown(
+                id='docker-image-dropdown',
+                options=[{'label': img, 'value': img} for img in AVAILABLE_DOCKER_IMAGES],
+                value=AVAILABLE_DOCKER_IMAGES[0],
+                clearable=False,
+                style={'width': '400px'}
+            ),
+        ], style={'margin-bottom': '20px'}),
+
         html.Br(),
         html.Div([
             html.H4("Instructions for loading a GFA files :"),
             html.Ul([
-                html.Li("This step allow to prepare data before creating database. This will load a gfa file and transform it into csv files that will be imported by neo4j when creating the database."),
-                html.Li("GFA files must be in the ./data/gfa directory."),
-                html.Li("The database must be empty before loading."),
+                html.Li("This step allow to create database for the first time."),
+                html.Li("GFA files must be in the ./data/gfa directory. Small GFA can be directly uploaded by the drag/drop box."),
+                html.Li("Once the database is created, it is necessary to reset all to recreate it."),
                 html.Li("For multi GFA processing : each GFA must refer to a unique chromosome and the chromosome value must be set in the input box associated to each gfa file. If not set the value in the path / walk will be used."),
-                html.Li("To add data after database creation, use the the add data button : this procedure is slower and is not recommended for big gfa files."),
             ])
         ]),
         html.Br(),
-        html.H3("GFA files loading (only for small gfa, big must be placed directly into the /data/gfa directory)"),
+        html.H4("GFA files loading (only for small gfa, big must be placed directly into the /data/gfa directory)"),
     
         dcc.Upload(
             id='upload-gfa-data',
@@ -126,7 +160,6 @@ def layout():
         ),
 
         html.Br(),
-        #Checklist of annotations files
 
         html.Div([
             html.Div("GFA file", style={'fontWeight': 'bold', 'wordBreak': 'break-word'}),
@@ -179,105 +212,52 @@ def layout():
             ]
         ),
 
+
         html.Br(),
 
-    
         html.Div([
-
-            html.Button("Generate CSV Import file", title="Recommended procedure for big data : This will generates data into csv files. This files will then be used when creating a new databse.", id="btn-csv-import", n_clicks=0,style={'marginRight': '10px'}),
-            html.Button("Add data (DB must be created)",
-                        title="Only if the database has been created.",
-                        id="btn-load-gfa", n_clicks=0),
-        ], style={'marginBottom': '10px'}),
-        dcc.Loading(
-            id="loading-gfa-msg",
-            #type="circle",
-            children=html.Div(id="gfa-message")
-        ),
-
-        html.Hr(),
-        html.H3("Create new DB"),
-        html.Div([
-            html.H4("Important notes:"),
-            html.Ul([
-                html.Li("This operation will delete all the data."),
-                html.Li("If dump files or CSV files exist in ./data/import, they will be used to initialize data."),
-            ])
-        ]),
-        html.Label("Select docker image to use :"),
-        html.Div([
-            dcc.Dropdown(
-                id='docker-image-dropdown',
-                options=[{'label': img, 'value': img} for img in AVAILABLE_DOCKER_IMAGES],
-                value=AVAILABLE_DOCKER_IMAGES[0],
-                clearable=False,
-                style={'width': '400px'}
+            html.Button(
+                "Create new DB",
+                id="btn-create-db",
+                n_clicks=0,
+                style={"display": "inline-block"}
             ),
-        ], style={'margin-bottom': '20px'}),
-        html.Div([
-
-            html.Label("📦 Neo4j container name :  ", title='Set a name for your docker container.', ),
-            html.Span(PREFIX_CONTAINER_NAME, style={
-                'fontWeight': 'bold',
-                'paddingRight': '5px'
-            }),
-            dcc.Input(
-                id='container-name-input',
-                type='text',
-                debounce=True,
-                style={'width': '400px'}
-            )
-        ], style={'margin-bottom': '20px'}),
-        html.Button("Create new DB",
-                    title="This will create a new database. If data already exists they will be deleted.",
-                    id="btn-create-db", n_clicks=0),
+            html.Button(
+                "Add data (DB must be created)",
+                id="btn-load-gfa",
+                n_clicks=0,
+                style={"display": "none"}
+            ),
+        ], id="create-db-button-container"),
         html.Div(id="create-db-confirmation", style={"marginTop": "10px"}),
-
-        html.H3("Operation on DB"),
-        html.Label("Create index or stats in database (if these steps have failed).",
-                   style={'display': 'block', 'marginBottom': '8px'}),
-        html.Div([
-            html.Button("Create indexes",
-                        title="This will generate / regenerate indexes. If the already exists there will be no action.",
-                        id="btn-create-index", n_clicks=0,
-                        style={'marginRight': '10px'}
-    ),
-            html.Button("Create stats", title="Recuperation procedure for stats node if not exist after loading data.",
-                        id="btn-create-stats", n_clicks=0)
-        ], style={'marginBottom': '10px'}),
-
-        html.H3("Dumping DB"),
-        html.Div([
-            html.H4("Important notes:"),
-            html.Ul([
-                html.Li(
-                    "Dumping DB will generate ./data/import/neo4.dump file that can be used to load in databse creation."),
-            ])
-        ]),
-        html.Br(),
-
-        html.Button("Dump DB", id="btn-dump-db", n_clicks=0),
         dcc.Loading(
-            #type="circle",
+            # type="circle",
             children=html.Div(id="create-db-message", style={"marginTop": "10px"})
         ),
-    
+        dcc.Loading(
+            # type="circle",
+            children=html.Div(id="add-gfa-message", style={"marginTop": "10px"})
+        ),
 
-        html.Hr(style={"margin": "30px 0"}),
-    
-        # ---- Annotation Upload Section ----
-        html.H3("Annotations"),
+
+        ##################### ---- Annotation Upload Section ---- #################################"
         html.Br(),
+        html.Hr(),
+        html.H3("Annotations"),
+        html.Hr(),
+
         html.Div([
             html.H4("Instructions for loading annotations:"),
             html.Ul([
                 html.Li("Load annotation files – files must be located in the ./data/annotations directory."),
                 html.Li("The database must already be loaded."),
-                html.Li("Required indexes must be created and available in the database before loading annotations."),          ])
+                html.Li(
+                    "Required indexes must be created and available in the database before loading annotations."), ])
         ]),
         html.Br(),
-        html.H3("Annotations files loading (only for small annotation files, big must be placed directly into the /data/annotations directory)"),
-    
+        html.H4(
+            "Annotations files loading (only for small annotation files, big must be placed directly into the /data/annotations directory)"),
+
         dcc.Upload(
             id='upload-annotations-data',
             children=html.Div([
@@ -294,14 +274,14 @@ def layout():
                 'textAlign': 'center',
                 'margin': '10px'
             },
-            multiple=True  # Permet l’upload de plusieurs fichiers
+            multiple=True
         ),
         dcc.Loading(
             id="loading-annotations-upload",
-            #type="default",
+            # type="default",
             children=html.Div(id='upload-annotations-output'),
         ),
-    
+
         html.Br(),
         html.Div([
             html.Div("Annotation file", style={'fontWeight': 'bold', 'wordBreak': 'break-word'}),
@@ -309,12 +289,11 @@ def layout():
         ],
             style={
                 'display': 'grid',
-                'gridTemplateColumns': '350px 230px',  # largeur fixe pour les colonnes
+                'gridTemplateColumns': '350px 230px',
                 'alignItems': 'center',
                 'columnGap': '10px',
                 'marginBottom': '8px'
             }),
-
 
         html.Div(
             id='annotations-files-container',
@@ -334,7 +313,6 @@ def layout():
                             }
                         )
                     ),
-
 
                     html.Div(
                         dcc.Dropdown(
@@ -357,33 +335,85 @@ def layout():
         ),
 
         html.Br(),
-    
+
         html.Div([
-            html.Button("Load", title="This will load annotations into database. Indexes must be created before (can take some time for big data).", id="btn-load-annotations-with-link", n_clicks=0),
-            #html.Button("Load only annotations", id="btn-load-only-annotations", n_clicks=0),
-            #html.Button("Link annotations", id="btn-link-annotations", n_clicks=0),
+            html.Button("Load",
+                        title="This will load annotations into database. Indexes must be created before (can take some time for big data).",
+                        id="btn-load-annotations-with-link", n_clicks=0),
+            # html.Button("Load only annotations", id="btn-load-only-annotations", n_clicks=0),
+            # html.Button("Link annotations", id="btn-link-annotations", n_clicks=0),
             dcc.Loading(
                 id="loading-annotation-msg",
-                #type="circle",
+                # type="circle",
                 children=html.Div(id="annotation-message")
             )
         ]),
-        
-        
-        html.Hr(style={"margin": "30px 0"}),
-        # --- Deleting data section ---
-        html.H3("Deleting data"),
+
+        ################ Database management #############################
         html.Br(),
-        html.Label("This operation is possible only if data are stored in the ./data directory. Database will be stopped before."),
+        html.Hr(),
+        html.H3("Management of DB"),
+        html.Hr(),
+        html.P("These operations enable specific management tasks:"),
+        html.Ul([
+            html.Li("Reset"),
+            html.Li("CSV generation from GFAs"),
+            html.Li("Creation of indexes and statistics in the database"),
+            html.Li("Dump creation")
+        ]),
+        html.P("Normally, these operations do not need to be used."),
         html.Br(),
-        # Delete data button
-        html.Button("Delete", title="This will delete all data and indexes in the database.", id="btn-delete", n_clicks=0),
+        html.Label("Reset all the database and configuration : this will delete data, configuration and neo4j container.",
+                   style={'display': 'block', 'marginBottom': '8px'}),
+        html.Button("Reset all", title="This will delete all data, conf and container.", id="btn-delete",
+                    n_clicks=0),
         # Confirm deletion
         html.Div(id="delete-confirmation", style={"marginTop": "10px"}),
         dcc.Loading(
-            #type="circle",
+            # type="circle",
             children=html.Div(id="delete-message", style={"marginTop": "10px"})
-        )
+        ),
+        html.Br(),
+        html.Label(
+            "Create csv import files : this will generate neo4j import csv files into /data/import directory. These files can be used to create a new DB.",
+            style={'display': 'block', 'marginBottom': '8px'}),
+        html.Button("Generate CSV Import file",
+                    title="Generate csv files from gfa. These files can then be used to create the database. This process is automatic when creating a new database from gfa files.",
+                    id="btn-csv-import", n_clicks=0, style={'marginRight': '10px'}),
+        dcc.Loading(
+            id="loading-gfa-msg",
+            # type="circle",
+            children=html.Div(id="gfa-message")
+        ),
+        html.Br(),
+        html.Label("Create index or stats in database (if these steps have failed).",
+                   style={'display': 'block', 'marginBottom': '8px'}),
+        html.Div([
+            html.Button("Create indexes",
+                        title="This will generate / regenerate indexes. If the already exists there will be no action.",
+                        id="btn-create-index", n_clicks=0,
+                        style={'marginRight': '10px'}
+            ),
+            html.Button("Create stats", title="Recuperation procedure for stats node if not exist after loading data.",
+                        id="btn-create-stats", n_clicks=0)
+        ], style={'marginBottom': '10px'}),
+        dcc.Loading(
+            id="loading-index-stats-msg",
+            # type="circle",
+            children=html.Div(id="index_stats-message")
+        ),
+        html.Br(),
+        html.Label("Dump database : this will generate a neo4j.dump in the /data/import directory. This file can be used to create a new DB.",
+                   style={'display': 'block', 'marginBottom': '8px'}),
+
+        html.Button("Dump DB", id="btn-dump-db", n_clicks=0),
+        dcc.Loading(
+            id="loading-dump-msg",
+            # type="circle",
+            children=html.Div(id="dump-message")
+        ),
+        html.Hr(style={"margin": "30px 0"}),
+
     
 
     ])

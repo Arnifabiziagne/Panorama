@@ -6,7 +6,7 @@ Created on Wed Jul  2 22:03:10 2025
 @author: fgraziani
 """
 
-from dash import html, Output, Input, State, no_update, dcc, ctx, no_update, exceptions
+from dash import html, Output, Input, State, no_update, dcc, ctx, no_update, exceptions, background_callback as bg
 from dash.dependencies import ALL, MATCH
 
 
@@ -25,6 +25,7 @@ import base64
 import io
 import shutil
 import logging
+import json
 
 
 logger = logging.getLogger("panorama_logger")
@@ -33,12 +34,14 @@ logger = logging.getLogger("panorama_logger")
 PREFIX_CONTAINER_NAME = "DB_"+ DB_VERSION + "_"
 
 
-
-
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 GFA_FOLDER = os.path.join(PROJECT_ROOT, "data", "gfa")
+IMPORT_FOLDER = os.path.join(PROJECT_ROOT, "data", "import")
+CONF_FILE = os.path.join(PROJECT_ROOT, "conf.json")
 DATA_FOLDER = os.path.join(PROJECT_ROOT, "data", "data")
 ANNOTATIONS_FOLDER = os.path.join(PROJECT_ROOT, "data", "annotations")
+INSTALL_CONF_FILE = os.path.join(PROJECT_ROOT, "install", "data")
+DUMP_FILE = os.path.join(PROJECT_ROOT, "data", "import", "neo4j.dump")
 
 
 def get_container_name_no_prefix(container_name):
@@ -78,13 +81,16 @@ def save_uploaded_files(list_of_contents, list_of_names, list_of_dates):
 
 
 @app.callback(
-    Output("gfa-message", "children", allow_duplicate=True),
+    Output("add-gfa-message", "children", allow_duplicate=True),
     Output({'type': 'gfa-checkbox', 'index': ALL}, 'value', allow_duplicate=True),
     Input("btn-load-gfa", "n_clicks"),
     State({'type': 'gfa-checkbox', 'index': ALL}, 'value'),
     State({'type': 'gfa-checkbox', 'index': ALL}, 'id'),
     State({'type': 'gfa-input', 'index': ALL}, 'value'),
     State({'type': 'gfa-input', 'index': ALL}, 'id'),
+    running=[
+        (Output("btn-load-gfa", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
@@ -120,9 +126,8 @@ def on_click_load_gfa(n_clicks, checkbox_values, checkbox_ids, input_values, inp
         load_gfa_data_to_neo4j(file_path, chromosome_file=chromosome_file, batch_size=batch_size,
                                 start_chromosome=None, create=True, haplotype=True, create_only_relations=False)
     logger.info(f"Graph from {file_name} loaded in {time.time() - start_time:.2f} s")
-
-    create_indexes(base=True, extend=True, genomes_index=True)
-    logger.info("✅ All GFA files loaded.")
+    logger.info("creating indexes")
+    create_indexes(base=False, extend=True, genomes_index=True)
 
     return html.Div(f"✅ GFA files loaded successfully: {', '.join(selected_files)}", style=success_style),  [ [] for _ in checkbox_ids ]
 
@@ -136,6 +141,9 @@ def on_click_load_gfa(n_clicks, checkbox_values, checkbox_ids, input_values, inp
     State({'type': 'gfa-checkbox', 'index': ALL}, 'id'),
     State({'type': 'gfa-input', 'index': ALL}, 'value'),
     State({'type': 'gfa-input', 'index': ALL}, 'id'),
+    running=[
+        (Output("btn-csv-import", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
@@ -182,8 +190,11 @@ def on_click_csv_import(n_clicks, checkbox_values, checkbox_ids, input_values, i
 
 
 @app.callback(
-    Output("gfa-message", "children", allow_duplicate=True),
+    Output("index_stats-message", "children", allow_duplicate=True),
     Input("btn-create-index", "n_clicks"),
+    running=[
+        (Output("btn-create-index", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
@@ -195,12 +206,15 @@ def on_click_create_index(n_clicks):
 
 
 @app.callback(
-    Output("gfa-message", "children", allow_duplicate=True),
+    Output("index_stats-message", "children", allow_duplicate=True),
     Input("btn-create-stats", "n_clicks"),
+    running=[
+        (Output("btn-create-stats", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
-def on_click_create_index(n_clicks):
+def on_click_create_stats(n_clicks):
     logger.info("create stats")
     create_stats_from_nodes()
     logger.info("Stats created")
@@ -257,6 +271,9 @@ def clear_genome_error_on_selection(genome):
     State({'type': 'annotation-checkbox', 'index': ALL}, 'id'),
     State({'type': 'annotation-dropdown', 'index': ALL}, 'value'),
     State({'type': 'annotation-dropdown', 'index': ALL}, 'id'),
+    running=[
+        (Output("btn-load-annotations-with-link", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
@@ -387,7 +404,7 @@ def delete_data_ask_confirmation(n_clicks):
     transactions_dir = os.path.join(DATA_FOLDER,"transactions/neo4j")
     if n_clicks > 0:
         return html.Div([
-            html.Div("⚠️ Confirm: this operation will delete all data in " + str(data_dir) + " and " + str(transactions_dir)),
+            html.Div("⚠️ Confirm: this operation will delete all data and container."),
             html.Button("Confirm Delete", id="btn-confirm-delete", n_clicks=0, style={"marginTop": "5px", "color": "white", "backgroundColor": "red"})
         ])
     return ""
@@ -395,29 +412,45 @@ def delete_data_ask_confirmation(n_clicks):
 @app.callback(
     Output("delete-message", "children"),
     Output("delete-confirmation", "children", allow_duplicate=True),
+    Output('db-management-page-store', 'data', allow_duplicate=True),
     Input("btn-confirm-delete", "n_clicks"),
+    State('db-management-page-store', 'data'),
+    running=[
+        (Output("btn-delete", "disabled"), True, False),
+        (Output("btn-confirm-delete", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
-def confirm_delete_data(n_clicks):
+def confirm_delete_data(n_clicks, data):
     if not n_clicks:
         raise exceptions.PreventUpdate
-    data_dir =  os.path.join(DATA_FOLDER, "databases/neo4j")
-    transactions_dir = os.path.join(DATA_FOLDER,"transactions/neo4j")
     stop_container()
-    logger.info("Deleting " + str(data_dir) + " and " + str(transactions_dir) + " directories.")
-    logger.info("exists : " +str(os.path.exists(data_dir)))
+    logger.info(f"Deleting following data : {DATA_FOLDER} and {IMPORT_FOLDER} directory, {CONF_FILE} file.")
     try:
-        if os.path.exists(data_dir):
-            shutil.rmtree(data_dir)
-            os.makedirs(data_dir)
-            shutil.rmtree(transactions_dir)
-            os.makedirs(transactions_dir)
-            return html.Div("✅ All data deleted successfully.", style=success_style), ""
-        else:
-            return html.Div("ℹ️ No data to delete.", style=warning_style), ""
+        if os.path.exists(DATA_FOLDER):
+            shutil.rmtree(DATA_FOLDER)
+            os.makedirs(DATA_FOLDER)
+        if os.path.exists(IMPORT_FOLDER):
+            shutil.rmtree(IMPORT_FOLDER)
+            os.makedirs(IMPORT_FOLDER)
+        if os.path.exists(CONF_FILE):
+            #Reset container name in conf file
+            keys_to_remove = ["container_name"]
+            with open(CONF_FILE, "r") as f:
+                conf = json.load(f)
+                container_name = conf.get("container_name", "")
+                if container_name is not None and container_name != "" :
+                    remove_container(container_name)
+            for key in keys_to_remove:
+                conf.pop(key, None)
+            with open(CONF_FILE, "w") as f:
+                json.dump(conf, f, indent=4)
+        if "container_name" in data:
+            data.pop("container_name")
+        return html.Div("✅ All data deleted successfully.", style=success_style), "", data
     except Exception as e:
-        return html.Div(f"❌ Error while deleting data: {str(e)}", style=error_style), ""
+        return html.Div(f"❌ Error while deleting data: {str(e)}", style=error_style), "", data
 
 ############# Container callbacks#################
 
@@ -425,23 +458,37 @@ def confirm_delete_data(n_clicks):
     Output('container-name-label', 'children'),
     Output('container-name-input', 'value'),
     Output('db-management-page-store', 'data'),
+    Output("container-name-input", "disabled"),
+    Output("btn-load-annotations-with-link", "disabled"),
+    Output("btn-create-db", "style"),
+    Output("btn-load-gfa", "style"),
+    Output("btn-create-index", "disabled"),
+    Output("btn-create-stats", "disabled"),
+    Output("btn-dump-db", "disabled"),
     Input('db-management-page-store', 'data')
 )
 @require_authorization
 def update_label(data):
+    style_create_db = {"display": "inline-block"}
+    style_add_gfa = {"display": "none"}
     if data is None :
         data = {}
     if "container_name" not in data :
+
         conf = load_config_from_json()
         if not conf or "container_name" not in conf or conf['container_name'] is None or conf['container_name'] == "":
-            return f'No conf file found. Use "create new DB" procedure to generate it.', "container_name", data
+            return f'No conf file found. Use "create new DB" procedure to generate it.', "container_name", data, False, True, style_create_db, style_add_gfa, True, True, True
         else:
+            style_create_db = {"display": "none"}
+            style_add_gfa = {"display": "inline-block"}
             container_name = conf.get("container_name")
             data['container_name'] = get_container_name_no_prefix(container_name)
-            return f'Container name : {container_name}', get_container_name_no_prefix(container_name), data
+            return f'Container name : {container_name}', get_container_name_no_prefix(container_name), data, True, False, style_create_db, style_add_gfa, False, False, False
     else:
+        style_create_db = {"display": "none"}
+        style_add_gfa = {"display": "inline-block"}
         container_name = PREFIX_CONTAINER_NAME+data['container_name']
-        return f"Container name : {container_name}", get_container_name_no_prefix(container_name), data
+        return f"Container name : {container_name}", get_container_name_no_prefix(container_name), data, True, False, style_create_db, style_add_gfa, False, False, False
     
     
 @app.callback(
@@ -454,7 +501,7 @@ def update_label(data):
 def create_db_ask_confirmation(n_clicks):
     if n_clicks > 0:
         return html.Div([
-            html.Div("⚠️ Confirm: this operation will delete all data in " + str(DATA_FOLDER)),
+            html.Div("⚠️ Confirm: this operation will delete all data and container."),
             html.Button("Confirm creation of new DB", id="btn-confirm-create-db", n_clicks=0, style={"marginTop": "5px", "color": "white", "backgroundColor": "red"})
         ])
     return ""
@@ -465,15 +512,24 @@ def create_db_ask_confirmation(n_clicks):
     Output("create-db-confirmation", "children", allow_duplicate=True),
     Output('db-management-page-store', 'data', allow_duplicate=True),
     Output({'type': 'annotation-dropdown', 'index': ALL}, 'options'),
+    Output({'type': 'gfa-checkbox', 'index': ALL}, 'value'),
     Input("btn-confirm-create-db", "n_clicks"),
     State("container-name-input","value"),
     State("docker-image-dropdown","value"),
     State('db-management-page-store', 'data'),
     State('annotations-files-container', 'children'),
+    State({'type': 'gfa-checkbox', 'index': ALL}, 'value'),
+    State({'type': 'gfa-checkbox', 'index': ALL}, 'id'),
+    State({'type': 'gfa-input', 'index': ALL}, 'value'),
+    State({'type': 'gfa-input', 'index': ALL}, 'id'),
+    running=[
+        (Output("btn-create-db", "disabled"), True, False),
+        (Output("btn-confirm-create-db", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
-def confirm_create_db(n_clicks, container_name, docker_image, data, children):
+def confirm_create_db(n_clicks, container_name, docker_image, data, children, checkbox_values, checkbox_ids, input_values, input_ids):
     if data is None:
         data = {}
 
@@ -485,13 +541,45 @@ def confirm_create_db(n_clicks, container_name, docker_image, data, children):
 
     # Check container name
     if not container_name:
-        return html.Div("❌ No container name", style=error_style), "", data, no_update_list
+        return html.Div("❌ No container name", style=error_style), "", data, no_update_list, checkbox_values
     else:
-        data['container_name'] = container_name
         container_name_prefixed = PREFIX_CONTAINER_NAME + container_name
-
     try:
+        #Check if gfa files are selected
+        selected_files = [c_id['index'] for c_val, c_id in zip(checkbox_values, checkbox_ids) if c_val]
+        if selected_files:
 
+            invalid_files = [f for f in selected_files if not f.lower().endswith(".gfa")]
+            if invalid_files:
+                return html.Div(f"❌ Invalid file(s): {', '.join(invalid_files)}. Please select only .gfa files.",
+                                style=error_style), [no_update for _ in checkbox_ids], no_update, checkbox_values
+
+            # Get batch size from conf
+            batch_size = get_db_load_gfa_batch_size()
+            logger.info(f"Generate csv from GFA files {selected_files} with batch size {batch_size}")
+            # Get the chromosome associated to file (if set)
+            chromosome_dict = {i_id['index']: val for i_id, val in zip(input_ids, input_values)}
+            list_chromosome_file = [chromosome_dict.get(f, "") for f in selected_files]
+
+            if len(list_chromosome_file) > 1:
+                for cf in list_chromosome_file:
+                    if cf is None or cf == "":
+                        return html.Div(
+                            "❌ When multiple gfa are selected, it is required to set the chromosome for each of theses files (non null or empty value).",
+                            style=error_style), [no_update for _ in checkbox_ids], checkbox_values
+
+            for file_name, chromosome_file in zip(selected_files, list_chromosome_file):
+                start_time = time.time()
+                if chromosome_file != "":
+                    file_path = os.path.join(GFA_FOLDER, file_name)
+                    load_gfa_data_to_csv(file_path, import_dir="./data/import",
+                                         chromosome_file=chromosome_file,
+                                         chromosome_prefix=False,
+                                         batch_size=batch_size,
+                                         start_chromosome=None,
+                                         haplotype=True)
+                logger.info(f"CSV generation from {file_name} loaded in {time.time() - start_time:.2f} s")
+        logger.info("All import files have been generated from gfa files in {time.time() - start_time:.2f} s, creating database.")
         creation_mode = create_db(container_name_prefixed, docker_image)
         # If creation by importing csv files it is necessary to create stats and indexes
         if creation_mode == "csv":
@@ -507,35 +595,43 @@ def confirm_create_db(n_clicks, container_name, docker_image, data, children):
             logger.info("creating other indexes")
             create_indexes(base=False, extend=False, genomes_index=True)
 
+
         genomes = get_genomes() or []
         options_list = [
             [{"label": genome, "value": genome} for genome in genomes]
             for _ in range(n_dropdowns)
         ]
-
-        return html.Div("✅ DB successfully created.", style=success_style), "", data, options_list
+        data['container_name'] = container_name
+        msg_ok = "✅ DB successfully created"
+        if len(selected_files) > 0:
+            msg_ok += f" with gfa files : {selected_files}"
+        return html.Div(msg_ok, style=success_style), "", data, options_list, [[] for _ in checkbox_values]
 
     except Exception as e:
         logger.error(f"Error while creating database: {e}")
-        return html.Div(f"❌ Error while creating database: {str(e)}", style=error_style), "", data, no_update_list
+        return html.Div(f"❌ Error while creating database: {str(e)}", style=error_style), "", data, no_update_list, checkbox_values
 
 @app.callback(
-    Output("create-db-message", "children", allow_duplicate=True),
+    Output("dump-message", "children", allow_duplicate=True),
     Input("btn-dump-db", "n_clicks"),
     State("docker-image-dropdown","value"),
     State('db-management-page-store', 'data'),
+    running=[
+        (Output("btn-dump-db", "disabled"), True, False)
+    ],
     prevent_initial_call=True
 )
 @require_authorization
 def dump_db_callback(n_clicks, docker_image, data):
     if not n_clicks:
         raise exceptions.PreventUpdate
-        
+    if os.path.exists(DUMP_FILE):
+        os.remove(DUMP_FILE)
 
     if 'container_name' in data and data["container_name"] is not None and data["container_name"] != "":
         container_name = PREFIX_CONTAINER_NAME+data["container_name"]
     else:
-        return html.Div("❌ No container name, you have to create the databse before", style=error_style)
+        return html.Div("❌ No container name, you have to create the database before", style=error_style)
     try:
         dump_db(container_name, docker_image=DOCKER_IMAGE)
         return html.Div("✅ DB successfully dumped.", style=success_style)

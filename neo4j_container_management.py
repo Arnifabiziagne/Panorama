@@ -200,13 +200,15 @@ def write_config(container_name, HTTP_PORT=7474, BOLT_PORT=7687):
             config = default_config.copy()
 
         # Update only specific fields
-        config.update({
-            "container_name": container_name,
-            "http_port": HTTP_PORT,
-            "bolt_port": BOLT_PORT,
-            "login": NEO4J_LOGIN,
-            "password": NEO4J_PASSWORD
-        })
+        if "http_port" not in config :
+            config.update({"http_port": HTTP_PORT})
+        if "bolt_port" not in config :
+            config.update({"bolt_port": BOLT_PORT})
+        if "login" not in config :
+            config.update({"login": NEO4J_LOGIN})
+        if "password" not in config :
+            config.update({"password": NEO4J_PASSWORD})
+        config.update({"container_name": container_name})
 
     else:
         logger.info(f"No existing configuration found. Creating a new one at {CONF_FILE}.")
@@ -353,7 +355,7 @@ def dump_db(container_name, docker_image=DOCKER_IMAGE):
             "docker", "run", "--rm",
             #f"--cpus={MAX_CPU}",
             #f"--memory={MAX_MEM}",
-            f"--memory-swap={MAX_SWAP}",
+            #f"--memory-swap={MAX_SWAP}",
             #"-e", f"JAVA_OPTS=-Xmx{MAX_MEM} -Xms1g",
             #"-e", f"NEO4J_dbms.memory.heap.max_size={MAX_MEM}",
             "-v", f"{NEO4J_BASE_DIR}/data:/data",
