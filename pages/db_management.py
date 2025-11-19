@@ -215,6 +215,34 @@ def layout():
 
         html.Br(),
 
+        html.Div(
+            [
+                html.P(
+                    "⚠️ Warning: If your GFA file concerns only one chromosome, it is strongly recommended to enter the chromosome number.",
+                    style={"margin": "4px 0"}
+                ),
+                html.P(
+                    "If it does not correspond to any chromosome, enter 0.",
+                    style={"margin": "4px 0"}
+                ),
+                html.P(
+                    "If it contains multiple chromosomes (in this case only one file can be used), leave the field empty.",
+                    style={"margin": "4px 0"}
+                ),
+            ],
+            style={
+                "border": "2px solid #f5c518",
+                "backgroundColor": "#fff8e1",
+                "padding": "10px",
+                "borderRadius": "5px",
+                "fontWeight": "bold",
+                "color": "#8a6d3b",
+                "fontSize": "14px",
+                "marginBottom": "15px",
+                "maxWidth": "50%"
+            }
+        ),
+
         html.Div([
             html.Button(
                 "Create new DB",
