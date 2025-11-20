@@ -70,18 +70,18 @@ def compute_stylesheet(color_number):
                 'style': {'shape': 'square'}
             },
             {
-            'selector': 'edge',
-            'style': {
-                'curve-style': 'unbundled-bezier',
-                'control-point-weights': [0.5],
-                'target-arrow-color': 'data(color)',
-                'target-arrow-shape': 'triangle',
-                'arrow-scale': 0.5,
-                'control-point-distances': [1],
-                'opacity':0.9,
-                'z-index':0
+                'selector': 'edge',
+                'style': {
+                    'curve-style': 'unbundled-bezier',
+                    'control-point-weights': [0.5],
+                    'target-arrow-color': 'data(color)',
+                    'target-arrow-shape': 'triangle',
+                    'arrow-scale': 0.5,
+                    'control-point-distances': [1],
+                    'opacity':0.9,
+                    'z-index':0
+                },
             },
-        },
             {'selector': ':selected', 'style': {
                 'backgroundColor': 'grey',
                 'line-color': '#FF4136',
