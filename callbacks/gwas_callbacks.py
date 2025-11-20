@@ -97,13 +97,14 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         c = None
     else:
         c = [chromosome]
+    if data is None:
+        data = {}
     if max_node_size is None or max_node_size == "" or max_node_size == 0:
         max_node_size = 0
         data["max_node_size"] = None
     else:
         data["max_node_size"] = max_node_size
-    if data is None:
-        data = {}
+
     data["checkboxes"]= selected_genomes
     if min_node_size is not None:
         data["min_node_size"] = min_node_size
