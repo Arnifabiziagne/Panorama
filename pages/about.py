@@ -28,8 +28,8 @@ def layout():
                         html.Li("Panorama is developed and maintained at INRAE in the MIA-T laboratory, Genotoul-Bioinfo team, Toulouse, France." ), 
                         html.Li([
                             "Project page: ",
-                            html.A("https://forge.inrae.fr/genotoul-bioinfo/panorama",
-                                   href="https://forge.inrae.fr/genotoul-bioinfo/panorama",
+                            html.A("https://github.com/Pange31/Panorama",
+                                   href="https://github.com/Pange31/Panorama",
                                    target="_blank")
                         ]),
                     ]),
