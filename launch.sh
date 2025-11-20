@@ -60,8 +60,8 @@ else
 		:
     else
         # Old conf file and new config file don't exist => create default conf file
-        echo "Copy conf file install/conf/conf_dash.json to conf.json..."
-        cp "install/conf/conf_dash.json" "conf.json"
+        echo "Copy conf file install/conf/conf.json to conf.json..."
+        cp "install/conf/conf.json" "conf.json"
         if [ $? -ne 0 ]; then
             echo "Error when copying conf file."
             exit 1

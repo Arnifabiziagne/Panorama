@@ -135,6 +135,7 @@ The parameter file is named `./conf.json`. It contains the following parameters:
 - `"log_level"`: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"` — logs are displayed only if their level is equal to or higher than this setting.  
 - `"gunicorn_log_level"` : `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"` - log level for gunicorn server. If not set then there won't be log from gunicorn.
 - `"db_gfa_loading_batch_size"` : According to the ram available : bigger batch size will go faster but will consume more memory. Default value is 2 000 000.
+- `"max_nodes_to_visualize"` : set the maximum number of nodes to visualize in GUI.
 
 
 ## Contacts

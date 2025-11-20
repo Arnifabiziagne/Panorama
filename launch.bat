@@ -96,8 +96,8 @@ if exist "db_conf.json" (
 		REM file exists nothing to do
     ) else (
         REM No existing conf file => copy default conf file
-        echo Copy file conf_dash.json to conf.json...
-        copy "install\conf\conf_dash.json" "conf.json"
+        echo Copy file conf.json to conf.json...
+        copy "install\conf\conf.json" "conf.json"
         if %errorlevel% neq 0 (
             echo Error when copying conf file.
             exit /b 1

@@ -26,7 +26,6 @@ import logging
 import csv
 import json
 import subprocess
-from config import get_driver
 from Bio.Phylo.TreeConstruction import DistanceTreeConstructor, _DistanceMatrix
 from scipy.spatial.distance import pdist, squareform
 import pandas as pd
@@ -35,21 +34,32 @@ from Bio import Phylo
 from Bio.Seq import Seq
 import statistics
 import logging
+from config import *
 
 
 logger = logging.getLogger("panorama_logger")
 
-
+# CONF_FILE = os.path.abspath("./conf.json")
+#
+# DEFAULT_MAX_NODES_NUMBER = 30000
+#
+# def get_max_nodes_number():
+#     if not os.path.exists(CONF_FILE):
+#         return DEFAULT_MAX_NODES_NUMBER
+#     else:
+#         with open(CONF_FILE) as f:
+#             conf = json.load(f)
+#             return int(conf.get("max_nodes_to_visualize", DEFAULT_MAX_NODES_NUMBER))
 
 #This value is used to limit the nodes number when seeking for regions :
 #If the region is wider than this value then it is ignored
 MAX_BP_SEEKING = 800000
 
 #Maximal number of nodes to get the whole region
-MAX_NODES_NUMBER = 50000
+MAX_NODES_NUMBER = get_max_nodes_to_visualize()
 
 logging.getLogger("neo4j").setLevel(logging.ERROR)
-
+logger.debug(f"Max nodes number : {MAX_NODES_NUMBER}")
 
 def get_anchor(genome, chromosome, position, before = True, use_anchor=True):
     core_genome = False
@@ -289,12 +299,12 @@ def get_nodes_by_region(genome, chromosome, start, end, use_anchor = True ):
                         for g in ranges:
                             position_field = g + "_position"
                             q = f"""
-                                                            MATCH (m:Node)
-                                                            WHERE m.chromosome = "{chromosome}"
-                                                              AND m.{position_field} >= {ranges[g]['start']} AND m.{position_field} <= {ranges[g]['stop']}
-                                                            WITH m LIMIT {MAX_NODES_NUMBER + 1}
-                                                            RETURN "{g}" AS genome, count(m) AS nb
-                                                        """
+                                MATCH (m:Node)
+                                WHERE m.chromosome = "{chromosome}"
+                                  AND m.{position_field} >= {ranges[g]['start']} AND m.{position_field} <= {ranges[g]['stop']}
+                                WITH m LIMIT {MAX_NODES_NUMBER + 1}
+                                RETURN "{g}" AS genome, count(m) AS nb
+                            """
                             queries.append(q)
 
                         query_genome = "\nUNION ALL\n".join(queries)

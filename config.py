@@ -22,8 +22,12 @@ logger = logging.getLogger("panorama_logger")
 
 DEFAULT_DB_LOAD_GFA_BATCH_SIZE = 2000000
 
+#default maximum nodes number that can be visualized in the IHM
+DEFAULT_MAX_NODES_TO_VISUALIZE = 50000
+
 CONF_FILE = os.path.abspath("./conf.json")
 OLD_CONF_FILE = os.path.abspath("./db_conf.json")
+INSTALL_CONF_FILE = os.path.abspath("./install/conf/conf.json")
 
 
 #Delay in s to wait between tests of the database connexion
@@ -46,9 +50,22 @@ DEFAULT_ADDITIONS = {
 def check_conf_file():
     """Check if the main config file exists; otherwise copy the old one,
     update it with default fields, and delete the old config file."""
-
-    # 1️⃣ If the main config file already exists → nothing to do
+    logger.debug("check conf file")
+    # 1️⃣ If the main config file already exists → update it if necessary
     if os.path.exists(CONF_FILE):
+        #Check that all the fiels in the install/conf file are present in the conf file (retrocompatibility)
+        if os.path.exists(INSTALL_CONF_FILE):
+            update_conf = False
+            with open(INSTALL_CONF_FILE, "r", encoding="utf-8") as f1, open(CONF_FILE, "r", encoding="utf-8") as f2:
+                install_conf = json.load(f1)
+                user_conf = json.load(f2)
+                for key, value in install_conf.items():
+                    if key not in user_conf:
+                        update_conf = True
+                        user_conf[key] = value
+            if update_conf:
+                with open(CONF_FILE, "w", encoding="utf-8") as f:
+                    json.dump(user_conf, f, indent=4, ensure_ascii=False)
         return
     
     # 2️⃣ If the old config file exists → copy and upgrade it
@@ -80,11 +97,10 @@ def check_conf_file():
             logger.error(f"⚠️ Could not remove old config file: {e}")
         return
 
-check_conf_file()    
+#Function for config retrocompatibility
+check_conf_file()
 
 def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET"]):
-    if not os.path.exists(CONF_FILE):
-        check_conf_file()
     with open(CONF_FILE) as f:
         conf = json.load(f)
     if "container_name" in conf:
@@ -103,6 +119,7 @@ def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET
     LOG_LEVEL_PARAM = str(conf.get("log_level","INFO")).upper()
     GUNICORN_LOG_LEVEL = str(conf.get("gunicorn_log_level","")).upper()
     DB_LOAD_GFA_BATCH_SIZE = int(conf.get("db_gfa_loading_batch_size",DEFAULT_DB_LOAD_GFA_BATCH_SIZE))
+    MAX_NODES_TO_VISUALIZE = int(conf.get("max_nodes_to_visualize", DEFAULT_MAX_NODES_TO_VISUALIZE))
     if LOG_LEVEL_PARAM in log_levels:
         LOG_LEVEL= "logging."+LOG_LEVEL_PARAM
     else:
@@ -118,7 +135,8 @@ def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET
     return {"container_name":container_name, "HTTP_PORT":HTTP_PORT, "BOLT_PORT":BOLT_PORT, 
             "AUTH":AUTH, "DB_URL":DB_URL, "SERVER_MODE":SERVER_MODE, "USERS":USERS, "ADMIN_MODE":ADMIN_MODE,
             "SERVER_LOG_MODE":SERVER_LOG_MODE,"LOG_RETENTION_DAYS":LOG_RETENTION_DAYS, "LOG_LEVEL":LOG_LEVEL,
-            "GUNICORN_LOG_LEVEL":GUNICORN_LOG_LEVEL, "DB_LOAD_GFA_BATCH_SIZE":DB_LOAD_GFA_BATCH_SIZE}
+            "GUNICORN_LOG_LEVEL":GUNICORN_LOG_LEVEL, "DB_LOAD_GFA_BATCH_SIZE":DB_LOAD_GFA_BATCH_SIZE,
+            "MAX_NODES_TO_VISUALIZE":MAX_NODES_TO_VISUALIZE}
 
 def test_connection(DB_URL, AUTH):
     try:
@@ -160,6 +178,10 @@ def is_admin_mode():
 def get_db_load_gfa_batch_size():
     conf=get_conf()
     return conf["DB_LOAD_GFA_BATCH_SIZE"]
+
+def get_max_nodes_to_visualize():
+    conf=get_conf()
+    return conf["MAX_NODES_TO_VISUALIZE"]
 
 #Authorization is set to True for local installation of panorama
 #or if the mode admin is set to True
