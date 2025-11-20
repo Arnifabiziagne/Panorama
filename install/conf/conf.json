@@ -1,0 +1,13 @@
+{
+  "server_mode": false,
+  "admin_mode": false,
+  "admin_users": {
+    "admin": "1234"
+  },
+  "server_log_mode": "both",
+  "log_retention_days": 7,
+  "log_level": "DEBUG",
+  "gunicorn_log_level":"error",
+  "db_gfa_loading_batch_size":2000000,
+  "max_nodes_to_visualize":30000
+}
