@@ -921,15 +921,21 @@ def get_displayed_div(start, end, gene_name, gene_id):
                 html.Span(str(value))
             ], style={'margin-bottom': '5px'})
     info_rows = []
-    if start or end:
-        start_txt = str(start) if start else "—"
-        end_txt = str(end) if end else "—"
-        info_rows.append(
-            html.Div([
-                html.Span("Region: ", style={'font-weight': 'bold', 'margin-right': '5px'}),
-                html.Span(f"{start_txt} — {end_txt}")
-            ], style={'margin-bottom': '5px'})
-        )
+
+    if start is not None :
+        start_txt = str(start)
+    else:
+        start_txt = str(0)
+    if end is not None:
+        end_txt = str(end)
+    else:
+        end_txt = "-"
+    info_rows.append(
+        html.Div([
+            html.Span("Region: ", style={'font-weight': 'bold', 'margin-right': '5px'}),
+            html.Span(f"{start_txt} — {end_txt}")
+        ], style={'margin-bottom': '5px'})
+    )
     if gene_name:
         info_rows.append(info_line("Gene name", gene_name))
     if gene_id:
@@ -956,6 +962,8 @@ def get_displayed_div(start, end, gene_name, gene_id):
     Output('genename-input', 'value', allow_duplicate=True),
     Output('geneid-input', 'value', allow_duplicate=True),
     Output('displayed-region-container', 'children'),
+    Output("phylogenetic-page-store", "data", allow_duplicate=True),
+    Output('sequences-page-store', 'data', allow_duplicate=True),
     State('genome_selector', 'value'),
     State('shared-mode', 'value'),
     State('specific-genome_selector', 'value'),
@@ -985,6 +993,8 @@ def get_displayed_div(start, end, gene_name, gene_id):
     State('show-exons', 'value'),
     State('exon-color-picker', 'value'),
     State('layout-dropdown', 'value'),
+    State("phylogenetic-page-store", "data"),
+    State('sequences-page-store', 'data'),
     prevent_initial_call=True
 )
 def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes, show_labels, 
@@ -992,7 +1002,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                  selected_nodes_data, size_slider, home_data_storage, n_clicks, update_graph_command_storage, start, end,
                  gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, 
                  min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, 
-                 show_exons, exons_color, layout_choice):
+                 show_exons, exons_color, layout_choice, phylo_data, sequences_data):
     ctx = dash.callback_context
     return_metadata = {"return_code":"", "flow":None, "nodes_number":0, "removed_genomes":None}
     message = ""
@@ -1123,13 +1133,18 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
         or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"] \
         or (triggered_id == "update_graph_command_storage" and update_graph_command_storage is not None) :
         new_data = {}
+        #Delete local phylo graph if exists
+        if phylo_data is not None and "newick_region" in phylo_data:
+            phylo_data["newick_region"] = None
+        if sequences_data is not None :
+            sequences_data = {}
         if start_value is not None:
             use_anchor = True
             if triggered_id == "btn-zoom":
                 use_anchor = False
             new_data, return_metadata = get_nodes_by_region(
                     genome, chromosome=chromosome, start=start_value, end=end_value, use_anchor=use_anchor)
-            data_storage_nodes = new_data
+            #data_storage_nodes = new_data
             logger.debug("len new_data : " + str(len(new_data)))
         else:
             if ((gene_name is not None and gene_name != "") or (gene_id is not None and gene_id != "")) and chromosome is not None:
@@ -1141,25 +1156,26 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                     new_data, return_metadata = get_nodes_by_gene(
                         genome, chromosome=chromosome, gene_id=gene_id)
                     home_data_storage["gene_name"] = None
-                #Get the start / end value
-                genome_position = genome + "_position"
-                nodes_with_position = [node for node in new_data.values() if genome_position in node]
-                if len(nodes_with_position) > 1:
-                    print(f"new data length {len(new_data)}")
-                    min_node = min(nodes_with_position, key=lambda x: x[genome_position])
-                    max_node = max(nodes_with_position, key=lambda x: x[genome_position])
 
-                    max_node_size = max_node.get("size", None)
-                    start_value = min_node.get(genome_position, None)
-                    end_value = max_node.get(genome_position) + max_node_size
-                    home_data_storage["start"] = start_value
-                    home_data_storage["end"] = end_value
-                    logger.debug(f"start value : {start_value} - end value : {end_value}")
-                data_storage_nodes = new_data
             else:
                 new_data, return_metadata = get_nodes_by_region(
                     genome, chromosome=chromosome, start=0, end=end)
 
+        # Get the start / end value
+        genome_position = genome + "_position"
+        nodes_with_position = [node for node in new_data.values() if genome_position in node]
+        if len(nodes_with_position) > 1:
+            print(f"new data length {len(new_data)}")
+            min_node = min(nodes_with_position, key=lambda x: x[genome_position])
+            max_node = max(nodes_with_position, key=lambda x: x[genome_position])
+
+            max_node_size = max_node.get("size", None)
+            start_value = min_node.get(genome_position, None)
+            end_value = max_node.get(genome_position) + max_node_size
+            home_data_storage["start"] = start_value
+            home_data_storage["end"] = end_value
+            logger.debug(f"start value : {start_value} - end value : {end_value}")
+        data_storage_nodes = new_data
         elements, nodes_count = compute_graph_elements(new_data, genome, selected_genomes, size_slider_val, all_genomes,
                                           all_chromosomes, specifics_genomes_list,
                                           color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
@@ -1255,7 +1271,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
     displayed_div = get_displayed_div(start_value, end_value, gene_name, gene_id)
     return (elements,f"{nodes_count} displayed nodes", data_storage_nodes, message, annotations, stylesheet,
             layout, home_data_storage, [], [], zoom_shared_storage_out,
-            None, None, "", "", displayed_div)
+            None, None, "", "", displayed_div, phylo_data, sequences_data)
 
 
 # color picker

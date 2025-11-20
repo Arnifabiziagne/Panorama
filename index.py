@@ -80,6 +80,8 @@ app.layout = html.Div([
     dcc.Store(id='shared_storage_nodes', data=[], storage_type='memory'),
     dcc.Store(id='shared_storage', data={'genomes':[], 'chromosomes':[]}, storage_type='session'),
     dcc.Store(id="home-page-store", storage_type='session'),
+    dcc.Store(id="phylogenetic-page-store",storage_type="memory"),
+    dcc.Store(id="sequences-page-store", data={'sequences':[]},storage_type="memory"),
 
 
     html.Div(

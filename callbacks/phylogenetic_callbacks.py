@@ -7,7 +7,9 @@ Created on Wed Jul  2 22:08:19 2025
 """
 
 import base64
-from dash import html, Input, Output, callback, State, dcc, ctx
+import dash
+from dash import html, Input, Output, callback, State, callback_context, dcc, ctx
+from dash.exceptions import PreventUpdate
 
 
 
@@ -278,6 +280,11 @@ def color_children(edgeData):
     prevent_initial_call=True
 )
 def plot_region(n_clicks, stored_data, phylo_data):
+
+    ctx = dash.callback_context
+    if ctx.triggered_id == "btn-plot-region" and n_clicks == 0:
+        raise PreventUpdate
+
     if not stored_data:
         return [], html.Div(html.P([
         "❌ No data to compute tree. Select a region to visualise on the ",
@@ -293,14 +300,15 @@ def plot_region(n_clicks, stored_data, phylo_data):
             phylo_data = {"newick_region":newick_str}
         else:
             phylo_data["newick_region"] = newick_str
-    
+
         # Step2 : draw tree
         elements = generate_elements(newick_str)
         return elements, "", phylo_data
-    
+
     except Exception as e:
         logger.error(f"Error while computing tree : {e}")
         return [], html.Div(f"❌ Error while computing tree : {e}", style=error_style), phylo_data
+
     
     
 
@@ -337,12 +345,11 @@ def save_tree(n_clicks, phylo_data):
 
 )
 def update_graph_on_page_load(pathname, pĥylo_data):
-
     elements_region = []
     elements_global = []
     if pĥylo_data is None:
         pĥylo_data = {}
-    if "newick_region" in pĥylo_data:
+    if "newick_region" in pĥylo_data and pĥylo_data["newick_region"] is not None:
         elements_region = generate_elements(pĥylo_data["newick_region"])
     if "newick_global" in pĥylo_data:
         elements_global = generate_elements(pĥylo_data["newick_global"])
