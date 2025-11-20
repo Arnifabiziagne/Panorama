@@ -86,7 +86,9 @@ def update_dropdown(data):
     State("deletion-percentage", 'value'),
     prevent_initial_call=True
 )
-def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, max_node_size, min_percent_selected, tolerance_percentage, region_gap, deletion_checkbox, chromosome, ref_genome, deletion_percentage):
+def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size, max_node_size,
+                                min_percent_selected, tolerance_percentage, region_gap,
+                                deletion_checkbox, chromosome, ref_genome, deletion_percentage):
     if min_node_size is not None and min_node_size != "" and isinstance(min_node_size, int):
         min_size = min_node_size
     else:
@@ -97,9 +99,24 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         c = [chromosome]
     if max_node_size is None or max_node_size == "" or max_node_size == 0:
         max_node_size = 0
+        data["max_node_size"] = None
+    else:
+        data["max_node_size"] = max_node_size
     if data is None:
         data = {}
     data["checkboxes"]= selected_genomes
+    if min_node_size is not None:
+        data["min_node_size"] = min_node_size
+    if min_percent_selected is not None:
+        data["min_percent_selected"] = min_percent_selected
+    if tolerance_percentage is not None:
+        data["tolerance_percentage"] = tolerance_percentage
+    if region_gap is not None:
+        data["region_gap"] = region_gap
+    if deletion_checkbox is not None:
+        data["deletion_checkbox"] = deletion_checkbox
+    if deletion_percentage is not None:
+        data["deletion_percentage"] = deletion_percentage
     if not selected_genomes:
         return "Choose at least one genome.",data, ""
     deletion = False
@@ -202,21 +219,51 @@ def handle_row_selection(selected_rows, table_data, data, home_page_data):
     Output('shared-status', 'children',allow_duplicate=True),
     Output('shared-region-table', 'data',allow_duplicate=True),
     Output("genome-list", "value"),
+    Output("gwas-min-node-size-int", 'value'),
+    Output("gwas-max-node-size-int", 'value'),
+    Output("gwas-min-percent_selected", 'value'),
+    Output("tolerance_percentage", 'value'),
+    Output("gwas-region-gap", 'value'),
+    Output('gwas-toggle-deletion', 'value'),
+    Output("deletion-percentage", 'value'),
+    Input('url', 'pathname'),
     Input("gwas-page-store", "modified_timestamp"),
     Input("gwas-page-store", "data"),
     State('shared-region-table', 'data'),
     
     prevent_initial_call=True
 )
-def restore_checklist_state(ts, data, table_data):
+def restore_checklist_state(path,ts, data, table_data):
     analyse = table_data
     checkbox = []
+    max_node_size = None
+    min_node_size = 10
+    min_percent_selected = 100
+    tolerance_percentage = 0
+    region_gap = 10000
+    deletion_checkbox = ['show']
+    deletion_percentage = 100
     if data is not None: 
         if "analyse" in data:
             analyse = data["analyse"]            
         if "checkboxes" in data:
             checkbox = data["checkboxes"]
-    return f"{len(analyse)} shared regions found.",analyse, checkbox
+        if "min_node_size" in data:
+            min_node_size = data["min_node_size"]
+        if "max_node_size" in data:
+            max_node_size = data["max_node_size"]
+        if "min_percent_selected" in data:
+            min_percent_selected = data["min_percent_selected"]
+        if "tolerance_percentage" in data:
+            tolerance_percentage = data["tolerance_percentage"]
+        if "region_gap" in data:
+            region_gap = data["region_gap"]
+        if "deletion_checkbox" in data:
+            deletion_checkbox = data["deletion_checkbox"]
+        if "deletion_percentage" in data:
+            deletion_percentage = data["deletion_percentage"]
+    return (f"{len(analyse)} shared regions found.",analyse, checkbox, min_node_size, max_node_size,
+            min_percent_selected,tolerance_percentage,region_gap, deletion_checkbox, deletion_percentage)
 
 #Callback to save the gwas data table into csv file
 @app.callback(
@@ -311,9 +358,6 @@ def display_sequence_on_button_click(active_cell, table_data):
             html.P(f"Sequence : {sequence}")
         ])
     return None
-
-
-
 
 
 

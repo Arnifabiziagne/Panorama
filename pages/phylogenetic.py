@@ -71,8 +71,8 @@ def layout():
                     html.Ul([
                         html.Li("Load a newick file : this allows you to load a file and display a reference tree, for example."
                                 " For that, juste drag / drop or select the newick file."),   
-                        html.Li("Plot global tree : this will compute a global tree with a either a RAxML-NG or a distance matrix and neighbor joining (faster than raxml-ng but less accurate)."
-                                "These two methods use a sample matrix of presence / absence of a subset of sampled nodes. Nodes traversed directly or in reverse are considered different nodes."
+                        html.Li("Plot global tree : this will compute a global tree with a either a RAxML-NG (not recommended for big pangenome) or a distance matrix and neighbor joining (faster than raxml-ng but less accurate)."
+                                " These two methods use a sample matrix of presence / absence of a subset of sampled nodes. Nodes traversed directly or in reverse are considered different nodes."
                                 " It is possible to select a chromosome to limit the tree to this chromosome. If no chromosome selected then the tree is computed on all chromosomes."
                                 " If the global tree has already been computed, it is possible to load it directly by clicking on the corresponding button (the button is hidden if no existing tree)."),
                         html.Li("Plot tree of selected region : This allows you to calculate a tree for the region currently being viewed on the home page."
@@ -114,10 +114,11 @@ def layout():
                     dcc.Dropdown(
                         id='method-dropdown',
                         options=[
-                            {'label': 'RAxML (Maximum Likelihood)', 'value': 'raxml'},
-                            {'label': 'Neighbor Joining', 'value': 'nj'}
+                            {'label': 'Neighbor Joining (fast method)', 'value': 'nj'},
+                            {'label': 'RAxML-NG (Maximum Likelihood)', 'value': 'raxml'}
+
                         ],
-                        value='raxml',
+                        value='nj',
                         clearable=False,
                         style={'width': '300px', 'margin-right':'20px'}
                     ),

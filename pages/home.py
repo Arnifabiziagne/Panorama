@@ -914,6 +914,7 @@ def display_element_data(node_data, edge_data):
 
 #Function to construct the region information
 def get_displayed_div(start, end, gene_name, gene_id):
+    no_display = True
     def info_line(label, value):
         if value is not None and value != "":
             return html.Div([
@@ -924,10 +925,12 @@ def get_displayed_div(start, end, gene_name, gene_id):
 
     if start is not None :
         start_txt = str(start)
+        no_display = False
     else:
         start_txt = str(0)
     if end is not None:
         end_txt = str(end)
+        no_display = False
     else:
         end_txt = "-"
     info_rows.append(
@@ -938,9 +941,14 @@ def get_displayed_div(start, end, gene_name, gene_id):
     )
     if gene_name:
         info_rows.append(info_line("Gene name", gene_name))
+        no_display = False
     if gene_id:
         info_rows.append(info_line("Gene ID", gene_id))
-    displayed_div = info_rows or html.Div("No region selected.", style={'fontStyle': 'italic', 'color': '#777'})
+        no_display = False
+    if no_display :
+        displayed_div = html.Div("No region selected.", style={'fontStyle': 'italic', 'color': '#777'})
+    else:
+        displayed_div = info_rows
     return displayed_div
 
 
@@ -1161,7 +1169,7 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                 new_data, return_metadata = get_nodes_by_region(
                     genome, chromosome=chromosome, start=0, end=end)
 
-        # Get the start / end value
+        # Get the start / end value when graph is updated
         genome_position = genome + "_position"
         nodes_with_position = [node for node in new_data.values() if genome_position in node]
         if len(nodes_with_position) > 1:
