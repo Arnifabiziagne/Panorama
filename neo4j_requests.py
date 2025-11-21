@@ -944,8 +944,8 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                         current_deletion = None
 
                                 else :
-                                    if nodes_position_sorted[i] < nodes_position_sorted[i-1] + nodes_max_gap :
-                                        region_stop = nodes_position_sorted[i]
+                                    if nodes_position_sorted[i] < nodes_position_sorted[i-1] + size_sorted[i-1] + nodes_max_gap :
+                                        region_stop = nodes_position_sorted[i] + size_sorted[i]
                                         shared_size += size_sorted[i]
 
                                         if len(deleted_nodes_sorted[i]) > 0:
