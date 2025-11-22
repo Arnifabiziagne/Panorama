@@ -1858,40 +1858,102 @@ def construct_db_by_chromosome(gfa_chromosomes_dir, annotation_file_name = None,
 
 
 @require_authorization
+def delete_annotations(batch_size=100000):
+    logger.debug("Delete annotations relations.")
+    delete_relations("annotation_link", batch_size)
+    logger.debug("Delete annotations nodes.")
+    delete_nodes("Annotation", batch_size)
+    logger.debug("Annotations deleted.")
+
+
+@require_authorization
 def delete_nodes(nodes_label, batch_size=100000):
-    if get_driver() is None :
-        return None
-    temps_depart = time.time()
-    with get_driver() as driver:
-        with driver.session() as session:
-            while True:
+    def delete_nodes(nodes_label, batch_size=100000):
+        if get_driver() is None:
+            logger.debug("Neo4j driver is not initialized.")
+            return None
+
+        start_time = time.time()
+
+        with get_driver() as driver:
+            with driver.session() as session:
+                # 1) Get total number of nodes to delete
                 result = session.run(f"""
-                MATCH (s:{nodes_label})
-                WITH s LIMIT {batch_size}
-                DELETE s
-                RETURN count(s) AS deleted
+                    MATCH (n:{nodes_label})
+                    RETURN count(n) AS total
                 """)
-                deleted = result.single()["deleted"]
-                if deleted == 0:
-                    break
+                total = result.single()["total"]
+
+                if total == 0:
+                    logger.debug(f"No nodes with label '{nodes_label}' found.")
+                    return
+
+                logger.debug(f"Starting deletion of {total} nodes with label '{nodes_label}'...")
+
+                # 2) Initialize tqdm progress bar
+                pbar = tqdm(total=total, unit="nodes", desc="Deleting", leave=False)
+
+                # 3) Batch deletion loop
+                while True:
+                    result = session.run(f"""
+                        MATCH (n:{nodes_label})
+                        WITH n LIMIT {batch_size}
+                        DETACH DELETE n
+                        RETURN count(n) AS deleted
+                    """)
+                    deleted = result.single()["deleted"]
+
+                    if deleted == 0:
+                        break
+
+                    # Update progress bar
+                    pbar.update(deleted)
+
+                pbar.close()
+
+                duration = time.time() - start_time
+                logger.debug(f"Deletion completed in {duration:.2f} seconds.")
+
  
-@require_authorization                    
+@require_authorization
 def delete_relations(relation_label, batch_size=100000):
-    if get_driver() is None :
+    if get_driver() is None:
+        logger.debug("Neo4j driver is not initialized.")
         return None
-    temps_depart = time.time()
+    start_time = time.time()
     with get_driver() as driver:
         with driver.session() as session:
+            # 1) Get the total number of relationships to delete
+            result = session.run(f"""
+                MATCH ()-[r:{relation_label}]->()
+                RETURN count(r) AS total
+            """)
+            total = result.single()["total"]
+
+            if total == 0:
+                logger.debug(f"No relationships of type {relation_label} found.")
+                return
+            logger.debug(f"Starting deletion of {total} relationships '{relation_label}'...")
+            # 2) Initialize tqdm progress bar
+            pbar = tqdm(total=total, unit="rel", desc="Deleting", leave=False)
+            # 3) Batch deletion loop
             while True:
                 result = session.run(f"""
-                MATCH () -[r:{relation_label}]->()
-                WITH r LIMIT {batch_size}
-                DELETE r
-                RETURN count(r) AS deleted
+                    MATCH () -[r:{relation_label}]->()
+                    WITH r LIMIT {batch_size}
+                    DELETE r
+                    RETURN count(r) AS deleted
                 """)
                 deleted = result.single()["deleted"]
+
                 if deleted == 0:
                     break
+                # Update the progress bar
+                pbar.update(deleted)
+            pbar.close()
+            duration = time.time() - start_time
+            logger.debug(f"Deletion completed in {duration:.2f} seconds.")
+
 
 @require_authorization            
 def construct_sequences_and_indexes(gfa_file_name, kmer_size=31):

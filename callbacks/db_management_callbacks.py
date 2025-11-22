@@ -452,6 +452,44 @@ def confirm_delete_data(n_clicks, data):
     except Exception as e:
         return html.Div(f"❌ Error while deleting data: {str(e)}", style=error_style), "", data
 
+
+############# delete annotations callback ##################
+@app.callback(
+    Output("delete-annotations-confirmation", "children"),
+    Input("btn-delete-annotations", "n_clicks"),
+    prevent_initial_call=True
+)
+@require_authorization
+def delete_annotations_ask_confirmation(n_clicks):
+    if n_clicks > 0:
+        return html.Div([
+            html.Div("⚠️ Confirm: this operation will delete all annotations in database."),
+            html.Button("Confirm Delete", id="btn-delete-annotations-confirmation", n_clicks=0, style={"marginTop": "5px", "color": "white", "backgroundColor": "red"})
+        ])
+    return ""
+
+@app.callback(
+    Output("delete-annotations-message", "children"),
+    Output("delete-annotations-confirmation", "children", allow_duplicate=True),
+    Input("btn-delete-annotations-confirmation", "n_clicks"),
+    running=[
+        (Output("btn-delete-annotations", "disabled"), True, False),
+        (Output("btn-delete-annotations-confirmation", "disabled"), True, False)
+    ],
+    prevent_initial_call=True
+)
+@require_authorization
+def confirm_delete_annotations(n_clicks):
+    if not n_clicks:
+        raise exceptions.PreventUpdate
+    try:
+        delete_annotations()
+        return html.Div("✅ All annotations deleted successfully.", style=success_style), ""
+    except Exception as e:
+        return html.Div(f"❌ Error while deleting annotations: {str(e)}", style=error_style), ""
+
+
+
 ############# Container callbacks#################
 
 @app.callback(

@@ -403,6 +403,18 @@ def layout():
         ),
         html.Br(),
         html.Label(
+            "Reset all the annotations in the database.",
+            style={'display': 'block', 'marginBottom': '8px'}),
+        html.Button("Delete annotations", title="This will delete all annotations in database.", id="btn-delete-annotations",
+                    n_clicks=0),
+        # Confirm deletion
+        html.Div(id="delete-annotations-confirmation", style={"marginTop": "10px"}),
+        dcc.Loading(
+            # type="circle",
+            children=html.Div(id="delete-annotations-message", style={"marginTop": "10px"})
+        ),
+        html.Br(),
+        html.Label(
             "Create csv import files : this will generate neo4j import csv files into /data/import directory. These files can be used to create a new DB.",
             style={'display': 'block', 'marginBottom': '8px'}),
         html.Button("Generate CSV Import file",
