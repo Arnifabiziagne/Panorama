@@ -57,7 +57,7 @@ def compute_stylesheet(color_number):
                 'opacity':1,
                 'width':'data(displayed_node_size)',
                 'height':'data(displayed_node_size)',
-                'z-index':9999
+                'z-compound-depth': 'top'
 
                 }
             },
@@ -79,7 +79,7 @@ def compute_stylesheet(color_number):
                     'arrow-scale': 0.5,
                     'control-point-distances': [1],
                     'opacity':0.9,
-                    'z-index':0
+                    'z-compound-depth': 'bottom'
                 },
             },
             {'selector': ':selected', 'style': {
@@ -110,9 +110,17 @@ def compute_stylesheet(color_number):
                     'text-opacity':1,
                     'width':'data(displayed_node_size)',
                     'height':'data(displayed_node_size)',
-                    'z-index':9999
+                    'z-compound-depth': 'top'
 
                 }
+            },
+            {
+                'selector': '.main-node',
+                'style': {'shape': 'circle'}
+            },
+            {
+                'selector': '.degenerate-node',
+                'style': {'shape': 'square'}
             },
             {
                 'selector': 'edge',
