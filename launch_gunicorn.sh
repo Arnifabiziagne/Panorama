@@ -9,13 +9,8 @@ CONF_FILE="./conf.json"
 set -e
 
 # --- Initialize conda ---
-__conda_setup="$($(which conda) 'shell.bash' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    echo "Error: conda not found."
-    exit 1
-fi
+CONDA_BASE=$(conda info --base)
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 
 # --- Ensure mamba is installed in base ---
 if ! command -v mamba &> /dev/null; then
