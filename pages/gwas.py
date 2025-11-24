@@ -149,7 +149,7 @@ def layout():
         
         html.Br(), 
         html.Label(
-            "Choose a refrence haplotype :  ",
+            "Choose a reference haplotype :  ",
             title="Select the genome for which you want to view the results and obtain annotations. If no genome is selected, the result will be the first genome found with annotations. If there are no annotations, it will be the first genome found."
             ),
         html.Div(
