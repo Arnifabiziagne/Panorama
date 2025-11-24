@@ -26,6 +26,7 @@ It allows the following functionalities:
   - Download the last release in the Panorama project and unzip the archive where do you want to store your data
   - Make launcher executable (linux): 
   ```
+  bash
     chmod +x launch.sh
   ```
   - Copy your GFA files into /data/gfa directory.
