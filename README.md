@@ -36,7 +36,7 @@ newgrp docker
   - Copy your GFA files into /data/gfa directory.
   - Copy your annotations files into /data/annotations directory.
 * Launch the tool: 
-  - Execute launcher: ```./launch.sh``` on linux (or ./launch_gunicorn.sh to launch with gunicorn server in production) or ```launch.bat``` on windows and go to http://localhost:8050
+  - Execute launcher: ```./launch.sh``` on linux (or ```./launch_gunicorn.sh``` to launch with gunicorn server in production) or ```launch.bat``` on windows and go to http://localhost:8050
   - To launch on another port (default is 8050), just specify the porty after. For example, to launch on port 8051 : ```./launch.sh 8051``` or ```launch.bat 8051```.
 * Prepare database (IHM):
   - Go to "DB management" page.
