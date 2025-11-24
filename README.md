@@ -14,7 +14,12 @@ It allows the following functionalities:
 
 ## Installation 
 ### Requirements
-* Docker available: see docker documentation if not installed. Docker must be able to be launched by the $USER user; otherwise, see the procedure for launching Docker in non-root mode (adding docker group : "sudo groupadd docker" then "sudo usermod -aG docker $USER" and finally "newgrp docker")
+* Docker available: see docker documentation if not installed. Docker must be able to be launched by the $USER user; otherwise, see the procedure for launching Docker in non-root mode:
+```
+sudo groupadd docker
+sudo usermod -aG docker $USER
+newgrp docker
+```
 * Miniconda 3. Please choose the installer corresponding to your OS: [Miniconda dowloads](https://docs.conda.io/en/latest/miniconda.html) 
 * Mamba: this package will be automatically installed if not present.
 * 20 GB RAM (32 Go+ recommended for big data)
@@ -31,8 +36,8 @@ It allows the following functionalities:
   - Copy your GFA files into /data/gfa directory.
   - Copy your annotations files into /data/annotations directory.
 * Launch the tool: 
-  - Execute launcher: ./launch.sh on linux (or ./launch_gunicorn.sh to launch with gunicorn server in production) or ./launch.bat on windows and go to http://localhost:8050
-  - To launch on another port (default is 8050), just specify the porty after. For example, to launch on port 8051 : ./launch.sh 8051 or ./launch.bat 8051.
+  - Execute launcher: ```./launch.sh``` on linux (or ./launch_gunicorn.sh to launch with gunicorn server in production) or ```launch.bat``` on windows and go to http://localhost:8050
+  - To launch on another port (default is 8050), just specify the porty after. For example, to launch on port 8051 : ```./launch.sh 8051``` or ```launch.bat 8051```.
 * Prepare database (IHM):
   - Go to "DB management" page.
   - Load GFA data: select GFA files to load and click on "Generate CSV Import file" button. According to your data, there are 2 possibilities :
