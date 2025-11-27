@@ -200,6 +200,135 @@ def indexes_populating():
                     return True
             return False
 
+"""
+Query Neo4j for index statuses.
+If only_in_progress=True, return only indexes that are not ONLINE.
+Otherwise, return all indexes.
+"""
+def get_index_statuses(only_in_progress=True):
+
+    query = "SHOW INDEXES;"
+    in_progress_states = {"POPULATING", "FAILED"}  # depending on Neo4j version
+    indexes = {}
+    with get_driver() as driver:
+        with driver.session() as session:
+            result = session.run(query)
+
+            for record in result:
+                name = record.get("name")
+                state = record.get("state")
+                pct = record.get("populationPercent")
+
+                if only_in_progress:
+                    if state != "ONLINE":
+                        indexes[name] = {
+                            "state": state,
+                            "population_percent": pct
+                        }
+                else:
+                    indexes[name] = {
+                        "state": state,
+                        "population_percent": pct
+                    }
+
+    return indexes
+
+"""
+Wait until all indexes that are currently in progress finish building.
+
+Behavior:
+- First fetches the list of indexes that are NOT ONLINE.
+- If no indexes are in progress, immediately returns success.
+- Monitors them until they become ONLINE.
+- Detects FAILED indexes and returns an error.
+- Detects lack of progress for 'max_no_progress' iterations and stops.
+"""
+def wait_for_indexes(poll_interval = 20, max_no_progress = 6):
+    logger.info("Checking for index creation")
+    # --- Initial scan: get only indexes currently building ---
+    in_progress = get_index_statuses(only_in_progress=True)
+    if not in_progress:
+        return (0, "OK: No indexes are currently being created.")
+
+
+    index_names = list(in_progress.keys())
+
+    # Track last progress to detect stalling
+    last_progress = {idx: -1 for idx in index_names}
+    no_progress_counter = 0
+
+    # --- tqdm setup (global progress bar) ---
+    pbar = tqdm(
+        total=100.0,
+        desc="Index creation progress",
+        position=0,
+        leave=True
+    )
+    pbar.update(0)
+
+    last_global_pct = 0.0
+
+    while True:
+        # Fetch full status to detect transitions to ONLINE or FAILED
+        statuses = get_index_statuses(only_in_progress=False)
+        all_online = True
+        progress_made = False
+        pct_values = []
+
+        for idx in in_progress.keys():
+            state = statuses[idx]["state"]
+            pct = statuses[idx]["population_percent"]
+
+            # If the index failed
+            if state == "FAILED":
+                pbar.close()
+                return (1, f"Error: Index '{idx}' is in FAILED state.")
+
+            # If not yet online → continue waiting
+            if state != "ONLINE":
+                all_online = False
+
+            # Detect progress using populationPercent when available
+            if pct is not None:
+                pct_values.append(pct)
+                if pct > last_progress[idx]:
+                    last_progress[idx] = pct
+                    progress_made = True
+            else:
+                pct_values.append(0)
+
+            # Compute global progress as the average %
+            global_pct = sum(pct_values) / len(pct_values)
+
+            # Update tqdm bar
+            delta = global_pct - last_global_pct
+            if delta > 0:
+                pbar.update(delta)
+                last_global_pct = global_pct
+
+
+        # If all indexes have finished successfully
+        if all_online:
+            pbar.update(100 - last_global_pct)
+            pbar.close()
+            return (0, "OK: All indexes are now ONLINE.")
+
+        # Progress monitoring
+        if not progress_made:
+            no_progress_counter += 1
+        else:
+            no_progress_counter = 0
+
+        # Detect a stalled indexing process
+        if no_progress_counter >= max_no_progress:
+            pbar.close()
+            return (2, "Error: No progress detected in index creation (stalled).")
+
+        # Wait before polling again
+        time.sleep(poll_interval)
+
+
+
 #This function return the state of creating index
 #if index has been created this return 100
 #else it returns the percentage of index creation

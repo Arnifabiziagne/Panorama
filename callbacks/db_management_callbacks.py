@@ -639,17 +639,21 @@ def confirm_create_db(n_clicks, container_name, docker_image, data, children, ch
             logger.info("creating other indexes")
             create_indexes(base=False, extend=False, genomes_index=True)
 
-
+        #Wait for all indexes are created
+        (ret, msg_indexes) = wait_for_indexes()
         genomes = get_genomes() or []
         options_list = [
             [{"label": genome, "value": genome} for genome in genomes]
             for _ in range(n_dropdowns)
         ]
         data['container_name'] = container_name
-        msg_ok = "✅ DB successfully created"
+        if ret == 0 :
+            msg = "✅ DB and indexes successfully created"
+        else:
+            msg = f"❌ DB successfully created but error while creating index : {msg_indexes}"
         if len(selected_files) > 0:
-            msg_ok += f" with gfa files : {selected_files}"
-        return html.Div(msg_ok, style=success_style), "", data, options_list, [[] for _ in checkbox_values], container_name
+            msg += f" with gfa files : {selected_files}"
+        return html.Div(msg, style=success_style), "", data, options_list, [[] for _ in checkbox_values], container_name
 
     except Exception as e:
         logger.error(f"Error while creating database: {e}")
