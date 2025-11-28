@@ -48,11 +48,13 @@ def prepare_data_directories_in_container():
     logger.info("🛠️ Preparing data directories inside container...")
     subprocess.run([
         "docker", "run", "--rm",
-        "--user=root",  # 👈 important
+        "--entrypoint", "mkdir",
+        "--user=root",
         "-v", f"{NEO4J_BASE_DIR}/data:/data",
         DOCKER_IMAGE,
-        "bash", "-c", "mkdir -p /data/databases/neo4j"
+        "-p", "/data/databases/neo4j"
     ], check=True)
+    logger.info("🛠️ ########## Preparing data directories inside container...")
 
 @require_authorization
 def remove_directories():
