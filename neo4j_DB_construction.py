@@ -10,14 +10,17 @@ import scipy.sparse as sp
 import numpy as np
 import os
 import csv
-from config import get_driver
+from config import *
 from auth_utils import require_authorization
 import logging
 
 
 logger = logging.getLogger("panorama_logger")
 
-
+#Maximal length for S line
+#Used for neo4j import procedure
+#A specific graph with big nodes may require to increase this value
+MAX_READ_BUFFER_SIZE_VALUE = 128000000
 
 #These functions allow to create databse and index from gfa and annotations files
 
@@ -1227,8 +1230,11 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
         
         #First file browsing to get length, nodes and haplotypes
         ligne = file.readline()
+        max_size_S_line = 0
         while ligne :
             if ligne.startswith(('S')):
+                if len(ligne) > max_size_S_line:
+                    max_size_S_line = len(ligne)
                 ligne_dec = ligne.split()
                 if (len(ligne_dec) > 0): 
                     if chromosome_file is not None and chromosome_file != "": 
@@ -1267,6 +1273,9 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
                 
             ligne = file.readline() 
         last_index = len(csv_fields_index)
+        max_size_S_line += 32
+        if max_size_S_line > get_conf_read_buffer_size() and max_size_S_line < MAX_READ_BUFFER_SIZE_VALUE:
+            set_conf_value("read_buffer_size", max_size_S_line)
         node_id = last_node_id
         if print_header_nodes :
             csv_header_node = [":ID", "name:STRING", "max:LONG","ref_node:STRING", "size:LONG", "chromosome:STRING", "position_min:LONG", "position_max:LONG", "genomes:STRING[]","strandP:STRING[]", "strandM:STRING[]", "position_mean:LONG", "flow:DOUBLE"]

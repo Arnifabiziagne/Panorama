@@ -17,6 +17,7 @@ from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable
 import logging
 
+from neo4j_container_management import READ_BUFFER_SIZE
 
 logger = logging.getLogger("panorama_logger")
 
@@ -24,6 +25,11 @@ DEFAULT_DB_LOAD_GFA_BATCH_SIZE = 2000000
 
 #default maximum nodes number that can be visualized in the IHM
 DEFAULT_MAX_NODES_TO_VISUALIZE = 50000
+
+#Default buffer size to load csv data in neo4j
+# it limits the line's size (by default 4 * 1024 * 1024) :
+# for long nodes sequences it could be necessary to improve this value
+DEFAULT_MAX_READ_BUFFER_SIZE = 64000000
 
 CONF_FILE = os.path.abspath("./conf.json")
 OLD_CONF_FILE = os.path.abspath("./db_conf.json")
@@ -120,6 +126,7 @@ def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET
     GUNICORN_LOG_LEVEL = str(conf.get("gunicorn_log_level","")).upper()
     DB_LOAD_GFA_BATCH_SIZE = int(conf.get("db_gfa_loading_batch_size",DEFAULT_DB_LOAD_GFA_BATCH_SIZE))
     MAX_NODES_TO_VISUALIZE = int(conf.get("max_nodes_to_visualize", DEFAULT_MAX_NODES_TO_VISUALIZE))
+    READ_BUFFER_SIZE = int(conf.get("read_buffer_size", DEFAULT_MAX_READ_BUFFER_SIZE))
     if LOG_LEVEL_PARAM in log_levels:
         LOG_LEVEL= "logging."+LOG_LEVEL_PARAM
     else:
@@ -136,7 +143,7 @@ def get_conf(log_levels=["INFO", "DEBUG", "WARNING","ERROR", "CRITICAL", "NOTSET
             "AUTH":AUTH, "DB_URL":DB_URL, "SERVER_MODE":SERVER_MODE, "USERS":USERS, "ADMIN_MODE":ADMIN_MODE,
             "SERVER_LOG_MODE":SERVER_LOG_MODE,"LOG_RETENTION_DAYS":LOG_RETENTION_DAYS, "LOG_LEVEL":LOG_LEVEL,
             "GUNICORN_LOG_LEVEL":GUNICORN_LOG_LEVEL, "DB_LOAD_GFA_BATCH_SIZE":DB_LOAD_GFA_BATCH_SIZE,
-            "MAX_NODES_TO_VISUALIZE":MAX_NODES_TO_VISUALIZE}
+            "MAX_NODES_TO_VISUALIZE":MAX_NODES_TO_VISUALIZE, "READ_BUFFER_SIZE":READ_BUFFER_SIZE}
 
 def test_connection(DB_URL, AUTH):
     try:
@@ -174,6 +181,17 @@ def is_admin_mode():
         conf=get_conf()
         admin_mode = conf["ADMIN_MODE"]
     return admin_mode
+
+def get_conf_read_buffer_size():
+    conf=get_conf()
+    return conf["READ_BUFFER_SIZE"]
+
+def set_conf_value(key, value):
+    with open(CONF_FILE) as f:
+        conf = json.load(f)
+        conf[key] = value
+    with open(CONF_FILE, "w") as f:
+        json.dump(conf, f)
 
 def get_db_load_gfa_batch_size():
     conf=get_conf()

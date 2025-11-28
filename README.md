@@ -132,6 +132,7 @@ The parameter file is named `./conf.json`. It contains the following parameters:
 - `"gunicorn_log_level"`: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"` - log level for gunicorn server. If not set then there won't be log from gunicorn.
 - `"db_gfa_loading_batch_size"`: According to the ram available: bigger batch size will go faster but will consume more memory. Default value is 2,000,000.
 - `"max_nodes_to_visualize"`: set the maximum number of nodes to visualize in GUI. Default value is 30,000.
+- `"read_buffer_size"`: set the maximum line size to import csv file in neo4j. Default value is 64,000,000.
 
 
 ## Contacts

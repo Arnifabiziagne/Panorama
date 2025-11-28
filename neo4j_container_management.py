@@ -27,9 +27,7 @@ CONF_FILE = os.path.abspath("./conf.json")
 DOCKER_COMPOSE_CONF_PATH = os.path.abspath("./docker-compose.yml")
 IMPORT_DIR = os.path.abspath("./data/import")
 DUMP_FILE = os.path.join(IMPORT_DIR, "neo4j.dump")
-#Read buffer size is important in case of csv import : 
-# it limits the line's size (by default 4 * 1024 * 1024) : for long nodes sequences it could be necessary to improve this value
-READ_BUFFER_SIZE = 33554432
+
 
 #MAX_MEM = "24g"
 MAX_SWAP = "25g"
@@ -83,7 +81,8 @@ def import_dump():
 
 @require_authorization
 def import_csv():
-    logger.info(f"📂 Importing CSV - data dir : {NEO4J_BASE_DIR}/data ...")
+    READ_BUFFER_SIZE = get_conf_read_buffer_size()
+    logger.info(f"📂 Importing CSV - data dir : {NEO4J_BASE_DIR}/data with read buffer size :  {READ_BUFFER_SIZE}...")
     prepare_data_directories_in_container()
     subprocess.run([
         "docker", "run", "--rm",
