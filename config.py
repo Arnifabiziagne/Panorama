@@ -17,8 +17,6 @@ from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable
 import logging
 
-from neo4j_container_management import READ_BUFFER_SIZE
-
 logger = logging.getLogger("panorama_logger")
 
 DEFAULT_DB_LOAD_GFA_BATCH_SIZE = 2000000
@@ -191,7 +189,7 @@ def set_conf_value(key, value):
         conf = json.load(f)
         conf[key] = value
     with open(CONF_FILE, "w") as f:
-        json.dump(conf, f)
+        json.dump(conf, f, indent=4)
 
 def get_db_load_gfa_batch_size():
     conf=get_conf()

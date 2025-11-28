@@ -1276,6 +1276,7 @@ def load_gfa_data_to_csv(gfa_file_name, import_dir="./data/import", chromosome_f
         max_size_S_line += 32
         if max_size_S_line > get_conf_read_buffer_size() and max_size_S_line < MAX_READ_BUFFER_SIZE_VALUE:
             set_conf_value("read_buffer_size", max_size_S_line)
+            logger.info(f"Set read buffer size conf to {max_size_S_line}")
         node_id = last_node_id
         if print_header_nodes :
             csv_header_node = [":ID", "name:STRING", "max:LONG","ref_node:STRING", "size:LONG", "chromosome:STRING", "position_min:LONG", "position_max:LONG", "genomes:STRING[]","strandP:STRING[]", "strandM:STRING[]", "position_mean:LONG", "flow:DOUBLE"]

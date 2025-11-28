@@ -22,7 +22,8 @@ logger = logging.getLogger("panorama_logger")
 # --- CONSTANTES ---
 DOCKER_IMAGE = "neo4j:2025.05-community-bullseye"
 NEO4J_BASE_DIR = os.path.abspath("./data")
-CONF_SOURCE_FILE = os.path.abspath("./neo4j_install/conf/neo4j.conf")
+CONF_FILE = os.path.abspath("./data/conf/neo4j.conf")
+CONF_SOURCE_FILE = os.path.abspath("./install/conf/neo4j.conf")
 CONF_FILE = os.path.abspath("./conf.json")
 DOCKER_COMPOSE_CONF_PATH = os.path.abspath("./docker-compose.yml")
 IMPORT_DIR = os.path.abspath("./data/import")
@@ -303,11 +304,12 @@ def create_db(container_name, docker_image=DOCKER_IMAGE):
         os.makedirs(os.path.join(NEO4J_BASE_DIR, d), exist_ok=True)
    
     # copy conf file
-    if os.path.isfile(CONF_SOURCE_FILE):
+    if not os.path.isfile(CONF_FILE) and os.path.isfile(CONF_SOURCE_FILE):
         shutil.copy(CONF_SOURCE_FILE, os.path.join(NEO4J_BASE_DIR, "conf"))
         logger.info("🔧 Config file copied")
     else:
-        logger.warning(f"⚠️ Config file {CONF_SOURCE_FILE} not found")
+        if not os.path.isfile(CONF_SOURCE_FILE):
+            logger.warning(f"⚠️ Config file {CONF_SOURCE_FILE} not found")
     
     # --- Import via dump ---
     if os.path.isfile(DUMP_FILE):
