@@ -731,14 +731,17 @@ def find_first_ref_node_node(genome, genome_ref, genome_position, type_search = 
     return ref_position
 
 #Function find_shared_regions : this function is used to get shared regions (positions) between a list of genomes (GWAS)
-#On peut préciser sur quel chromosome chercher
+#It can be limited to a chromosomes list
 #Usage exemple (cattle white spot) : dic_regions, analyse = find_shared_regions(["HER","SIM"],chromosome="6")
 #genomes_list : list of the genomes for which the function will look for shared regions
 #genome_ref will be used to get annotations on this genome
-#chromosomes : liste of chromosomes. If defined the function will only look for shared region on these chromosomes
+#chromosomes : list of chromosomes. If defined the function will only look for shared region on these chromosomes
 #node_min_size : the nodes smaller than this value will be ignored (to avoid to look for all snp, if the are required then set this value to 0)
 #nodes_max_gap : this gap i sused to gather find regions into a bigger regions if the initial find regions are separated by less than this value (in numer of nodes)
-def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_min_size = 10, node_max_size = 0, nodes_max_gap = 10000, deletion=False, min_percent_selected_genomes=100, tolerance_percentage = 0, min_deletion_percentage=100):
+def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None,
+                        node_min_size = 10, node_max_size = 0, nodes_max_gap = 10000,
+                        deletion=False, min_percent_selected_genomes=100, tolerance_percentage = 0,
+                        min_deletion_percentage=100):
     if get_driver is None :
         return {},{}
     dic_regions = {}
@@ -795,8 +798,12 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     genome_position_ref = genome_ref
                 
                 logger.debug(f"ref genome : {genome_ref}")
+                # For each chromosome find shared nodes or shared deletion specific nodes
                 for c in chromosome_list :
-                    logger.debug("chromosome : " + str(c))
+                    # First step : find specifi nodes.
+                    # Specific nodes are nodes with all (or the defined proportion) of selected haplotypes
+                    # And none of the selected haplotypes apart from the defined tolerance
+                    logger.debug(f"chromosome : {c}")
                     dic_regions[c] = {}
                     #Looking for shared nodes
                     if node_max_size == 0:
@@ -809,7 +816,15 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
                             WHERE size(matched_genomes) >= {min_associated_genomes}
                               AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
-                            RETURN n AS nodes order by n.`{genome_position_ref}_position` ASC
+                            OPTIONAL MATCH (n)-[]->(a:Annotation)
+                            WITH n, collect(DISTINCT {{
+                                gene_id: a.gene_id,
+                                gene_name: a.gene_name,
+                                feature: a.feature
+                            }}) AS annotations
+                            ORDER BY n.`{genome_position_ref}_position` ASC
+                            
+                            RETURN n AS nodes, annotations;
                         """
                     else:
                         query = f"""
@@ -822,18 +837,31 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
                             WHERE size(matched_genomes) >= {min_associated_genomes}
                               AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
-                            RETURN n AS nodes order by n.`{genome_position_ref}_position` ASC
+                            WITH n, collect(DISTINCT {{
+                                gene_id: a.gene_id,
+                                gene_name: a.gene_name,
+                                feature: a.feature
+                            }}) AS annotations
+                            ORDER BY n.`{genome_position_ref}_position` ASC
+                            
+                            RETURN n AS nodes, annotations;
                         """
+
+
+
                     #logger.debug(query)
                     dic_number_to_position = {}  
                     dic_number_to_size = {}
                     for g in genomes_list :
-                        dic_regions[c][g] = {"nodes_position_list":[], "size":[], "regions" : [], "shared_size":[], "deleted_size":[]}
+                        dic_regions[c][g] = {"nodes_position_list":[], "annotations":[], "size":[], "regions" : [], "shared_size":[], "deleted_size":[]}
                         dic_number_to_position[g] = {}
                         dic_number_to_size[g] = {}
                         #query += ' AND "' + str(g) + '" IN n.genomes'
 
                     #logger.debug(query)
+                    # Step 2 : find shared deletion. A shared deletion if a node with
+                    # all non-selected haplotypes (or the defined proportion) and
+                    # none of the selected haplotypes.
                     result1 = list(session.run(query, genomes_list=genomes_list))
                     logger.debug("Nodes selected for chromosomes " + str(c) + " : " + str(len(result1)) + "\nTime : " + str(time.time()-time_0))
                     if deletion :
@@ -878,12 +906,42 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             }}
                             WITH m, n, n2
                             WHERE m IS NOT NULL and n2 IS NOT NULL 
-                            RETURN m as nodes, n.size AS deleted_node_size, n.genomes as genomes_deleted_nodes, n2 as end_deletion_nodes  
+                            
+                            OPTIONAL MATCH (n)-[]->(an:Annotation)
+                            OPTIONAL MATCH (m)-[]->(am:Annotation)
+                            OPTIONAL MATCH (n2)-[]->(an2:Annotation)
+                            
+                            WITH m, n, n2,
+                                 collect(DISTINCT {{
+                                     gene_id: an.gene_id,
+                                     gene_name: an.gene_name,
+                                     feature: an.feature
+                                 }}) AS annotations_n,
+                                 collect(DISTINCT {{
+                                     gene_id: am.gene_id,
+                                     gene_name: am.gene_name,
+                                     feature: am.feature
+                                 }}) AS annotations_m,
+                                 collect(DISTINCT {{
+                                     gene_id: an2.gene_id,
+                                     gene_name: an2.gene_name,
+                                     feature: an2.feature
+                                 }}) AS annotations_n2
+                            WITH m, n, n2,
+                                 annotations_n + annotations_m + annotations_n2 AS annotations
+                            
                             ORDER BY m.`{genome_position_ref}_position` ASC
-                        
+                            
+                            RETURN
+                                m AS nodes,
+                                n.size AS deleted_node_size,
+                                n.genomes AS genomes_deleted_nodes,
+                                n2 AS end_deletion_nodes,
+                                annotations;
                         """
                         
                         result2 = list(session.run(query, genomes_list=genomes_list))
+                        # The shared nodes and deleted nodes are concatenated
                         result = result1 + result2
                         logger.debug("Total Nodes selected for chromosome " + str(c) + " : " + str(len(result)) + "\nTime : " + str(time.time()-time_0))
                     else:
@@ -894,7 +952,8 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                             if "deleted_nodes" not in dic_regions[c][g]:
                                 dic_regions[c][g]["deleted_nodes"]= []
                             if (r["nodes"][g+"_position"] != None):
-                                dic_regions[c][g]["nodes_position_list"].append(r["nodes"][g+"_position"]) 
+                                dic_regions[c][g]["nodes_position_list"].append(r["nodes"][g+"_position"])
+                                dic_regions[c][g]["annotations"].append(r["annotations"])
 
                                 if "deleted_node_size" in dict(r): 
                                     #If deleted nodes are found, we try to reconstruct the size of the deleted regions. 
@@ -920,13 +979,13 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                     #dic_regions[c][g]["deleted_size"].append(0)
                                     dic_regions[c][g]["deleted_nodes"].append({})
 
-                    
                     #Group regions if they are separated vy less than nodes_max_gap
+
                     for g in genomes_list :
                         if len(dic_regions[c][g]["nodes_position_list"]) > 0:
-                            combined = list(zip(dic_regions[c][g]["nodes_position_list"],dic_regions[c][g]["size"],dic_regions[c][g]["deleted_nodes"]))
+                            combined = list(zip(dic_regions[c][g]["nodes_position_list"], dic_regions[c][g]["annotations"],dic_regions[c][g]["size"],dic_regions[c][g]["deleted_nodes"]))
                             combined_sorted = sorted(combined, key=lambda x: x[0])
-                            nodes_position_sorted, size_sorted, deleted_nodes_sorted = zip(*combined_sorted)
+                            nodes_position_sorted, annotations_sorted, size_sorted, deleted_nodes_sorted = zip(*combined_sorted)
                             #dic_regions[c][g]["nodes_position_list"].sort()
                             shared_size = 0
                             shared_deleted_size = 0
@@ -936,6 +995,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                     region_start = nodes_position_sorted[0]
                                     region_stop = region_start + size_sorted[0]
                                     shared_size = size_sorted[0]
+                                    annotations=annotations_sorted[0]
                                     if len(deleted_nodes_sorted[0]) > 0:
                                         current_deletion = {}
                                         for dg in deleted_nodes_sorted[0] :
@@ -947,7 +1007,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                     if nodes_position_sorted[i] < nodes_position_sorted[i-1] + size_sorted[i-1] + nodes_max_gap :
                                         region_stop = nodes_position_sorted[i] + size_sorted[i]
                                         shared_size += size_sorted[i]
-
+                                        annotations += annotations_sorted[i]
                                         if len(deleted_nodes_sorted[i]) > 0:
                                             #If deleted nodes are found, we try to reconstruct the size of the deleted regions. 
                                             #To do this, we check that there is no overlap.
@@ -1007,14 +1067,19 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                             gap = int((min_size_region-(region_stop - region_start))/2)
                                             region_start = max(0, region_start-gap)
                                             region_stop = region_stop+gap
-                                        dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
+                                        dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop,
+                                                                             "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size,
+                                                                             "region_size" : region_stop-region_start,
+                                                                            "annotations" : annotations})
                                         shared_size = size_sorted[i]
                                         shared_deleted_size = 0
+                                        annotations = annotations_sorted[i]
                                         if len(deleted_nodes_sorted[i]) > 0:
                                             for dg in deleted_nodes_sorted[i] :
                                                 if current_deletion is None :
                                                     current_deletion = {}
-                                                current_deletion[dg] = {"start_deletion":deleted_nodes_sorted[i][dg]["start_deletion"], "end_deletion":deleted_nodes_sorted[i][dg]["end_deletion"]}
+                                                current_deletion[dg] = {"start_deletion":deleted_nodes_sorted[i][dg]["start_deletion"],
+                                                                        "end_deletion":deleted_nodes_sorted[i][dg]["end_deletion"]}
                                         else:
                                             current_deletion = None
                                         region_start = nodes_position_sorted[i]
@@ -1040,8 +1105,13 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                                 gap = int((min_size_region-(region_stop - region_start))/2)
                                 region_start = max(0, region_start-gap)
                                 region_stop = region_stop+gap
-                            dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop, "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size, "region_size" : region_stop-region_start})
-            logger.debug("Total number of regions : " +str(nb_regions_total))
+                            dic_regions[c][g]["regions"].append({"start" : region_start, "stop" : region_stop,
+                                                                 "shared_size" : shared_size, "shared_deleted_size":shared_deleted_size,
+                                                                 "region_size" : region_stop-region_start, "annotations":annotations})
+            nb_regions = 0
+            for c in chromosome_list:
+                nb_regions += len(dic_regions[c][genomes_list[0]]["regions"])
+            logger.debug(f"Total number of identified nodes : {nb_regions_total} - Total regions nb : {nb_regions}")
             dic_regions_2 = {}
             for c, genomes in dic_regions.items():
                 for genome, valeur in genomes.items():
@@ -1050,7 +1120,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                     dic_regions_2[genome][c] = valeur
 
             analyse = {}
-            logger.debug(f"genomes : {dic_regions_2.keys()}")
+            logger.debug(f"genomes : {list(dic_regions_2.keys())}")
             for g in tqdm(dic_regions_2):
                 logger.debug(f"genome : {g}")
                 analyse[g] = []
@@ -1061,7 +1131,7 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None, node_mi
                         r["genome"] = g
                         if (genome_ref is not None and g == genome_ref) or (genome_ref is None and g == genomes_list[0]) :
                             #logger.debug("Search annotations")
-                            r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
+                            #r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
                             #logger.debug("Search annotation before")
                             annot_before_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["start"], before=True)
                             annot_tmp = {}

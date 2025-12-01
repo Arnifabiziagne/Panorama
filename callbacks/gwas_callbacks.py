@@ -123,37 +123,30 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
     deletion = False
     if 'show' in deletion_checkbox : 
         deletion = True
-    try:       
-        dic_region, analyse = find_shared_regions(selected_genomes, genome_ref = ref_genome, chromosomes = c,node_min_size = min_size, node_max_size = max_node_size, nodes_max_gap=region_gap, deletion = deletion, min_percent_selected_genomes=min_percent_selected, tolerance_percentage = tolerance_percentage, min_deletion_percentage=deletion_percentage)
-           
+    try:
         #take an annotated genome if no reference genome selected
+
+        dic_region, analyse = find_shared_regions(selected_genomes, genome_ref = ref_genome, chromosomes = c,
+                                                  node_min_size = min_size, node_max_size = max_node_size,
+                                                  nodes_max_gap=region_gap, deletion = deletion,
+                                                  min_percent_selected_genomes=min_percent_selected,
+                                                  tolerance_percentage = tolerance_percentage,
+                                                  min_deletion_percentage=deletion_percentage)
         if ref_genome is None or ref_genome == "":
             ref_genome = selected_genomes[0]
-        #     no_annotations = True
-        #     i = 0
-        #     keys = list(analyse.keys())
-        #     analyse_to_plot = analyse[keys[0]]
-        #     while no_annotations and i < len(keys):
-        #         current_key = keys[i]
-        #         r = 0
-        #         while r < len(analyse[current_key]) and no_annotations :
-        #             if len(analyse[current_key][r]["annotations"]) > 0:
-        #                 no_annotations = False
-        #                 analyse_to_plot = analyse[current_key]
-        #             r += 1
-        #         i += 1
-        # else:
-            #logger.info(f"Genome ref : {ref_genome}")
         analyse_to_plot = analyse[ref_genome]
                 
         #logger.info("analyse to plot : " + str(analyse_to_plot))
-        
+
         for r in range(len(analyse_to_plot)):
             annotation = ""
+            set_gene_name = set()
             if len(analyse_to_plot[r]["annotations"]) > 0:
                 for annot in analyse_to_plot[r]["annotations"]:
                     if "gene_name" in annot and annot["gene_name"] is not None:
-                        annotation += annot["gene_name"] + "\n"
+                        set_gene_name.add(annot["gene_name"])
+            for gene in list(set_gene_name):
+                annotation += annot["gene_name"] + "\n"
             analyse_to_plot[r]["annotations"] = annotation
             annot_before = ""
             if "annotation_before" in analyse_to_plot[r] and "gene_name" in analyse_to_plot[r]["annotation_before"]:
