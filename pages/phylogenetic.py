@@ -108,7 +108,7 @@ def layout():
                     html.Button(
                         "Plot global tree",
                         title="This will compute the tree for the whole pangenome...",
-                        style={'margin-right': '15px'},
+                        style={'marginRight': '15px'},
                         id="btn-plot-global-tree"
                     ),
                     dcc.Dropdown(
@@ -120,7 +120,7 @@ def layout():
                         ],
                         value='nj',
                         clearable=False,
-                        style={'width': '300px', 'margin-right':'20px'}
+                        style={'width': '300px', 'marginRight':'20px'}
                     ),
                     html.Label(
                         "Chromosome",
@@ -166,7 +166,7 @@ def layout():
     
         #Second column for specific region tree
         html.Div([
-            html.Button("Plot tree of selected region", id="btn-plot-region",  n_clicks=0, title="Before using this button, data must be displayed on home page. If data are displayed, then this will computes the phylogenetic tree of displayed haplotypes (see help for details).",style={'margin-right': '15px'}),
+            html.Button("Plot tree of selected region", id="btn-plot-region",  n_clicks=0, title="Before using this button, data must be displayed on home page. If data are displayed, then this will computes the phylogenetic tree of displayed haplotypes (see help for details).",style={'marginRight': '15px'}),
             html.Button("Save tree", title="Tree will be saved into newick format.", id="btn-save-tree"),
             dcc.Download(id="download-tree"),
             dcc.Loading(

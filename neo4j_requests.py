@@ -1121,36 +1121,39 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None,
 
             analyse = {}
             logger.debug(f"genomes : {list(dic_regions_2.keys())}")
-            for g in tqdm(dic_regions_2):
-                logger.debug(f"genome : {g}")
-                analyse[g] = []
-                for c in dic_regions_2[g]:
-                    #logger.debug(f"genome : {g} - chromosome : {c} - regions number : {len(dic_regions_2[g][c]['regions'])}")
-                    for r in dic_regions_2[g][c]['regions']:
-                        r["chromosome"] = c
-                        r["genome"] = g
-                        if (genome_ref is not None and g == genome_ref) or (genome_ref is None and g == genomes_list[0]) :
-                            #logger.debug("Search annotations")
-                            #r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
-                            #logger.debug("Search annotation before")
-                            annot_before_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["start"], before=True)
-                            annot_tmp = {}
-                            if annot_before_tmp is not None and "gene_name" in annot_before_tmp :
-                                annot_tmp["gene_name"] = annot_before_tmp["gene_name"]
-                                annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
-                            r["annotation_before"] = annot_tmp
-                            
-                            #logger.debug("Search annotation after")
-                            annot_after_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["stop"], before=False)
-                            annot_tmp = {}
-                            if annot_after_tmp is not None and "gene_name" in annot_after_tmp :
-                                annot_tmp["gene_name"] = annot_after_tmp["gene_name"]
-                                annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
-                            r["annotation_after"] = annot_tmp
-                        analyse[g].append(r)
+            total = sum(len(dic_regions_2[g][c]['regions']) for g in dic_regions_2 for c in dic_regions_2[g])
+            with tqdm(total=total) as pbar:
+                for g in dic_regions_2:
+                    logger.debug(f"genome : {g}")
+                    analyse[g] = []
+                    for c in dic_regions_2[g]:
+                        #logger.debug(f"genome : {g} - chromosome : {c} - regions number : {len(dic_regions_2[g][c]['regions'])}")
+                        for r in dic_regions_2[g][c]['regions']:
+                            r["chromosome"] = c
+                            r["genome"] = g
+                            if (genome_ref is not None and g == genome_ref) or (genome_ref is None and g == genomes_list[0]) :
+                                #logger.debug("Search annotations")
+                                #r["annotations"] = get_annotations_in_position_range(genome_ref=g,chromosome=c, start_position=r["start"],end_position=r["stop"])
+                                #logger.debug("Search annotation before")
+                                annot_before_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["start"], before=True)
+                                annot_tmp = {}
+                                if annot_before_tmp is not None and "gene_name" in annot_before_tmp :
+                                    annot_tmp["gene_name"] = annot_before_tmp["gene_name"]
+                                    annot_tmp["distance"] = annot_before_tmp["end"]-r["start"]
+                                r["annotation_before"] = annot_tmp
+
+                                #logger.debug("Search annotation after")
+                                annot_after_tmp = get_annotation_before_or_after_position(genome_ref=g, chromosome=c, position=r["stop"], before=False)
+                                annot_tmp = {}
+                                if annot_after_tmp is not None and "gene_name" in annot_after_tmp :
+                                    annot_tmp["gene_name"] = annot_after_tmp["gene_name"]
+                                    annot_tmp["distance"] = annot_after_tmp["start"]-r["stop"]
+                                r["annotation_after"] = annot_tmp
+                            analyse[g].append(r)
+                            pbar.update(1)
             if genome_ref not in analyse:
                 analyse[genome_ref] = []
-                for a in analyse[genomes_list[0]]:
+                for a in tqdm(analyse[genomes_list[0]]):
                     r = {}
                     r["chromosome"] = a["chromosome"]
                     r["shared_size"] = a["shared_size"]

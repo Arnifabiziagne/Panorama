@@ -94,46 +94,46 @@ def layout():
                 html.Label(
                     "Min node size to detect a shared region (integer) : ",
                     title="The nodes with a size below this value won't be detected by the process.",
-                    style={'margin-right': '15px'}
+                    style={'marginRight': '15px'}
                 ),
-                dcc.Input(id='gwas-min-node-size-int',style={'width': '80px', 'margin-right': '15px'},  type='number', step=1, value=10, debounce=True),
+                dcc.Input(id='gwas-min-node-size-int',style={'width': '80px', 'marginRight': '15px'},  type='number', step=1, value=10, debounce=True),
                 html.Label(
                     "Max node size to detect a shared region (integer) : ",
                     title="The nodes with a size above this value won't be detected by the process. Set to 0 or empty for no max size.",
-                    style={'margin-right': '15px'}
+                    style={'marginRight': '15px'}
                 ),
-                dcc.Input(id='gwas-max-node-size-int',style={'width': '80px', 'margin-right': '15px'},  type='number', step=1, debounce=True),
+                dcc.Input(id='gwas-max-node-size-int',style={'width': '80px', 'marginRight': '15px'},  type='number', step=1, debounce=True),
                 html.Label(
                     "Min (%) of selected haplotypes : ",
                      title="Min (%) of shared haplotypes = M. Number of selected haplotypes = N. To detect a shared node it must contains almost (M/100) x N of the selected haplotypes. If M = 0 then the minimum number of selected haplotypes will be 1.",
-                     style={'margin-right': '15px'}),
-                dcc.Input(id='gwas-min-percent_selected',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=100, debounce=True),
+                     style={'marginRight': '15px'}),
+                dcc.Input(id='gwas-min-percent_selected',style={'width': '80px', 'marginRight': '15px'}, type='number', step=1, value=100, debounce=True),
                 html.Label(
                     "Tolerance (%) :  ",
                     title="Tolerance = T. Number of haplotypes on a node = n. To detect a shared node it must contains less than (T/100) x n of the non selected haplotypes. If T = 0 then detected nodes should contain only selected haplotypes.",
-                    style={'margin-right': '15px'}
+                    style={'marginRight': '15px'}
                 ),
-                dcc.Input(id='tolerance_percentage',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=0, debounce=True),
+                dcc.Input(id='tolerance_percentage',style={'width': '80px', 'marginRight': '15px'}, type='number', step=1, value=0, debounce=True),
                 html.Label(
                     "Max gap : ",
                     title="All the nodes detected will be grouped in larger regions. If two nodes are separated by less thant this value (in bp) they will be grouped in the same region.",
-                     style={'margin-right': '15px'}
+                     style={'marginRight': '15px'}
                 ),
-                dcc.Input(id='gwas-region-gap',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=10000, debounce=True),
+                dcc.Input(id='gwas-region-gap',style={'width': '80px', 'marginRight': '15px'}, type='number', step=1, value=10000, debounce=True),
 
                 dcc.Checklist(
                     id='gwas-toggle-deletion',
                     options=[{'label':'', 'title':"If checked, the process will look for deletion node: it looks for nodes with minimal selected and unselected haplotypes followed by a node deleted for defined percentage of selected haplotype. The node size must be greater than min node size value.", 'value': 'show'}],
                     value=['show'],
-                    style={'margin-right': '15px'}
+                    style={'marginRight': '15px'}
                 ),
                 html.Label(
                     "Search for deletion (take more time). Unselected haplotypes percentage (%) :  ",
                     title="If checked. Used to detect deleted nodes. Search for nodes with at least (T x number of unselected haplotypes / 100) unselected haplotypes + the defined percentage of selected haplotypes. For each node found, it looks for a deleted following node."
                 ),
-                dcc.Input(id='deletion-percentage',style={'width': '80px', 'margin-right': '15px'}, type='number', step=1, value=100, debounce=True),
+                dcc.Input(id='deletion-percentage',style={'width': '80px', 'marginRight': '15px'}, type='number', step=1, value=100, debounce=True),
                 
-            ], style={"display": "flex", "align-items": "center", "marginRight": "20px"}
+            ], style={"display": "flex", "alignItems": "center", "marginRight": "20px"}
             ),
                 dcc.Dropdown(
                     id='gwas_chromosomes_dropdown',
@@ -145,7 +145,7 @@ def layout():
                         "flexShrink": 0
                     }
                 ),
-        ], style={"display": "flex", "flexDirection": "row", "align-items": "center", "marginBottom": "20px"}),
+        ], style={"display": "flex", "flexDirection": "row", "alignItems": "center", "marginBottom": "20px"}),
         
         html.Br(), 
         html.Label(

@@ -110,7 +110,7 @@ def layout():
                 debounce=True,
                 style={'width': '400px'}
             )
-        ], style={'margin-bottom': '20px'}),
+        ], style={'marginBottom': '20px'}),
         html.Label("Select docker image to use :"),
         html.Div([
             dcc.Dropdown(
@@ -120,7 +120,7 @@ def layout():
                 clearable=False,
                 style={'width': '400px'}
             ),
-        ], style={'margin-bottom': '20px'}),
+        ], style={'marginBottom': '20px'}),
 
         html.Br(),
         html.Div([

@@ -5,7 +5,7 @@
     color: #003366;
     background: linear-gradient(to right, #e0f7ff, #c0e5ff);
     border: 1px solid #b0d4ef;
-    margin-right: 2px;
+    marginRight: 2px;
     border-radius: 5px 5px 0 0;
     transition: 0.3s;
 }
