@@ -1,6 +1,7 @@
 # PANABYSS
 **Tools to manipulate and visualize pangenomes variation graphs.**
-[![license](https://img.shields.io/badge/license-%20%20GNU%20GPLv3%20-green?style=plastic)] [![Cross-platform](https://img.shields.io/badge/platform-any-ec2eb4.svg?style=flat)]
+
+[![license](https://img.shields.io/badge/license-%20%20GNU%20GPLv3%20-green?style=plastic)](https://github.com/Pange31/PanAbyss/blob/main/LICENCE) [![Cross-platform](https://img.shields.io/badge/platform-any-ec2eb4.svg?style=flat)](https://github.com/Pange31/PanAbyss)
 
 ## Overview
 Panabyss is based on a graph database modelisation (neo4j) from a gfa graph.
