@@ -817,13 +817,16 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None,
                             WHERE size(matched_genomes) >= {min_associated_genomes}
                               AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
                             OPTIONAL MATCH (n)-[]->(a:Annotation)
-                            WITH n, collect(DISTINCT {{
-                                gene_id: a.gene_id,
-                                gene_name: a.gene_name,
-                                feature: a.feature
-                            }}) AS annotations
+                            WITH n,
+                                 [ann IN collect(
+                                        DISTINCT CASE WHEN a IS NOT NULL THEN {{
+                                            gene_id: a.gene_id,
+                                            gene_name: a.gene_name,
+                                            feature: a.feature
+                                        }} END
+                                      )
+                                  WHERE ann IS NOT NULL] AS annotations
                             ORDER BY n.`{genome_position_ref}_position` ASC
-                            
                             RETURN n AS nodes, annotations;
                         """
                     else:
@@ -837,13 +840,17 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None,
                             WITH n, [g IN n.genomes WHERE g IN $genomes_list] AS matched_genomes
                             WHERE size(matched_genomes) >= {min_associated_genomes}
                               AND size(n.genomes) - size(matched_genomes) <= size(n.genomes) * {tolerance_percentage}/100
-                            WITH n, collect(DISTINCT {{
-                                gene_id: a.gene_id,
-                                gene_name: a.gene_name,
-                                feature: a.feature
-                            }}) AS annotations
+                            OPTIONAL MATCH (n)-[]->(a:Annotation)
+                            WITH n,
+                                 [ann IN collect(
+                                        DISTINCT CASE WHEN a IS NOT NULL THEN {{
+                                            gene_id: a.gene_id,
+                                            gene_name: a.gene_name,
+                                            feature: a.feature
+                                        }} END
+                                      )
+                                  WHERE ann IS NOT NULL] AS annotations
                             ORDER BY n.`{genome_position_ref}_position` ASC
-                            
                             RETURN n AS nodes, annotations;
                         """
 
@@ -912,23 +919,24 @@ def find_shared_regions(genomes_list, genome_ref=None, chromosomes=None,
                             OPTIONAL MATCH (n2)-[]->(an2:Annotation)
                             
                             WITH m, n, n2,
-                                 collect(DISTINCT {{
-                                     gene_id: an.gene_id,
-                                     gene_name: an.gene_name,
-                                     feature: an.feature
-                                 }}) AS annotations_n,
-                                 collect(DISTINCT {{
-                                     gene_id: am.gene_id,
-                                     gene_name: am.gene_name,
-                                     feature: am.feature
-                                 }}) AS annotations_m,
-                                 collect(DISTINCT {{
-                                     gene_id: an2.gene_id,
-                                     gene_name: an2.gene_name,
-                                     feature: an2.feature
-                                 }}) AS annotations_n2
-                            WITH m, n, n2,
-                                 annotations_n + annotations_m + annotations_n2 AS annotations
+                             [a IN collect(DISTINCT CASE WHEN an IS NOT NULL THEN {{
+                                    gene_id: an.gene_id,
+                                    gene_name: an.gene_name,
+                                    feature: an.feature
+                                }} END) WHERE a IS NOT NULL] AS annotations_n,
+                             [a IN collect(DISTINCT CASE WHEN am IS NOT NULL THEN {{
+                                    gene_id: am.gene_id,
+                                    gene_name: am.gene_name,
+                                    feature: am.feature
+                                }} END) WHERE a IS NOT NULL] AS annotations_m,
+                             [a IN collect(DISTINCT CASE WHEN an2 IS NOT NULL THEN {{
+                                    gene_id: an2.gene_id,
+                                    gene_name: an2.gene_name,
+                                    feature: an2.feature
+                                }} END) WHERE a IS NOT NULL] AS annotations_n2
+                        WITH m, n, n2,
+                             annotations_n + annotations_m + annotations_n2 AS annotations
+
                             
                             ORDER BY m.`{genome_position_ref}_position` ASC
                             
