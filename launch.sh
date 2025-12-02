@@ -1,8 +1,8 @@
 #!/bin/bash
 # --- Parameters ---
 DASH_PORT=${1:-8050}
-ENV_NAME="panorama_graph"
-ENV_FILE="panorama_graph.yaml"
+ENV_NAME="panabyss"
+ENV_FILE="panabyss.yaml"
 HASH_FILE="./.${ENV_NAME}_env_hash"
 CONF_FILE="./conf.json"
 
@@ -80,5 +80,5 @@ else
 fi
     
 # --- Launch application ---
-echo "Launching Panorama on port $DASH_PORT..."
+echo "Launching PanAbyss on port $DASH_PORT..."
 python index.py --port $DASH_PORT

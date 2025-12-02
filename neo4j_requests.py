@@ -37,7 +37,7 @@ import logging
 from config import *
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 # CONF_FILE = os.path.abspath("./conf.json")
 #
@@ -1423,7 +1423,7 @@ def pav_to_phylip(pav_matrix_dic, distance_matrix_phylip_filename):
 # - max_nodes is used to limit the number of sampled nodes
 # - min_sample_size is the minimal sampled size for pangenome of size >= min_sample_size
 # - min_nodes_number : tree won't be computed on pangenomes with less than min_nodes_number nodes
-def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand=True, chromosome = None, project_name="panorama_phylo_tree", max_nodes = 1000000, min_sample_size = 10000, min_nodes_number = 1000):
+def compute_global_phylo_tree_from_nodes(method="raxml", output_dir = "", strand=True, chromosome = None, project_name="panabyss_phylo_tree", max_nodes = 1000000, min_sample_size = 10000, min_nodes_number = 1000):
     total_nodes_number = 0
     
 

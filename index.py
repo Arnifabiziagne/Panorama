@@ -31,7 +31,7 @@ from config import *
 import logging
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 #Limit upload size for gfa / annotations files to 10 Go
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024 * 1024
@@ -40,13 +40,13 @@ MAX_UPLOAD_SIZE = 10 * 1024 * 1024 * 1024
 
 #Limit upload size
 app.server.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE
-app.server.secret_key = "KEY_PANORAMA_96598421_CDEYUJH"
+app.server.secret_key = "KEY_PANABYSS_96598421_CDEYUJH"
 
 def clean_exit(signum, frame):
     logger.info("\nStopping docker")
     stop_container()
     time.sleep(10)
-    logger.info("\nPanorama stopped")
+    logger.info("\nPanAbyss stopped")
     sys.exit(0)
 
 # Close docker when quitting app

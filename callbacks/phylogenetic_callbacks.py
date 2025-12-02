@@ -27,7 +27,7 @@ from neo4j_requests import *
 import logging
 
 last_tree = "./export/phylo/last_tree.nwk"
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 EXPORT_DIR = "./export/phylo/"
 

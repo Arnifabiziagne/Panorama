@@ -12,7 +12,7 @@ from dash import Dash, html,callback, dcc
 import logging
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 stylesheet = [
     {

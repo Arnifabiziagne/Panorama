@@ -17,7 +17,7 @@ from auth_utils import require_authorization
 import logging
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 # --- CONSTANTES ---
 DOCKER_IMAGE = "neo4j:2025.05-community-bullseye"

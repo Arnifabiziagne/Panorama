@@ -22,7 +22,7 @@ import io
 import logging
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 EXPORT_DIR = "./export/gwas/"
 

@@ -28,7 +28,7 @@ import logging
 import json
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 
 PREFIX_CONTAINER_NAME = "DB_"+ DB_VERSION + "_"

@@ -19,13 +19,13 @@ from auth_utils import require_authorization
 import logging
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 
 # Dépôt cible (format : "owner/repo")
-repo = "Arnifabiziagne/Panorama"
+repo = "Pange31/PanAbyss"
 update_dir = "./update"
-panorama_dir = "."
+panabyss_dir = "."
 
 # URL de l'API pour la dernière release
 url = f"https://api.github.com/repos/{repo}/releases/latest"
@@ -34,7 +34,7 @@ url = f"https://api.github.com/repos/{repo}/releases/latest"
 def copy_update_to_root():
     for root, dirs, files in os.walk(update_dir):
         rel_path = os.path.relpath(root, update_dir)
-        target_dir = os.path.join(panorama_dir, rel_path)
+        target_dir = os.path.join(panabyss_dir, rel_path)
 
         os.makedirs(target_dir, exist_ok=True)
 
@@ -45,16 +45,16 @@ def copy_update_to_root():
 
     if os.path.exists(update_dir):
         shutil.rmtree(update_dir)
-    logger.info("✅ The panorama update has been successfully completed. It is required to restart the server.")
+    logger.info("✅ The PanAbyss update has been successfully completed. It is required to restart the server.")
 
 
 @app.callback(
-    Output('update-panorama-output', 'children'),
-    Input('update-panorama-btn', 'n_clicks'),
+    Output('update-panabyss-output', 'children'),
+    Input('update-panabyss-btn', 'n_clicks'),
     prevent_initial_call=True
 )
 @require_authorization
-def update_panorama(n_clicks):
+def update_panabyss(n_clicks):
 
     # Requête GET
     response = requests.get(url)
@@ -98,7 +98,7 @@ def update_panorama(n_clicks):
                         with open(dest_path, 'wb') as f:
                             f.write(z.read(member))
             copy_update_to_root()
-            return html.Div(f"✅ The panorama update has been successfully completed. It is required to restart the server.")
+            return html.Div(f"✅ The PanAbyss update has been successfully completed. It is required to restart the server.")
         else:
             logger.info(f"Latest version {version} is not compatible with the current data. To use latest release it is required to regenerate data.")
             return html.Div(f"❌ Latest version {version} is not compatible with the current data. To use latest release it is required to regenerate data.")

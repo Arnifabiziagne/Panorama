@@ -1,4 +1,4 @@
-name: panorama_graph
+name: panabyss
 channels:
   - defaults
   - conda-forge

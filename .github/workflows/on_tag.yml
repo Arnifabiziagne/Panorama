@@ -3,7 +3,7 @@ name: Create and Release ZIP
 on:
   push:
     tags:
-      - '*'  # Déclenche sur tous les tags
+      - '*'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
       - name: Create ZIP archive
         run: |
           TAG_NAME="${GITHUB_REF##*/}"
-          ZIP_NAME="Panorama-${TAG_NAME}.zip"
+          ZIP_NAME="PanAbyss-${TAG_NAME}.zip"
           zip -r "./dist/${ZIP_NAME}" . -x "*.git*" "./dist/*"
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
 

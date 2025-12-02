@@ -24,7 +24,7 @@ import base64
 import logging
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 cyto.load_extra_layouts()
 
@@ -52,7 +52,6 @@ def compute_stylesheet(color_number):
             'style': {
                 'label': 'data(label)',
                 'backgroundColor':'data(color)',
-                'min-zoomed-font-size': 10,
                 'text-opacity':1,
                 'opacity':1,
                 'width':'data(displayed_node_size)',
@@ -104,14 +103,12 @@ def compute_stylesheet(color_number):
                 'selector': 'node',
                 'style': {
                     'backgroundColor':'data(color)',
-                    #'label': 'data(label)',
-                    'min-zoomed-font-size': 10,
+                    'label': 'data(label)',
+                    'text-opacity': 1,
                     'opacity':1,
-                    'text-opacity':1,
                     'width':'data(displayed_node_size)',
                     'height':'data(displayed_node_size)',
                     'z-compound-depth': 'top'
-
                 }
             },
             {
@@ -131,7 +128,9 @@ def compute_stylesheet(color_number):
                     'arrow-scale': 0.5,
                     'curve-style': 'straight',
                     'opacity':0.9,
-                    'z-index':0
+                    'z-compound-depth': 'bottom'
+
+
                 }
             },
             {'selector': ':selected', 'style': {
@@ -412,11 +411,11 @@ def layout(data=None, initial_size_limit=10):
         dcc.Store(id='zoom_shared_storage_nodes', storage_type='memory'),
         dcc.Store(id='update_graph_command_storage', storage_type='memory'),
         html.Div([
-            html.H2("PANORAMA"),
+            html.H2("PANABYSS"),
 
             html.Details([
                 html.Summary("ℹ️ Click here to display help"),
-                html.P("Panorama is an application that allows you to view and manipulate pan-genomic data. "
+                html.P("PanAbyss is an application that allows you to view and manipulate pan-genomic data. "
                        "This page allows you to view portions of the pan-genome:"),
                 html.Ul([
                     html.Li(
@@ -926,7 +925,7 @@ def get_displayed_div(start, end, gene_name, gene_id):
     def info_line(label, value):
         if value is not None and value != "":
             return html.Div([
-                html.Span(f"{label}: ", style={'font-weight': 'bold', 'margin-right': '5px'}),
+                html.Span(f"{label}: ", style={'font-weight': 'bold', 'marginRight': '5px'}),
                 html.Span(str(value))
             ], style={'margin-bottom': '5px'})
     info_rows = []
@@ -943,7 +942,7 @@ def get_displayed_div(start, end, gene_name, gene_id):
         end_txt = "-"
     info_rows.append(
         html.Div([
-            html.Span("Region: ", style={'font-weight': 'bold', 'margin-right': '5px'}),
+            html.Span("Region: ", style={'font-weight': 'bold', 'marginRight': '5px'}),
             html.Span(f"{start_txt} — {end_txt}")
         ], style={'margin-bottom': '5px'})
     )

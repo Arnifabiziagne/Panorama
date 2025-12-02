@@ -38,7 +38,7 @@ def get_log_parameters():
 #Mode log : 'file', 'console' ou 'both'
 def setup_logger(name="app"):
     """
-    Configure main logger of panorama.
+    Configure main logger of PanAbyss.
 
     Args:
     """

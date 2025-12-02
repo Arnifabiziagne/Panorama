@@ -2,8 +2,8 @@
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 :: --- Parameters ---
-SET "ENV_NAME=panorama_graph"
-SET "ENV_FILE=panorama_graph_win.yaml"
+SET "ENV_NAME=panabyss"
+SET "ENV_FILE=panabyss_win.yaml"
 SET "HASH_FILE=.%ENV_NAME%_env_hash"
 SET "DASH_PORT=8050"
 IF NOT "%~1"=="" SET "DASH_PORT=%~1"
@@ -122,7 +122,7 @@ if exist "data\conf\neo4j.conf" (
 )
 
 :: --- Launch Dash app ---
-echo [INFO] Launching Panorama on port %DASH_PORT%...
+echo [INFO] Launching PanAbyss on port %DASH_PORT%...
 python index.py --port %DASH_PORT%
 IF ERRORLEVEL 1 (
     echo [ERROR] Dash app failed to start.

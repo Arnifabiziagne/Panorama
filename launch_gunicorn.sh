@@ -1,8 +1,8 @@
 #!/bin/bash
 # --- Parameters ---
 DASH_PORT=${1:-8050}
-ENV_NAME="panorama_graph"
-ENV_FILE="panorama_graph.yaml"
+ENV_NAME="panabyss"
+ENV_FILE="panabyss.yaml"
 HASH_FILE="./.${ENV_NAME}_env_hash"
 CONF_FILE="./conf.json"
 
@@ -77,7 +77,7 @@ fi
 
 # --- Launch application ---
 ENV_GUNICORN=$(conda info --base)/envs/$ENV_NAME/bin/gunicorn
-echo "Launching Panorama on port $DASH_PORT with command $ENV_GUNICORN..."
+echo "Launching PanAbyss on port $DASH_PORT with command $ENV_GUNICORN..."
 nohup $ENV_GUNICORN wsgi:application -k gevent -w 1 -b 0.0.0.0:$DASH_PORT \
     --timeout 180000 --config gunicorn_config.py --pid gunicorn.pid &
 

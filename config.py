@@ -17,7 +17,7 @@ from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable
 import logging
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 DEFAULT_DB_LOAD_GFA_BATCH_SIZE = 2000000
 
@@ -199,7 +199,7 @@ def get_max_nodes_to_visualize():
     conf=get_conf()
     return conf["MAX_NODES_TO_VISUALIZE"]
 
-#Authorization is set to True for local installation of panorama
+#Authorization is set to True for local installation of PanAbyss
 #or if the mode admin is set to True
 def check_authorization():
     authorization = True

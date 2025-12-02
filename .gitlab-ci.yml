@@ -5,9 +5,9 @@ stages:
   - release
 
 variables:
-  ZIP_NAME: "Panorama-$CI_COMMIT_TAG.zip"
+  ZIP_NAME: "Panabyss-$CI_COMMIT_TAG.zip"
 
-create_panorama_archive:
+create_panabyss_archive:
   stage: archive
   script:
     - apt-get update && apt-get install -y zip
@@ -28,7 +28,7 @@ release:
     entrypoint: [""]
   stage: release
   needs:
-    - job: create_panorama_archive
+    - job: create_panabyss_archive
       artifacts: true
   script:
     - echo "Creating GitLab release with linked artifact"
@@ -41,4 +41,4 @@ release:
     assets:
       links:
         - name: "$ZIP_NAME"
-          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/dist/$ZIP_NAME?job=create_panorama_archive"
+          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/dist/$ZIP_NAME?job=create_panabyss_archive"

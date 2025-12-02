@@ -15,7 +15,7 @@ from auth_utils import require_authorization
 import logging
 
 
-logger = logging.getLogger("panorama_logger")
+logger = logging.getLogger("panabyss_logger")
 
 #Maximal length for S line
 #Used for neo4j import procedure

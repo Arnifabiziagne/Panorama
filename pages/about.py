@@ -18,18 +18,18 @@ from app import DB_VERSION, BLOCK_ADMIN_FUNCTIONNALITIES
 def layout():
     return html.Div([
         html.H2("About"),
-        html.P("Panorama is a tool for managing pangenome graph based on a local graph database. It offers a development framework (back office functions) and an IHM based on this data modelisation."),
+        html.P("PanAbyss is a tool for managing pangenome graph based on a local graph database. It offers a development framework (back office functions) and an IHM based on this data modelisation."),
         #Help section
         html.Div([
             html.Ul([
                 html.Li("Information about this tool :"),
                     html.Ul([
                         html.Li(f"Database version : {DB_VERSION}"),   
-                        html.Li("Panorama is developed and maintained at INRAE in the MIA-T laboratory, Genotoul-Bioinfo team, Toulouse, France." ), 
+                        html.Li("PanAbyss is developed and maintained at INRAE in the MIA-T laboratory, Genotoul-Bioinfo team, Toulouse, France." ),
                         html.Li([
                             "Project page: ",
-                            html.A("https://github.com/Pange31/Panorama",
-                                   href="https://github.com/Pange31/Panorama",
+                            html.A("https://github.com/Pange31/PanAbyss",
+                                   href="https://github.com/Pange31/PanAbyss",
                                    target="_blank")
                         ]),
                     ]),
@@ -44,11 +44,11 @@ def layout():
                             html.Li("The database can be used from back office python functions." ),
                         ])
             ]),
-            None if BLOCK_ADMIN_FUNCTIONNALITIES else html.Button("Update Panorama", id='update-panorama-btn', n_clicks=0, style={'margin': '15px 0'}),
+            None if BLOCK_ADMIN_FUNCTIONNALITIES else html.Button("Update PanAbyss", id='update-panabyss-btn', n_clicks=0, style={'margin': '15px 0'}),
             dcc.Loading(
-                id="update-panorama",
+                id="update-panabyss",
                 #type="default",
-                children=html.Div(id='update-panorama-output'),
+                children=html.Div(id='update-panabyss-output'),
             )
             ], style={"marginBottom": "100px"}),
         html.Hr(),
