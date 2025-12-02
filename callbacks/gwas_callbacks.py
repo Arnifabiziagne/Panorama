@@ -119,7 +119,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
     if deletion_percentage is not None:
         data["deletion_percentage"] = deletion_percentage
     if not selected_genomes:
-        return "Choose at least one genome.",data, ""
+        return "❌ Choose at least one genome.",no_update, ""
     deletion = False
     if 'show' in deletion_checkbox : 
         deletion = True
@@ -147,7 +147,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
                         set_gene_name.add(annot["gene_name"])
             if set_gene_name is not None and len(list(set_gene_name)) > 0:
                 for gene in list(set_gene_name):
-                    annotation += annot["gene_name"] + "\n"
+                    annotation += gene + "\n"
             analyse_to_plot[r]["annotations"] = annotation
             annot_before = ""
             if "annotation_before" in analyse_to_plot[r] and "gene_name" in analyse_to_plot[r]["annotation_before"]:
@@ -166,7 +166,7 @@ def handle_shared_region_search(n_clicks, selected_genomes, data, min_node_size,
         return f"{len(analyse_to_plot)} shared regions found.",data, ""
     
     except Exception as e:
-        return f"Error : {e}",data, ""
+        return f"❌ Error : {e}",no_update, ""
     
 @app.callback(
     Output('selected-region-output', 'children', allow_duplicate=True),

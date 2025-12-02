@@ -510,18 +510,18 @@ def get_annotation_before_or_after_position(genome_ref, chromosome="1", position
             query = f"""
             MATCH (a:Annotation)
             WHERE a.genome_ref = "{genome_ref}" and a.chromosome = "{chromosome}" and a.end < $position and a.gene_name is not null
+            RETURN a.gene_name AS gene_name, a.end as end, a.start as start, a.feature as feature
             ORDER BY a.end DESC
             LIMIT 1
-            RETURN a.gene_name AS gene_name, a.end as end, a.start as start, a.feature as feature
-            """  
+            """
         else:
             query = f"""
             MATCH (a:Annotation)
             WHERE a.genome_ref = "{genome_ref}" and a.chromosome = "{chromosome}" and a.start > $position and a.gene_name is not null
+            RETURN a.gene_name AS gene_name, a.end as end, a.start as start, a.feature as feature
             ORDER BY a.start ASC
             LIMIT 1
-            RETURN a.gene_name AS gene_name, a.end as end, a.start as start, a.feature as feature
-            """  
+            """
         
         with driver.session() as session:
             result = session.run(query, position=position)
