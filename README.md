@@ -53,9 +53,9 @@ newgrp docker
   Once data are loaded the tool can be ued (see quick pages description).
 
 ## Important notes
-  - To launch multiple neo4j instances, it is required to change neo4j ports. These ports are defined in the db_conf.json and can be updated here.
+  - To launch multiple Neo4j instances, it is required to change Neo4j ports. These ports are defined in the db_conf.json and can be updated here.
   - On Windows system, raxml-ng must be installed manually, see raxml documentation. If not installed, then the global phylogenetic tree could not be computed with this method (but the neighbor joining method will work).
-  - The default memory used by the neo4j database is defined into the data/conf/neo4j.conf file, it requires at least 20 Go, if the system (and docker configuration) doesn't have this memory available it will be necessary to tune these values.
+  - The default memory used by the Neo4j database is defined into the data/conf/Neo4j.conf file, it requires at least 20 Go, if the system (and docker configuration) doesn't have this memory available it will be necessary to tune these values.
   - The GFA file must be properly structured for the application to correctly identify the individual name and chromosome. We strongly recommend to use W lines but according to the GFA format:
     - **For GFA files with `W` lines:**  
       The data is typically organized as follows:  
@@ -136,7 +136,7 @@ The parameter file is named `./conf.json`. It contains the following parameters:
 - `"gunicorn_log_level"`: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"` - log level for gunicorn server. If not set then there won't be log from gunicorn.
 - `"db_gfa_loading_batch_size"`: According to the ram available: bigger batch size will go faster but will consume more memory. Default value is 2,000,000.
 - `"max_nodes_to_visualize"`: set the maximum number of nodes to visualize in GUI. Default value is 30,000.
-- `"read_buffer_size"`: set the maximum line size to import csv file in neo4j. Default value is 64,000,000.
+- `"read_buffer_size"`: set the maximum line size to import csv file in Neo4j. Default value is 64,000,000.
 
 
 ## Contacts
