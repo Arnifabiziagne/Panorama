@@ -7,9 +7,9 @@
 [**Tutorial**](https://github.com/Pange31/PanAbyss/wiki/Use-case)
 
 ## Overview
-Panabyss is based on a graph database modelisation (neo4j) from a gfa graph.
+PanAbyss is based on a graph database modelisation (Neo4j) created from a pangenome graph (GFA file) and annotation files (GFF or GTF).
 It allows the following functionalities: 
-- Load a GFA file into a neo4j database 
+- Load a GFA file into a Neo4j database 
 - Load annotation files (GFF or GTF): this will link annotations to the pangenome.
 - Compute shared regions between a set of selected haplotypes
 - Computes the sequences of a selected region
