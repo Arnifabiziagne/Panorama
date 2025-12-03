@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from neo4j_requests import *
 
 import dash
-from dash import Dash, dcc, html, Input, Output, State, callback_context, ctx, MATCH, ALL
+from dash import Dash, dcc, html, Input, Output, State, callback_context, ctx, MATCH, ALL, no_update
 from urllib.parse import parse_qs, urlparse
 from dash.exceptions import PreventUpdate
 import dash_cytoscape as cyto
@@ -1018,275 +1018,280 @@ def update_graph(selected_genomes, shared_mode, specifics_genomes, color_genomes
                  gene_name, gene_id, genome, chromosome, data_storage, data_storage_nodes, 
                  min_shared_genome, tolerance, shared_regions_link_color, zoom_shared_storage, 
                  show_exons, exons_color, layout_choice, phylo_data, sequences_data):
-    ctx = dash.callback_context
-    return_metadata = {"return_code":"", "flow":None, "nodes_number":0, "removed_genomes":None}
-    message = ""
-    start_value = None
-    end_value = None
-    triggered_id = ctx.triggered_id
-    logger.debug(f"{triggered_id} update")
-    if home_data_storage is None:
-        home_data_storage = {}
-    if size_slider is None :
-        if home_data_storage is not None and 'slider_value' in home_data_storage:
-            size_slider_val = home_data_storage['slider_value']
-        else:
-            size_slider_val = DEFAULT_SIZE_VALUE
-    else:
-        size_slider_val = size_slider
-    if "search_return_metadata" in home_data_storage and home_data_storage["search_return_metadata"] is not None :
-        return_metadata = home_data_storage["search_return_metadata"]
-        home_data_storage["search_return_metadata"] = None
-    # save the parameters into store
-    if genome is not None:
-        home_data_storage["selected_genome"] = genome
-    if "selected_genome" in home_data_storage:
-        genome = home_data_storage["selected_genome"]
-    if chromosome is not None:
-        home_data_storage["selected_chromosome"] = chromosome
-    if shared_regions_link_color is not None:
-        home_data_storage["shared_regions_link_color"] = shared_regions_link_color
-    if start is not None:
-        home_data_storage["start"] = start
-        start_value = start
-        home_data_storage["gene_name"] = ""
-        home_data_storage["gene_id"] = ""
-
-    if end is not None:
-        home_data_storage["end"] = end
-        end_value = end
-        home_data_storage["gene_name"] = ""
-        home_data_storage["gene_id"] = ""
-
-    if gene_name is not None and gene_name != "":
-        home_data_storage["gene_name"] = gene_name
-        home_data_storage["gene_id"] = ""
-
-    if gene_id is not None and gene_id != "":
-        home_data_storage["gene_id"] = gene_id
-        home_data_storage["gene_name"] = ""
-
-    if min_shared_genome is None:
-        min_shared_genome = 100
-    if tolerance is None:
-        tolerance = 0
-    if color_genomes is not None:
-        home_data_storage["color_genomes"] = color_genomes
-    if specifics_genomes is not None:
-        home_data_storage["specifics_genomes"] = specifics_genomes
-    # zoom on selected nodes
-    zoom_shared_storage_out = zoom_shared_storage or {}
-    if triggered_id == "btn-zoom":
-        if selected_nodes_data is not None and len(selected_nodes_data) > 0:
-            selected_nodes_name = set([node['name'] for node in selected_nodes_data])
-        if len(zoom_shared_storage_out) ==0:
-            zoom_shared_storage_out["start"] = home_data_storage["start"]
-            zoom_shared_storage_out["end"] = home_data_storage["end"]
-        position_field = genome + "_position"
-        selected_positions =set()
-        for n in data_storage_nodes:
-            node = data_storage_nodes[n]
-            if node["name"] in selected_nodes_name and position_field in node :
-                selected_positions.add(node[position_field])
-        if len(selected_positions) > 0:
-            start_value = min(selected_positions)
-            home_data_storage["start"] = start_value
-            end_value = max(selected_positions)
-            home_data_storage["end"] = end_value
-            logger.debug(f"Zoom - start : {start_value} - end : {end_value}")
-        else:
-            logger.debug(f"No position found in the selected nodes for the reference genome {genome}")
-
-    if triggered_id == "btn-zoom-out":
-        if "start" in home_data_storage and home_data_storage["start"] is not None \
-            and "end" in home_data_storage and home_data_storage["end"] is not None:
-            start_value = max(0,home_data_storage["start"] - 1000)
-            end_value = home_data_storage["end"] + 1000
-            home_data_storage["start"] = start_value
-            home_data_storage["end"] = end_value
-    if triggered_id == "btn-reset-zoom":
-        if len(zoom_shared_storage_out) > 0:
-            logger.debug(f"reset zoom to {zoom_shared_storage_out['start']} - {zoom_shared_storage_out['end']}")
-            start_value = zoom_shared_storage_out["start"]
-            end_value = zoom_shared_storage_out["end"]
-            zoom_shared_storage_out = {}
-            home_data_storage["start"] = start_value
-            home_data_storage["end"] = end_value
-        else:
-            if ("gene_name" in home_data_storage and home_data_storage["gene_name"] is not None
-                    and home_data_storage["gene_name"] != ""):
-                gene_name = home_data_storage["gene_name"]
-                logger.debug(f"No zoom, display gene name {gene_name}")
-            elif ("gene_id" in home_data_storage and home_data_storage["gene_id"] is not None
-                  and home_data_storage["gene_id"] != ""):
-                gene_id = home_data_storage["gene_id"]
-                logger.debug(f"No zoom, display gene id {gene_id}")
-            elif "start" in home_data_storage and "end" in home_data_storage:
-                start_value = home_data_storage["start"]
-                end_value = home_data_storage["end"]
-                logger.debug(f"No zoom, display region {start_value} - {end_value}")
-
-
-    logger.debug("update graph : " + str(ctx.triggered[0]['prop_id']))
-    stylesheet = []
-    if shared_mode and 'shared' in shared_mode:
-        specifics_genomes_list = specifics_genomes
-        color_genomes_list = []
-    else:
-        specifics_genomes_list = []
-        color_genomes_list = color_genomes
-    labels = True
-    if show_labels and 'hide' in show_labels:
-        labels = False
-    exons=False
-    if show_exons and 'exons' in show_exons:
-        exons = True
-    all_genomes = data_storage["genomes"]
-    all_chromosomes = data_storage["chromosomes"]
-
-    if (triggered_id== "search-button" and n_clicks > 0)  \
-        or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"] \
-        or (triggered_id == "update_graph_command_storage" and update_graph_command_storage is not None) :
-        new_data = {}
-        #Delete local phylo graph if exists
-        if phylo_data is not None and "newick_region" in phylo_data:
-            phylo_data["newick_region"] = None
-        if sequences_data is not None :
-            sequences_data = {}
-        if start_value is not None:
-            use_anchor = True
-            if triggered_id == "btn-zoom":
-                use_anchor = False
-            new_data, return_metadata = get_nodes_by_region(
-                    genome, chromosome=chromosome, start=start_value, end=end_value, use_anchor=use_anchor)
-            #data_storage_nodes = new_data
-            logger.debug("len new_data : " + str(len(new_data)))
-        else:
-            if ((gene_name is not None and gene_name != "") or (gene_id is not None and gene_id != "")) and chromosome is not None:
-                if gene_name is not None and gene_name != "":
-                    new_data,return_metadata = get_nodes_by_gene(
-                        genome, chromosome=chromosome, gene_name=gene_name)
-                    home_data_storage["gene_id"] = None
-                else:
-                    new_data, return_metadata = get_nodes_by_gene(
-                        genome, chromosome=chromosome, gene_id=gene_id)
-                    home_data_storage["gene_name"] = None
-
+    if genome is not None and chromosome is not None:
+        ctx = dash.callback_context
+        return_metadata = {"return_code":"", "flow":None, "nodes_number":0, "removed_genomes":None}
+        message = ""
+        start_value = None
+        end_value = None
+        triggered_id = ctx.triggered_id
+        logger.debug(f"{triggered_id} update")
+        if home_data_storage is None:
+            home_data_storage = {}
+        if size_slider is None :
+            if home_data_storage is not None and 'slider_value' in home_data_storage:
+                size_slider_val = home_data_storage['slider_value']
             else:
+                size_slider_val = DEFAULT_SIZE_VALUE
+        else:
+            size_slider_val = size_slider
+        if "search_return_metadata" in home_data_storage and home_data_storage["search_return_metadata"] is not None :
+            return_metadata = home_data_storage["search_return_metadata"]
+            home_data_storage["search_return_metadata"] = None
+        # save the parameters into store
+        if genome is not None:
+            home_data_storage["selected_genome"] = genome
+        if "selected_genome" in home_data_storage:
+            genome = home_data_storage["selected_genome"]
+        if chromosome is not None:
+            home_data_storage["selected_chromosome"] = chromosome
+        if shared_regions_link_color is not None:
+            home_data_storage["shared_regions_link_color"] = shared_regions_link_color
+        if start is not None:
+            home_data_storage["start"] = start
+            start_value = start
+            home_data_storage["gene_name"] = ""
+            home_data_storage["gene_id"] = ""
+
+        if end is not None:
+            home_data_storage["end"] = end
+            end_value = end
+            home_data_storage["gene_name"] = ""
+            home_data_storage["gene_id"] = ""
+
+        if gene_name is not None and gene_name != "":
+            home_data_storage["gene_name"] = gene_name
+            home_data_storage["gene_id"] = ""
+
+        if gene_id is not None and gene_id != "":
+            home_data_storage["gene_id"] = gene_id
+            home_data_storage["gene_name"] = ""
+
+        if min_shared_genome is None:
+            min_shared_genome = 100
+        if tolerance is None:
+            tolerance = 0
+        if color_genomes is not None:
+            home_data_storage["color_genomes"] = color_genomes
+        if specifics_genomes is not None:
+            home_data_storage["specifics_genomes"] = specifics_genomes
+        # zoom on selected nodes
+        zoom_shared_storage_out = zoom_shared_storage or {}
+        if triggered_id == "btn-zoom":
+            if selected_nodes_data is not None and len(selected_nodes_data) > 0:
+                selected_nodes_name = set([node['name'] for node in selected_nodes_data])
+            if len(zoom_shared_storage_out) ==0:
+                zoom_shared_storage_out["start"] = home_data_storage["start"]
+                zoom_shared_storage_out["end"] = home_data_storage["end"]
+            position_field = genome + "_position"
+            selected_positions =set()
+            for n in data_storage_nodes:
+                node = data_storage_nodes[n]
+                if node["name"] in selected_nodes_name and position_field in node :
+                    selected_positions.add(node[position_field])
+            if len(selected_positions) > 0:
+                start_value = min(selected_positions)
+                home_data_storage["start"] = start_value
+                end_value = max(selected_positions)
+                home_data_storage["end"] = end_value
+                logger.debug(f"Zoom - start : {start_value} - end : {end_value}")
+            else:
+                logger.debug(f"No position found in the selected nodes for the reference genome {genome}")
+
+        if triggered_id == "btn-zoom-out":
+            if "start" in home_data_storage and home_data_storage["start"] is not None \
+                and "end" in home_data_storage and home_data_storage["end"] is not None:
+                start_value = max(0,home_data_storage["start"] - 1000)
+                end_value = home_data_storage["end"] + 1000
+                home_data_storage["start"] = start_value
+                home_data_storage["end"] = end_value
+        if triggered_id == "btn-reset-zoom":
+            if len(zoom_shared_storage_out) > 0:
+                logger.debug(f"reset zoom to {zoom_shared_storage_out['start']} - {zoom_shared_storage_out['end']}")
+                start_value = zoom_shared_storage_out["start"]
+                end_value = zoom_shared_storage_out["end"]
+                zoom_shared_storage_out = {}
+                home_data_storage["start"] = start_value
+                home_data_storage["end"] = end_value
+            else:
+                if ("gene_name" in home_data_storage and home_data_storage["gene_name"] is not None
+                        and home_data_storage["gene_name"] != ""):
+                    gene_name = home_data_storage["gene_name"]
+                    logger.debug(f"No zoom, display gene name {gene_name}")
+                elif ("gene_id" in home_data_storage and home_data_storage["gene_id"] is not None
+                      and home_data_storage["gene_id"] != ""):
+                    gene_id = home_data_storage["gene_id"]
+                    logger.debug(f"No zoom, display gene id {gene_id}")
+                elif "start" in home_data_storage and "end" in home_data_storage:
+                    start_value = home_data_storage["start"]
+                    end_value = home_data_storage["end"]
+                    logger.debug(f"No zoom, display region {start_value} - {end_value}")
+
+
+        logger.debug("update graph : " + str(ctx.triggered[0]['prop_id']))
+        stylesheet = []
+        if shared_mode and 'shared' in shared_mode:
+            specifics_genomes_list = specifics_genomes
+            color_genomes_list = []
+        else:
+            specifics_genomes_list = []
+            color_genomes_list = color_genomes
+        labels = True
+        if show_labels and 'hide' in show_labels:
+            labels = False
+        exons=False
+        if show_exons and 'exons' in show_exons:
+            exons = True
+        all_genomes = data_storage["genomes"]
+        all_chromosomes = data_storage["chromosomes"]
+
+        if (triggered_id== "search-button" and n_clicks > 0)  \
+            or triggered_id in ["btn-zoom", "btn-reset-zoom", "btn-zoom-out"] \
+            or (triggered_id == "update_graph_command_storage" and update_graph_command_storage is not None) :
+            new_data = {}
+            #Delete local phylo graph if exists
+            if phylo_data is not None and "newick_region" in phylo_data:
+                phylo_data["newick_region"] = None
+            if sequences_data is not None :
+                sequences_data = {}
+            if start_value is not None:
+                use_anchor = True
+                if triggered_id == "btn-zoom":
+                    use_anchor = False
                 new_data, return_metadata = get_nodes_by_region(
-                    genome, chromosome=chromosome, start=0, end=end)
-
-        # Get the start / end value when graph is updated
-        genome_position = genome + "_position"
-        nodes_with_position = [node for node in new_data.values() if genome_position in node]
-        if len(nodes_with_position) > 1:
-            print(f"new data length {len(new_data)}")
-            min_node = min(nodes_with_position, key=lambda x: x[genome_position])
-            max_node = max(nodes_with_position, key=lambda x: x[genome_position])
-
-            max_node_size = max_node.get("size", None)
-            start_value = min_node.get(genome_position, None)
-            end_value = max_node.get(genome_position) + max_node_size
-            home_data_storage["start"] = start_value
-            home_data_storage["end"] = end_value
-            logger.debug(f"start value : {start_value} - end value : {end_value}")
-        data_storage_nodes = new_data
-        elements, nodes_count = compute_graph_elements(new_data, genome, selected_genomes, size_slider_val, all_genomes,
-                                          all_chromosomes, specifics_genomes_list,
-                                          color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
-                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color,
-                                          exons=exons, exons_color=exons_color)
-        if triggered_id == "search-button":
-            zoom_shared_storage_out = {}
-            message = html.Div("❌ Error.", style=warning_style)
-        if len(elements) == 0:
-            start_value = None
-            end_value = None
-            home_data_storage["start"] = start_value
-            home_data_storage["end"] = end_value
-
-
-        if new_data is not None and return_metadata["return_code"] == "OK":
-            message = html.Div(f"✅ Region has been successfully found, number of node {return_metadata['nodes_number']}.", style=success_style)
-        elif new_data is not None and return_metadata["return_code"] == "ZOOM":
-            message = html.Div(
-                f"⚠️ Region is too large, data has been filtered and only nodes with flow > {return_metadata['flow']} are displayed. Nodes number : {return_metadata['nodes_number']}.",
-                style=warning_style)
-        elif new_data is not None and return_metadata["return_code"] == "FILTER" and 'removed_genomes' in return_metadata:
-            message = html.Div(
-                f"⚠️ Region is too large, some individuals have been removed from search : {return_metadata['removed_genomes']}. These individuals won't be complete. Total nodes number : {return_metadata['nodes_number']}.",
-                style=warning_style)
-        elif new_data is not None and return_metadata["return_code"] == "FILTER":
-            message = html.Div(
-                f"⚠️ Region is too large, some individuals have been removed from search and the graph is partail. Total nodes number : {return_metadata['nodes_number']}.",
-                style=warning_style)
-        elif new_data is not None and return_metadata["return_code"] == "PARTIAL":
-            message = html.Div(
-                f"⚠️ No core genome anchor found near searched region, the result is partial and some may be absent for some individuals. Total nodes number : {return_metadata['nodes_number']}.",
-                style=warning_style)
-        elif return_metadata["return_code"] == "OK":
-            message = html.Div(
-                "✅ Region has been successfully found.",
-                style=success_style)
-        elif return_metadata["return_code"] == "WIDE":
-            message = html.Div("⚠️ Region is too wide and cannot be displayed.", style=warning_style)
-        elif return_metadata["return_code"] == "NO_DATA":
-            if gene_name is not None and gene_name != "" :
-                message = html.Div(f"❌ No nodes associated to gene name {gene_name} found.", style=error_style)
-            elif gene_id is not None and gene_id != "" :
-                message = html.Div(f"❌ No nodes associated to gene id {gene_id} found.", style=error_style)
+                        genome, chromosome=chromosome, start=start_value, end=end_value, use_anchor=use_anchor)
+                #data_storage_nodes = new_data
+                logger.debug("len new_data : " + str(len(new_data)))
             else:
-                message = html.Div("❌ Region not found.", style=error_style)
+                if ((gene_name is not None and gene_name != "") or (gene_id is not None and gene_id != "")) and chromosome is not None:
+                    if gene_name is not None and gene_name != "":
+                        new_data,return_metadata = get_nodes_by_gene(
+                            genome, chromosome=chromosome, gene_name=gene_name)
+                        home_data_storage["gene_id"] = None
+                    else:
+                        new_data, return_metadata = get_nodes_by_gene(
+                            genome, chromosome=chromosome, gene_id=gene_id)
+                        home_data_storage["gene_name"] = None
+
+                else:
+                    new_data, return_metadata = get_nodes_by_region(
+                        genome, chromosome=chromosome, start=0, end=end)
+
+            # Get the start / end value when graph is updated
+            genome_position = genome + "_position"
+            nodes_with_position = [node for node in new_data.values() if genome_position in node]
+            if len(nodes_with_position) > 1:
+                print(f"new data length {len(new_data)}")
+                min_node = min(nodes_with_position, key=lambda x: x[genome_position])
+                max_node = max(nodes_with_position, key=lambda x: x[genome_position])
+
+                max_node_size = max_node.get("size", None)
+                start_value = min_node.get(genome_position, None)
+                end_value = max_node.get(genome_position) + max_node_size
+                home_data_storage["start"] = start_value
+                home_data_storage["end"] = end_value
+                logger.debug(f"start value : {start_value} - end value : {end_value}")
+            data_storage_nodes = new_data
+            elements, nodes_count = compute_graph_elements(new_data, genome, selected_genomes, size_slider_val, all_genomes,
+                                              all_chromosomes, specifics_genomes_list,
+                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome,
+                                              tolerance=tolerance, color_shared_regions=shared_regions_link_color,
+                                              exons=exons, exons_color=exons_color)
+            if triggered_id == "search-button":
+                zoom_shared_storage_out = {}
+                message = html.Div("❌ Error.", style=warning_style)
+            if len(elements) == 0:
+                start_value = None
+                end_value = None
+                home_data_storage["start"] = start_value
+                home_data_storage["end"] = end_value
+
+
+            if new_data is not None and return_metadata["return_code"] == "OK":
+                message = html.Div(f"✅ Region has been successfully found, number of node {return_metadata['nodes_number']}.", style=success_style)
+            elif new_data is not None and return_metadata["return_code"] == "ZOOM":
+                message = html.Div(
+                    f"⚠️ Region is too large, data has been filtered and only nodes with flow > {return_metadata['flow']} are displayed. Nodes number : {return_metadata['nodes_number']}.",
+                    style=warning_style)
+            elif new_data is not None and return_metadata["return_code"] == "FILTER" and 'removed_genomes' in return_metadata:
+                message = html.Div(
+                    f"⚠️ Region is too large, some individuals have been removed from search : {return_metadata['removed_genomes']}. These individuals won't be complete. Total nodes number : {return_metadata['nodes_number']}.",
+                    style=warning_style)
+            elif new_data is not None and return_metadata["return_code"] == "FILTER":
+                message = html.Div(
+                    f"⚠️ Region is too large, some individuals have been removed from search and the graph is partail. Total nodes number : {return_metadata['nodes_number']}.",
+                    style=warning_style)
+            elif new_data is not None and return_metadata["return_code"] == "PARTIAL":
+                message = html.Div(
+                    f"⚠️ No core genome anchor found near searched region, the result is partial and some may be absent for some individuals. Total nodes number : {return_metadata['nodes_number']}.",
+                    style=warning_style)
+            elif return_metadata["return_code"] == "OK":
+                message = html.Div(
+                    "✅ Region has been successfully found.",
+                    style=success_style)
+            elif return_metadata["return_code"] == "WIDE":
+                message = html.Div("⚠️ Region is too wide and cannot be displayed.", style=warning_style)
+            elif return_metadata["return_code"] == "NO_DATA":
+                if gene_name is not None and gene_name != "" :
+                    message = html.Div(f"❌ No nodes associated to gene name {gene_name} found.", style=error_style)
+                elif gene_id is not None and gene_id != "" :
+                    message = html.Div(f"❌ No nodes associated to gene id {gene_id} found.", style=error_style)
+                else:
+                    message = html.Div("❌ Region not found.", style=error_style)
+            else:
+                message = html.Div("❌ Error.", style=error_style)
+
         else:
-            message = html.Div("❌ Error.", style=error_style)
+            start_value = home_data_storage.get("start",None)
+            end_value = home_data_storage.get("end",None)
+            gene_name = home_data_storage.get("gene_name", "")
+            gene_id = home_data_storage.get("gene_id","")
+            logger.debug(f"min node size : {size_slider_val}")
+            elements, nodes_count = compute_graph_elements(data_storage_nodes, genome, selected_genomes, size_slider_val, all_genomes,
+                                              all_chromosomes, specifics_genomes_list,
+                                              color_genomes_list, labels=labels, min_shared_genome=min_shared_genome,
+                                              tolerance=tolerance, color_shared_regions=shared_regions_link_color,
+                                              exons=exons, exons_color=exons_color)
 
+        defined_color = 0
+        if color_genomes is not None:
+            for c in color_genomes:
+                if c != "#000000":
+                    defined_color += 1
+        stylesheet = compute_stylesheet(defined_color)
+        count = len(elements)
+        annotations = ""
+        set_annot = set()
+        if data_storage_nodes != None:
+            for n in data_storage_nodes:
+                if "annotations" in data_storage_nodes[n]:
+                    for a in data_storage_nodes[n]["annotations"]:
+                        set_annot.add(a)
+        for a in set_annot:
+            annotations += str(a) + "\n"
+        if layout_choice and 'dagre' in layout_choice:
+            layout = {'name': 'dagre',
+                      'rankDir': "RL",
+                      'nodeDimensionsIncludeLabels': True,
+                      'fit': True
+                      }
+        else:
+            layout = {
+                'name': 'fcose',
+                'maxIterations': 100000,
+                'maxSimulationTime': 5000,
+                'quality': "proof",
+                'fit': True
+            }
+        #displayed region construction:
+        displayed_div = get_displayed_div(start_value, end_value, gene_name, gene_id)
+        return (elements,f"{nodes_count} displayed nodes", data_storage_nodes, message, annotations, stylesheet,
+                layout, home_data_storage, [], [], zoom_shared_storage_out,
+                None, None, "", "", displayed_div, phylo_data, sequences_data)
     else:
-        start_value = home_data_storage.get("start",None)
-        end_value = home_data_storage.get("end",None)
-        gene_name = home_data_storage.get("gene_name", "")
-        gene_id = home_data_storage.get("gene_id","")
-        logger.debug(f"min node size : {size_slider_val}")
-        elements, nodes_count = compute_graph_elements(data_storage_nodes, genome, selected_genomes, size_slider_val, all_genomes,
-                                          all_chromosomes, specifics_genomes_list,
-                                          color_genomes_list, labels=labels, min_shared_genome=min_shared_genome, 
-                                          tolerance=tolerance, color_shared_regions=shared_regions_link_color,
-                                          exons=exons, exons_color=exons_color)
-
-    defined_color = 0
-    if color_genomes is not None:
-        for c in color_genomes:
-            if c != "#000000":
-                defined_color += 1
-    stylesheet = compute_stylesheet(defined_color)
-    count = len(elements)
-    annotations = ""
-    set_annot = set()
-    if data_storage_nodes != None:
-        for n in data_storage_nodes:
-            if "annotations" in data_storage_nodes[n]:
-                for a in data_storage_nodes[n]["annotations"]:
-                    set_annot.add(a)
-    for a in set_annot:
-        annotations += str(a) + "\n"
-    if layout_choice and 'dagre' in layout_choice:
-        layout = {'name': 'dagre',
-                  'rankDir': "RL",
-                  'nodeDimensionsIncludeLabels': True,
-                  'fit': True
-                  }
-    else:
-        layout = {
-            'name': 'fcose',
-            'maxIterations': 100000,
-            'maxSimulationTime': 5000,
-            'quality': "proof",
-            'fit': True
-        }
-    #displayed region construction:
-    displayed_div = get_displayed_div(start_value, end_value, gene_name, gene_id)
-    return (elements,f"{nodes_count} displayed nodes", data_storage_nodes, message, annotations, stylesheet,
-            layout, home_data_storage, [], [], zoom_shared_storage_out,
-            None, None, "", "", displayed_div, phylo_data, sequences_data)
+        return ([], "", no_update, f"❌ No data loaded, first load a gfa into DB management page.", "", no_update,
+                no_update, no_update, [], [], no_update,
+                None, None, "", "", "", no_update, no_update)
 
 
 # color picker

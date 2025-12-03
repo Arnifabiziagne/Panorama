@@ -1701,10 +1701,8 @@ def load_annotations_neo4j(annotations_file_name, genome_ref, node_name="Annotat
 
                     
            
-            logger.info("\nSize of elements to create in DB : " + str(len(list(nodes_dic.items()))))
-
-            logger.info("Time for batch analyzing : "+ str(time.time()-temps_depart))
-
+            logger.info(f"\nAnnotation analyzing terminated in {time.time()-temps_depart} s.")
+            logger.info(f"Creating {len(list(nodes_dic.items()))} nodes in database...")
 
             with get_driver() as driver:
                 with driver.session() as session:
