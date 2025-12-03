@@ -98,7 +98,7 @@ To configure logging behavior, modify the following parameters in the `./conf.js
     - From a dump file: this is the fastest way but the dump must be available. It uses the neo4j-admin load functionality. If the neo4j.dump file is available, move or copy it into ./import directory, this file will be used to generate database.
     - From csv file: it is a fast way to create the database if the csv files are available. It uses the neo4j-admin import functionality. This is the default procedure when creating a database from GFA.
     - From the GFA file (and gtf / gff if available): the database is constructed directly from the GFA file. This procedure is slow compared to the others and it is only used to add data later if needed (not recommended for big gfa files).
-* For dump file or csv files: these files must be put into /data/import directory before database creation. If these files exist it is not required to import gfa file and you can directly click on "Create new DB" button.
+* For dump file or csv files: these files must be put into */data/import* directory before database creation. If these files exist it is not required to import gfa file and you can directly click on "Create new DB" button.
 * Dump file can be generated from IHM by clicking on Dump DB button.
 
 ## Server Mode Configuration
