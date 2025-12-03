@@ -1848,60 +1848,63 @@ def creer_relations_annotations_neo4j(genome_ref=None, chromosome=None):
             for g in liste_genomes :
                 logger.info(f"Linking annotation for genome {g}")
                 query = f"""
-                MATCH (a:Annotation) where a.genome_ref = "{g}" return min(ID(a)) as min_id, max(ID(a)) as max_id
+                MATCH (a:Annotation) where a.genome_ref = "{g}" return min(ID(a)) as min_id, max(ID(a)) as max_id, count(a) as annotations_count
                 """
                 #logger.debug(query)
                 result = session.run(query)
                 for record in result:
                     min_id = record["min_id"]
                     max_id = record["max_id"]
+                    annotations_count = record["annotations_count"]
                 if min_id is None or max_id is None or min_id == max_id :
                     continue
                 batch_number = ceil((max_id-min_id)/batch_size)
                 current_id = min_id
                 all_genomes.add(g)
                 i = 0
-                while current_id < max_id:
-                    i+=1
-                    logger.debug("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
-                    annotations_nb = 0
-                    if chromosome is None :
-                        annotations = session.run(
-                            """
-                            MATCH (a:Annotation)
-                            WHERE ID(a) >= $min_id AND ID(a) < $max_id AND a.genome_ref = $genome
-                            RETURN a.name AS name, a.chromosome AS chromosome, a.start AS start, a.end AS end
-                            """,
-                            min_id=current_id,
-                            max_id=min(max_id,current_id+batch_size),
-                            genome=g
-                            ).data()                    
-                    else:
-                        annotations = session.run(
-                            """
-                            MATCH (a:Annotation)
-                            WHERE ID(a) >= $min_id AND ID(a) < $max_id and a.chromosome = $chromosome AND a.genome_ref = $genome
-                            RETURN a.name AS name, a.chromosome AS chromosome, a.start AS start, a.end AS end
-                            """,
-                            min_id=current_id,
-                            max_id=min(max_id,current_id+batch_size),
-                            chromosome=chromosome,
-                            genome=g
-                            ).data()
-                    annotations_nb += len(annotations)
-                    total_annotations += len(annotations)
-                    if annotations and len(annotations) > 0:
-                        with session.begin_transaction() as tx:
-                            #logger.info("creating annotations batch " + str(i) + "/"+str(batch_number))
-                            process_annotation_simple_batch(tx,annotations, g)
-                            #logger.info("creating complexe annotations")
-                            #Handling complex annotations: those for which the start and end of a node are before and after the annotation
-                            #the volume is much lower (less than 1%)
-                            process_annotation_complex_batch(tx, annotations, g, annotation_search_limit=10000)
-                            tx.commit()
-                    
-                    logger.debug("Annotations nb : " + str(annotations_nb) + " - Annotations already treated : " + str(total_annotations))
-                    current_id += batch_size
+                with tqdm(total=annotations_count, desc=f"Haplotype {g}") as pbar:
+                    while current_id < max_id:
+                        i+=1
+                        #logger.debug("Batch nb " + str(i) + "/" + str(batch_number) + " Current id : " + str(current_id) + " max id : " + str(max_id) + " - haplotype : " + str(g))
+                        annotations_nb = 0
+                        if chromosome is None :
+                            annotations = session.run(
+                                """
+                                MATCH (a:Annotation)
+                                WHERE ID(a) >= $min_id AND ID(a) < $max_id AND a.genome_ref = $genome
+                                RETURN a.name AS name, a.chromosome AS chromosome, a.start AS start, a.end AS end
+                                """,
+                                min_id=current_id,
+                                max_id=min(max_id,current_id+batch_size),
+                                genome=g
+                                ).data()
+                        else:
+                            annotations = session.run(
+                                """
+                                MATCH (a:Annotation)
+                                WHERE ID(a) >= $min_id AND ID(a) < $max_id and a.chromosome = $chromosome AND a.genome_ref = $genome
+                                RETURN a.name AS name, a.chromosome AS chromosome, a.start AS start, a.end AS end
+                                """,
+                                min_id=current_id,
+                                max_id=min(max_id,current_id+batch_size),
+                                chromosome=chromosome,
+                                genome=g
+                                ).data()
+                        annotations_nb += len(annotations)
+                        total_annotations += len(annotations)
+                        if annotations and len(annotations) > 0:
+                            with session.begin_transaction() as tx:
+                                #logger.info("creating annotations batch " + str(i) + "/"+str(batch_number))
+                                process_annotation_simple_batch(tx,annotations, g)
+                                #logger.info("creating complexe annotations")
+                                #Handling complex annotations: those for which the start and end of a node are before and after the annotation
+                                #the volume is much lower (less than 1%)
+                                process_annotation_complex_batch(tx, annotations, g, annotation_search_limit=10000)
+                                tx.commit()
+
+                        #logger.debug("Annotations nb : " + str(annotations_nb) + " - Annotations already treated : " + str(total_annotations))
+                        pbar.update(annotations_nb)
+                        current_id += batch_size
             
             
             for g in all_genomes:
@@ -2007,51 +2010,48 @@ def delete_annotations(batch_size=100000):
 
 @require_authorization
 def delete_nodes(nodes_label, batch_size=100000):
-    def delete_nodes(nodes_label, batch_size=100000):
-        if get_driver() is None:
-            logger.debug("Neo4j driver is not initialized.")
-            return None
+    if get_driver() is None:
+        logger.debug("Neo4j driver is not initialized.")
+        return None
 
-        start_time = time.time()
+    start_time = time.time()
+    with get_driver() as driver:
+        with driver.session() as session:
+            # 1) Get total number of nodes to delete
+            result = session.run(f"""
+                MATCH (n:{nodes_label})
+                RETURN count(n) AS total
+            """)
+            total = result.single()["total"]
+            if total == 0:
+                logger.debug(f"No nodes with label '{nodes_label}' found.")
+                return
 
-        with get_driver() as driver:
-            with driver.session() as session:
-                # 1) Get total number of nodes to delete
+            logger.debug(f"Starting deletion of {total} nodes with label '{nodes_label}'...")
+
+            # 2) Initialize tqdm progress bar
+            pbar = tqdm(total=total, unit="nodes", desc="Deleting", leave=False)
+
+            # 3) Batch deletion loop
+            while True:
                 result = session.run(f"""
                     MATCH (n:{nodes_label})
-                    RETURN count(n) AS total
+                    WITH n LIMIT {batch_size}
+                    DETACH DELETE n
+                    RETURN count(n) AS deleted
                 """)
-                total = result.single()["total"]
+                deleted = result.single()["deleted"]
 
-                if total == 0:
-                    logger.debug(f"No nodes with label '{nodes_label}' found.")
-                    return
+                if deleted == 0:
+                    break
 
-                logger.debug(f"Starting deletion of {total} nodes with label '{nodes_label}'...")
+                # Update progress bar
+                pbar.update(deleted)
 
-                # 2) Initialize tqdm progress bar
-                pbar = tqdm(total=total, unit="nodes", desc="Deleting", leave=False)
+            pbar.close()
 
-                # 3) Batch deletion loop
-                while True:
-                    result = session.run(f"""
-                        MATCH (n:{nodes_label})
-                        WITH n LIMIT {batch_size}
-                        DETACH DELETE n
-                        RETURN count(n) AS deleted
-                    """)
-                    deleted = result.single()["deleted"]
-
-                    if deleted == 0:
-                        break
-
-                    # Update progress bar
-                    pbar.update(deleted)
-
-                pbar.close()
-
-                duration = time.time() - start_time
-                logger.debug(f"Deletion completed in {duration:.2f} seconds.")
+            duration = time.time() - start_time
+            logger.debug(f"Deletion completed in {duration:.2f} seconds.")
 
  
 @require_authorization
