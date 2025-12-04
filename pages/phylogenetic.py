@@ -160,7 +160,10 @@ def layout():
                 elements=[],
                 stylesheet=stylesheet,
                 layout={'name':'preset'},
-                style={'width': '100%', 'height': '1000px'}
+                style={'width': '100%', 'height': '1000px'},
+                zoomingEnabled=True,
+                userZoomingEnabled=True,
+                wheelSensitivity=0.1,
             )
         ], style={'width': '48%', 'display': 'inline-block', 'verticalAlign': 'top'}),
     
@@ -181,7 +184,10 @@ def layout():
                 elements=[],
                 stylesheet=stylesheet,
                 layout={'name':'preset'},
-                style={'width': '100%', 'height': '1000px'}
+                style={'width': '100%', 'height': '1000px'},
+                zoomingEnabled=True,
+                userZoomingEnabled=True,
+                wheelSensitivity=0.1,
             )
         ], style={'width': '48%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft':'4%'})
     ],style={'padding':'20px'})
