@@ -23,6 +23,8 @@ from io import BytesIO
 import base64
 import logging
 
+import urllib.parse
+
 
 logger = logging.getLogger("panabyss_logger")
 
@@ -429,8 +431,8 @@ def layout(data=None, initial_size_limit=10):
                     ]),
                     html.Li("Select the haplotypes to be viewed: it is possible to exclude some haplotypes. "
                             "In this case, nodes containing only these haplotypes will not be displayed."),
-                    html.Li("You can download the current graph by clicking on 'as jpg' or 'as png' button. "
-                            "Graphs are saved into ./export/graphs directory.")
+                    html.Li("You can download the current graph by clicking on 'as jpg', 'as png' or 'as svg' button. "
+                            "Graphs png and jpg are saved into ./export/graphs directory, while svg graphs are downloaded.")
                 ]),
                 html.P("Display settings:"),
                 html.Ul([
@@ -657,10 +659,12 @@ def layout(data=None, initial_size_limit=10):
                     # Download graph div
                     html.Div([
                         html.Label(
-                            'Download graph:', title="This will download the displayed graph into ./export/graphs directory in jpg or png format.", style={"marginLeft": "10px"}),
+                            'Download graph:', title="PNG and JPG files will be saved into ./export/graphs directory while SVG files are downloaded.", style={"marginLeft": "10px"}),
                         html.Button("as jpg", id="btn-save-jpg",
                                     style={"marginLeft": "10px"}),
                         html.Button("as png", id="btn-save-png",
+                                    style={"marginLeft": "10px"}),
+                        html.Button("as svg", id="btn-save-svg",
                                     style={"marginLeft": "10px"}),
                         dcc.Download(id="download-graph"),
                         # html.Button("as svg", id="btn-save-svg", style={"marginLeft":"10px"}),
@@ -1458,27 +1462,38 @@ def toggle_layout(layout_choice):
 def save_image_to_file(image_data, chromosome, genome, data):
     start = data.get("start", "")
     end =  data.get("end", "")
+    print(f"start : {start}")
     if not image_data:
         raise PreventUpdate
-    # S'assurer que le dossier existe
+    # check directory exists
     os.makedirs(EXPORT_DIR, exist_ok=True)
 
-    # imageData est typiquement sous la forme : 'data:image/jpeg;base64,...'
-    header, base64_data = image_data.split(',', 1)
 
-    # Get image formaty from header
+    #header, base64_data = image_data.split(',', 1)
+    header, content = image_data.split(',', 1)
+    # Get image format from header
     if 'image/png' in header:
         ext = 'png'
+        image_bytes = base64.b64decode(content)
     elif 'image/jpeg' in header:
         ext = 'jpg'
+        image_bytes = base64.b64decode(content)
     elif 'image/svg+xml' in header:
         ext = 'svg'
+        if ";base64" in header:
+            # SVG base64
+            image_bytes = base64.b64decode(content)
+        else:
+            # SVG texte / URL-encoded
+            svg_text = urllib.parse.unquote(content)
+            image_bytes = svg_text.encode("utf-8")
     else:
-        raise ValueError("Unrecognized format in imageData")
+        raise ValueError("Unsupported image format")
+
 
     file_name = "graph_"+str(genome)+"_chr_"+str(chromosome) + \
         "_start_"+str(start)+"_end_"+str(end)+"."+ext
-    image_bytes = base64.b64decode(base64_data)
+    #image_bytes = base64.b64decode(base64_data)
     if not SERVER_MODE:
         save_path = os.path.join(os.getcwd(), EXPORT_DIR, file_name)
         with open(save_path, 'wb') as f:
@@ -1493,14 +1508,15 @@ def save_image_to_file(image_data, chromosome, genome, data):
     Output("graph", "generateImage"),
     Input("btn-save-jpg", "n_clicks"),
     Input("btn-save-png", "n_clicks"),
-    # Input("btn-save-svg", "n_clicks")
+    Input("btn-save-svg", "n_clicks")
 )
-def trigger_image_save(n_clicks_jpg, n_clicks_png):
+def trigger_image_save(n_clicks_jpg, n_clicks_png, n_clicks_svg):
     if not ctx.triggered_id:
         raise PreventUpdate
 
     # Get image format
     fmt = ctx.triggered_id.split('-')[-1]
+
     if fmt == 'svg':
         return {'type': fmt, 'action': 'download'}
     else:
